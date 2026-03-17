@@ -1,395 +1,690 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Raul Wesche - Sacred Geometry Artist, Tattoo Master & Fine Art Painter. 12 years of geometric artistry, transitioning from ink to canvas.">
-    <title>Raul Wesche | Sacred Geometry • Tattoo • Fine Art</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Raul Wesche</title>
+<meta name="description" content="Raul Wesche — Geometric tattoo artist and fine art painter based in Houston, TX.">
+<meta property="og:title" content="Raul Wesche">
+<meta property="og:description" content="Geometric tattoo artist and fine art painter based in Houston, TX.">
+<meta property="og:image" content="https://wesche.com/raul.jpg">
+<meta property="og:url" content="https://wesche.com">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --black: #0a0a0a;
+    --near-black: #111;
+    --charcoal: #1a1a1a;
+    --gold: #C9A84C;
+    --gold-dim: rgba(201,168,76,0.15);
+    --white: #f5f5f0;
+    --dim: #888;
+    --border: rgba(255,255,255,0.07);
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--black);
+    color: var(--white);
+    line-height: 1.6;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── NAV ── */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 24px 48px;
+    background: linear-gradient(to bottom, rgba(10,10,10,0.95), transparent);
+  }
+
+  .nav-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.1rem;
+    font-weight: 400;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--white);
+    text-decoration: none;
+  }
+
+  .nav-links {
+    display: flex;
+    gap: 36px;
+    list-style: none;
+  }
+
+  .nav-links a {
+    font-size: 0.75rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--dim);
+    text-decoration: none;
+    transition: color 0.3s;
+  }
+
+  .nav-links a:hover { color: var(--white); }
+
+  /* ── HERO ── */
+  .hero {
+    position: relative;
+    height: 100vh;
+    min-height: 700px;
+    display: flex;
+    align-items: flex-end;
+    overflow: hidden;
+  }
+
+  .hero-photo {
+    position: absolute;
+    inset: 0;
+    background: url('raul.jpg') center 20% / cover no-repeat;
+    filter: brightness(0.55) contrast(1.05);
+  }
+
+  .hero-gradient {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to bottom,
+      transparent 40%,
+      rgba(10,10,10,0.5) 65%,
+      var(--black) 100%
+    );
+  }
+
+  .hero-content {
+    position: relative;
+    z-index: 2;
+    padding: 0 72px 80px;
+    max-width: 900px;
+  }
+
+  .hero-label {
+    font-size: 0.7rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 16px;
+    display: block;
+  }
+
+  .hero-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(3.5rem, 8vw, 7rem);
+    font-weight: 300;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    margin-bottom: 20px;
+    color: var(--white);
+  }
+
+  .hero-desc {
+    font-size: 1rem;
+    color: rgba(245,245,240,0.6);
+    font-weight: 300;
+    letter-spacing: 0.02em;
+    max-width: 440px;
+    line-height: 1.7;
+  }
+
+  /* ── SECTIONS ── */
+  section {
+    padding: 120px 72px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .section-label {
+    font-size: 0.65rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 48px;
+    display: block;
+  }
+
+  /* ── ABOUT ── */
+  .about {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 80px;
+    align-items: center;
+    border-top: 1px solid var(--border);
+  }
+
+  .about-text h2 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(2rem, 4vw, 3rem);
+    font-weight: 300;
+    line-height: 1.2;
+    margin-bottom: 28px;
+    color: var(--white);
+  }
+
+  .about-text p {
+    font-size: 0.95rem;
+    color: var(--dim);
+    line-height: 1.85;
+    margin-bottom: 20px;
+    font-weight: 300;
+  }
+
+  .about-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+  }
+
+  .stat {
+    border-left: 1px solid var(--gold);
+    padding-left: 24px;
+  }
+
+  .stat-number {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 2.8rem;
+    font-weight: 300;
+    color: var(--white);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .stat-label {
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--dim);
+  }
+
+  /* ── PAINTINGS ── */
+  .paintings-section {
+    border-top: 1px solid var(--border);
+  }
+
+  .paintings-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 48px;
+  }
+
+  .paintings-header h2 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(2rem, 4vw, 3rem);
+    font-weight: 300;
+    color: var(--white);
+  }
+
+  .paintings-grid {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr 1fr;
+    gap: 3px;
+  }
+
+  .painting-item {
+    position: relative;
+    overflow: hidden;
+    background: var(--charcoal);
+    cursor: pointer;
+  }
+
+  .painting-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    filter: brightness(0.85);
+    transition: filter 0.6s ease, transform 0.6s ease;
+    aspect-ratio: 3/4;
+  }
+
+  .painting-item:first-child img { aspect-ratio: 3/4; }
+
+  .painting-item:hover img {
+    filter: brightness(1);
+    transform: scale(1.02);
+  }
+
+  .painting-overlay {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    padding: 24px;
+    background: linear-gradient(transparent, rgba(10,10,10,0.85));
+    opacity: 0;
+    transition: opacity 0.4s;
+  }
+
+  .painting-item:hover .painting-overlay { opacity: 1; }
+
+  .painting-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.1rem;
+    font-style: italic;
+    color: var(--white);
+  }
+
+  .painting-year {
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    color: var(--gold);
+    margin-top: 4px;
+  }
+
+  /* ── WORK (TATTOOS) ── */
+  .work-section {
+    border-top: 1px solid var(--border);
+  }
+
+  .work-cta {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3px;
+    margin-top: 48px;
+  }
+
+  .work-panel {
+    position: relative;
+    height: 480px;
+    overflow: hidden;
+    display: flex;
+    align-items: flex-end;
+    text-decoration: none;
+    background: var(--charcoal);
+  }
+
+  .work-panel-bg {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    filter: brightness(0.45);
+    transition: filter 0.5s, transform 0.5s;
+  }
+
+  .work-panel:hover .work-panel-bg {
+    filter: brightness(0.6);
+    transform: scale(1.03);
+  }
+
+  .work-panel-content {
+    position: relative;
+    z-index: 2;
+    padding: 40px;
+  }
+
+  .work-panel-label {
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 10px;
+    display: block;
+  }
+
+  .work-panel-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 2rem;
+    font-weight: 300;
+    color: var(--white);
+    margin-bottom: 8px;
+  }
+
+  .work-panel-sub {
+    font-size: 0.82rem;
+    color: rgba(245,245,240,0.55);
+    font-weight: 300;
+  }
+
+  .work-panel-arrow {
+    display: inline-block;
+    margin-top: 20px;
+    font-size: 0.75rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--gold);
+    border-bottom: 1px solid var(--gold);
+    padding-bottom: 2px;
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 0.3s, transform 0.3s;
+  }
+
+  .work-panel:hover .work-panel-arrow {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* ── BOOK ── */
+  .book-section {
+    border-top: 1px solid var(--border);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 80px;
+    align-items: center;
+  }
+
+  .book-visual {
+    background: var(--charcoal);
+    aspect-ratio: 4/5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .book-visual img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: brightness(0.7);
+  }
+
+  .book-visual-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .book-visual-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.8rem;
+    font-style: italic;
+    color: var(--white);
+    text-align: center;
+  }
+
+  .book-visual-sub {
+    font-size: 0.7rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--gold);
+  }
+
+  .book-text h2 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(2rem, 3.5vw, 2.8rem);
+    font-weight: 300;
+    color: var(--white);
+    margin-bottom: 20px;
+    line-height: 1.2;
+  }
+
+  .book-text p {
+    font-size: 0.92rem;
+    color: var(--dim);
+    line-height: 1.85;
+    margin-bottom: 32px;
+    font-weight: 300;
+  }
+
+  .btn-gold {
+    display: inline-block;
+    padding: 14px 32px;
+    border: 1px solid var(--gold);
+    color: var(--gold);
+    font-size: 0.72rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    text-decoration: none;
+    transition: background 0.3s, color 0.3s;
+  }
+
+  .btn-gold:hover {
+    background: var(--gold);
+    color: var(--black);
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 60px 72px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .footer-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1rem;
+    font-weight: 300;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--dim);
+  }
+
+  .footer-links {
+    display: flex;
+    gap: 28px;
+    list-style: none;
+  }
+
+  .footer-links a {
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--dim);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+
+  .footer-links a:hover { color: var(--white); }
+
+  .footer-copy {
+    font-size: 0.7rem;
+    color: rgba(136,136,136,0.5);
+  }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 900px) {
+    nav { padding: 20px 24px; }
+    .nav-links { gap: 20px; }
+    section { padding: 80px 24px; }
+    .hero-content { padding: 0 24px 60px; }
+    .about { grid-template-columns: 1fr; gap: 48px; }
+    .paintings-grid { grid-template-columns: 1fr 1fr; }
+    .paintings-grid .painting-item:first-child { grid-column: 1 / -1; }
+    .work-cta { grid-template-columns: 1fr; }
+    .work-panel { height: 360px; }
+    .book-section { grid-template-columns: 1fr; gap: 48px; }
+    footer { flex-direction: column; gap: 24px; text-align: center; padding: 40px 24px; }
+    .footer-links { justify-content: center; }
+  }
+
+  /* ── FADE IN ── */
+  .fade-up {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.8s ease, transform 0.8s ease;
+  }
+  .fade-up.visible {
+    opacity: 1;
+    transform: none;
+  }
+</style>
 </head>
 <body>
-    <!-- Navigation -->
-    <nav class="nav" id="navbar">
-        <div class="nav-container">
-            <a href="#home" class="nav-brand">RAUL WESCHE</a>
-            <ul class="nav-menu">
-                <li><a href="#home" class="nav-link">Home</a></li>
-                <li><a href="#about" class="nav-link">About</a></li>
-                <li><a href="#tattoo" class="nav-link">Tattoo</a></li>
-                <li><a href="#paintings" class="nav-link">Paintings</a></li>
-                <li><a href="#book" class="nav-link">The Book</a></li>
-                <li><a href="#machines" class="nav-link">Machines</a></li>
-                <li><a href="#shop" class="nav-link">Shop</a></li>
-                <li><a href="#connect" class="nav-link">Connect</a></li>
-            </ul>
-            <div class="hamburger">
-                <span></span>
-                <span></span>
-                <span></span>
-            </div>
-        </div>
-    </nav>
 
-    <!-- Hero Section -->
-    <section id="home" class="hero">
-        <div class="hero-bg">
-            <div class="sacred-geometry"></div>
-        </div>
-        <div class="hero-content">
-            <div class="hero-text">
-                <h1 class="hero-title">
-                    <span class="line">RAUL</span>
-                    <span class="line">WESCHE</span>
-                </h1>
-                <p class="hero-tagline">Sacred Geometry • Tattoo • Fine Art</p>
-                <p class="hero-subtitle">Twelve years of geometric mastery,<br>transitioning from skin to canvas</p>
-            </div>
-            <div class="hero-cta">
-                <a href="#about" class="btn-primary">Discover the Journey</a>
-                <a href="https://weschetattoo.com" class="btn-secondary" target="_blank">View Work</a>
-            </div>
-        </div>
-        <div class="scroll-indicator">
-            <span></span>
-        </div>
-    </section>
+<!-- NAV -->
+<nav>
+  <a href="/" class="nav-name">Raul Wesche</a>
+  <ul class="nav-links">
+    <li><a href="#about">About</a></li>
+    <li><a href="#paintings">Paintings</a></li>
+    <li><a href="#work">Tattoos</a></li>
+    <li><a href="#book">Book</a></li>
+    <li><a href="https://instagram.com/weschetattoo" target="_blank">Instagram</a></li>
+  </ul>
+</nav>
 
-    <!-- About Section -->
-    <section id="about" class="about">
-        <div class="container">
-            <div class="section-header">
-                <h2>The Artist</h2>
-                <div class="section-line"></div>
-            </div>
-            <div class="about-content">
-                <div class="about-text">
-                    <div class="text-block">
-                        <p class="lead">For twelve years, I have devoted myself to the sacred art of geometric tattooing, transforming the human canvas with precision, intention, and reverence for ancient patterns.</p>
-                    </div>
-                    <div class="text-block">
-                        <p>Based in Houston, Texas, I am the founder of Tattoo Temple Houston—a space where art meets spirituality, where each piece carries deeper meaning than its visual form. My work has gained recognition through <strong>@weschetattoo</strong>, where 297,000 followers witness the intersection of mathematics and beauty.</p>
-                    </div>
-                    <div class="text-block">
-                        <p>Now, I stand at the threshold of transformation. Over the next decade, my journey leads from ink to paint, from skin to canvas. This evolution culminates in March 2027, when Tattoo Temple Houston closes its doors for a grand gallery exhibition—marking not an ending, but a metamorphosis.</p>
-                    </div>
-                    <div class="text-block">
-                        <p>At $2,500 per day with bookings months in advance, my tattooing represents mastery achieved. Yet the call to fine art grows stronger. This is my story of artistic evolution, of sacred geometry finding new expression, of an artist answering the deepest creative calling.</p>
-                    </div>
-                </div>
-                <div class="about-visual">
-                    <div class="geometric-frame">
-                        <!-- Placeholder for artist photo -->
-                        <div class="image-placeholder">
-                            <p>Artist Portrait<br><small>Photo to be added</small></p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-photo"></div>
+  <div class="hero-gradient"></div>
+  <div class="hero-content">
+    <span class="hero-label">Houston, TX · Artist</span>
+    <h1 class="hero-name">Raul<br>Wesche</h1>
+    <p class="hero-desc">Geometric tattoo artist. Painter. Every line placed with intention — whether on skin or canvas.</p>
+  </div>
+</div>
 
-    <!-- Tattoo Section -->
-    <section id="tattoo" class="tattoo">
-        <div class="container">
-            <div class="section-header">
-                <h2>Tattoo Mastery</h2>
-                <div class="section-line"></div>
-                <p class="section-subtitle">Twelve years of geometric precision on the human canvas</p>
-            </div>
-            <div class="tattoo-content">
-                <div class="tattoo-info">
-                    <div class="info-card">
-                        <h3>Tattoo Temple Houston</h3>
-                        <p>My sacred space for geometric artistry, where each session is a meditation in precision. Operating through March 2027, when it transforms into a gallery for my final exhibition.</p>
-                        <div class="stats">
-                            <div class="stat">
-                                <span class="stat-number">297K</span>
-                                <span class="stat-label">Instagram Followers</span>
-                            </div>
-                            <div class="stat">
-                                <span class="stat-number">$2,500</span>
-                                <span class="stat-label">Daily Rate</span>
-                            </div>
-                            <div class="stat">
-                                <span class="stat-number">12</span>
-                                <span class="stat-label">Years Experience</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="booking-info">
-                        <h4>Booking Information</h4>
-                        <p>Currently booking months in advance. Each piece is custom-designed, incorporating sacred geometric principles with personal meaning.</p>
-                        <a href="https://instagram.com/weschetattoo" class="btn-primary" target="_blank">View Portfolio on Instagram</a>
-                    </div>
-                </div>
-                <div class="tattoo-gallery">
-                    <div class="gallery-grid">
-                        <div class="gallery-item">
-                            <div class="image-placeholder">Geometric Mandala<br><small>Tattoo photo</small></div>
-                        </div>
-                        <div class="gallery-item">
-                            <div class="image-placeholder">Sacred Pattern<br><small>Tattoo photo</small></div>
-                        </div>
-                        <div class="gallery-item">
-                            <div class="image-placeholder">Dotwork Design<br><small>Tattoo photo</small></div>
-                        </div>
-                        <div class="gallery-item">
-                            <div class="image-placeholder">Geometric Sleeve<br><small>Tattoo photo</small></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
+<!-- ABOUT -->
+<section id="about">
+  <span class="section-label">About</span>
+  <div class="about">
+    <div class="about-text fade-up">
+      <h2>Precision as<br>a practice.</h2>
+      <p>For over a decade, Raul Wesche has been one of the most sought-after geometric tattoo artists in the world. Working out of Houston, TX, he specializes in large-scale sacred geometry — mandalas, sacred forms, and mathematical patterns rendered with surgical precision.</p>
+      <p>His work has taken him across the world — Mexico, Belize, Europe — and drawn clients who fly in specifically for pieces that can't be found anywhere else. Now he's extending that same obsession with form into fine art painting.</p>
+    </div>
+    <div class="about-stats fade-up">
+      <div class="stat">
+        <div class="stat-number">297K</div>
+        <div class="stat-label">Instagram Followers</div>
+      </div>
+      <div class="stat">
+        <div class="stat-number">12+</div>
+        <div class="stat-label">Years Tattooing</div>
+      </div>
+      <div class="stat">
+        <div class="stat-number">$2K</div>
+        <div class="stat-label">Day Rate</div>
+      </div>
+      <div class="stat">
+        <div class="stat-number">∞</div>
+        <div class="stat-label">Geometry</div>
+      </div>
+    </div>
+  </div>
+</section>
 
-    <!-- Paintings Section -->
-    <section id="paintings" class="paintings">
-        <div class="container">
-            <div class="section-header">
-                <h2>Fine Art Evolution</h2>
-                <div class="section-line"></div>
-                <p class="section-subtitle">The future of sacred geometry on canvas</p>
-            </div>
-            <div class="paintings-content">
-                <div class="paintings-intro">
-                    <div class="intro-text">
-                        <h3>The Next Chapter</h3>
-                        <p>As I transition from tattoo to fine art, sacred geometry finds new expression on canvas. Each painting explores the mathematical poetry that has guided my work for over a decade, now liberated from the constraints of skin to explore infinite possibilities.</p>
-                        <p>This evolution culminates in <strong>March 2027</strong> with a grand gallery exhibition—the transformation of Tattoo Temple Houston into a showcase for this new artistic chapter.</p>
-                    </div>
-                    <div class="exhibition-announce">
-                        <div class="announce-card">
-                            <h4>Grand Gallery Exhibition</h4>
-                            <p class="date">March 2027</p>
-                            <p>Tattoo Temple Houston transforms into a gallery space for the debut of my fine art collection. Witness the evolution from ink to paint, from skin to canvas.</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="paintings-gallery">
-                    <div class="gallery-grid-large">
-                        <div class="gallery-item large">
-                            <div class="image-placeholder">Featured Painting<br><small>Large format work</small></div>
-                        </div>
-                        <div class="gallery-item">
-                            <div class="image-placeholder">Canvas Work 1<br><small>Painting photo</small></div>
-                        </div>
-                        <div class="gallery-item">
-                            <div class="image-placeholder">Canvas Work 2<br><small>Painting photo</small></div>
-                        </div>
-                        <div class="gallery-item">
-                            <div class="image-placeholder">Canvas Work 3<br><small>Painting photo</small></div>
-                        </div>
-                        <div class="gallery-item">
-                            <div class="image-placeholder">Canvas Work 4<br><small>Painting photo</small></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+<!-- PAINTINGS -->
+<section id="paintings" style="padding-top: 0;">
+  <div class="paintings-section">
+    <span class="section-label" style="padding-top: 80px; display: block;">Paintings</span>
+    <div class="paintings-header fade-up">
+      <h2>Fine Art</h2>
+      <span style="font-size: 0.8rem; color: var(--dim); font-style: italic;">More coming 2026</span>
+    </div>
+    <div class="paintings-grid">
+      <div class="painting-item fade-up">
+        <img src="portal.png" alt="Portal — Raul Wesche, 2026">
+        <div class="painting-overlay">
+          <div class="painting-title">Portal</div>
+          <div class="painting-year">2026</div>
         </div>
-    </section>
-
-    <!-- Book Section -->
-    <section id="book" class="book">
-        <div class="container">
-            <div class="book-content">
-                <div class="book-visual">
-                    <div class="book-mockup">
-                        <div class="image-placeholder book-cover">
-                            Coffee Table Book<br><small>Book cover photo</small>
-                        </div>
-                    </div>
-                </div>
-                <div class="book-info">
-                    <div class="section-header">
-                        <h2>The Book</h2>
-                        <div class="section-line"></div>
-                    </div>
-                    <div class="book-details">
-                        <p class="lead">A curated collection of my finest geometric tattoo work, captured in a premium coffee table book that showcases the intersection of sacred mathematics and artistic expression.</p>
-                        <p>This limited edition volume documents twelve years of geometric mastery, featuring high-resolution photography of intricate patterns, detailed process insights, and the philosophy behind each piece.</p>
-                        <div class="book-features">
-                            <ul>
-                                <li>Premium paper and binding</li>
-                                <li>High-resolution photography</li>
-                                <li>Artist insights and process</li>
-                                <li>Sacred geometry philosophy</li>
-                                <li>Limited edition collectible</li>
-                            </ul>
-                        </div>
-                        <div class="book-cta">
-                            <a href="https://weschetattoo.com" class="btn-primary" target="_blank">Order Now</a>
-                            <p class="availability">Available exclusively through the Wesche Tattoo shop</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
+      </div>
+      <div class="painting-item fade-up">
+        <img src="painting2.png" alt="Untitled — Raul Wesche, 2026">
+        <div class="painting-overlay">
+          <div class="painting-title">Untitled</div>
+          <div class="painting-year">2026 · Study</div>
         </div>
-    </section>
-
-    <!-- Machines Section -->
-    <section id="machines" class="machines">
-        <div class="container">
-            <div class="section-header">
-                <h2>Custom Machines</h2>
-                <div class="section-line"></div>
-                <p class="section-subtitle">Precision tools crafted for geometric mastery</p>
-            </div>
-            <div class="machines-content">
-                <div class="machines-info">
-                    <p class="lead">Beyond creating art, I craft the tools that make it possible. Each custom tattoo machine is engineered for the precise demands of geometric work—where every line must be perfect, every dot exact.</p>
-                    <p>These machines represent the convergence of art and engineering, designed specifically for the unique requirements of sacred geometric tattooing. Each piece is handcrafted with attention to weight, balance, and precision.</p>
-                    <div class="machines-cta">
-                        <a href="https://instagram.com/wesche.machines" class="btn-primary" target="_blank">View Custom Machines</a>
-                    </div>
-                </div>
-                <div class="machines-gallery">
-                    <div class="gallery-grid">
-                        <div class="gallery-item">
-                            <div class="image-placeholder">Custom Machine 1<br><small>Machine photo</small></div>
-                        </div>
-                        <div class="gallery-item">
-                            <div class="image-placeholder">Custom Machine 2<br><small>Machine photo</small></div>
-                        </div>
-                        <div class="gallery-item">
-                            <div class="image-placeholder">Machine Details<br><small>Close-up photo</small></div>
-                        </div>
-                        <div class="gallery-item">
-                            <div class="image-placeholder">Workshop View<br><small>Behind scenes</small></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+      </div>
+      <div class="painting-item fade-up">
+        <img src="painting3.png" alt="Ground — Raul Wesche, 2026">
+        <div class="painting-overlay">
+          <div class="painting-title">Ground</div>
+          <div class="painting-year">2026 · Study</div>
         </div>
-    </section>
+      </div>
+    </div>
+  </div>
+</section>
 
-    <!-- Shop Section -->
-    <section id="shop" class="shop">
-        <div class="container">
-            <div class="section-header">
-                <h2>Shop</h2>
-                <div class="section-line"></div>
-                <p class="section-subtitle">Art, books, and exclusive merchandise</p>
-            </div>
-            <div class="shop-content">
-                <div class="shop-items">
-                    <div class="shop-item">
-                        <div class="item-icon">📖</div>
-                        <h3>Coffee Table Book</h3>
-                        <p>Premium collection of geometric tattoo work</p>
-                    </div>
-                    <div class="shop-item">
-                        <div class="item-icon">🎨</div>
-                        <h3>Digital Patterns</h3>
-                        <p>Sacred geometry designs for artists</p>
-                    </div>
-                    <div class="shop-item">
-                        <div class="item-icon">👕</div>
-                        <h3>Merchandise</h3>
-                        <p>Apparel and accessories featuring geometric art</p>
-                    </div>
-                    <div class="shop-item">
-                        <div class="item-icon">🖼️</div>
-                        <h3>Fine Art Prints</h3>
-                        <p>Limited edition prints of paintings</p>
-                    </div>
-                </div>
-                <div class="shop-cta">
-                    <a href="https://weschetattoo.com" class="btn-primary large" target="_blank">Visit Shop</a>
-                    <p class="shop-note">All items available through the official Wesche Tattoo store</p>
-                </div>
-            </div>
+<!-- WORK -->
+<section id="work" style="padding-top: 0;">
+  <div class="work-section">
+    <span class="section-label" style="padding-top: 80px; display: block;">Work</span>
+    <h2 class="fade-up" style="font-family: 'Cormorant Garamond', serif; font-size: clamp(2rem, 4vw, 3rem); font-weight: 300; margin-bottom: 0;">Two crafts.<br>One obsession.</h2>
+    <div class="work-cta">
+      <a href="https://weschetattoo.com" target="_blank" class="work-panel">
+        <div class="work-panel-bg" style="background-image: url('raul.jpg'); background-position: center 15%;"></div>
+        <div class="work-panel-content">
+          <span class="work-panel-label">Tattoo Work</span>
+          <div class="work-panel-title">Geometric Tattoos</div>
+          <div class="work-panel-sub">Portfolio · Booking · Houston, TX</div>
+          <div class="work-panel-arrow">View Portfolio →</div>
         </div>
-    </section>
-
-    <!-- Connect Section -->
-    <section id="connect" class="connect">
-        <div class="container">
-            <div class="section-header">
-                <h2>Connect</h2>
-                <div class="section-line"></div>
-                <p class="section-subtitle">Follow the journey across all platforms</p>
-            </div>
-            <div class="connect-content">
-                <div class="social-links">
-                    <a href="https://instagram.com/weschetattoo" class="social-link instagram" target="_blank">
-                        <div class="social-icon">📷</div>
-                        <div class="social-info">
-                            <h3>Instagram</h3>
-                            <p>@weschetattoo • 297K followers</p>
-                            <span>Latest tattoo work and studio life</span>
-                        </div>
-                    </a>
-                    <a href="https://tiktok.com/@weschetattoo" class="social-link tiktok" target="_blank">
-                        <div class="social-icon">🎵</div>
-                        <div class="social-info">
-                            <h3>TikTok</h3>
-                            <p>@weschetattoo</p>
-                            <span>Behind the scenes and quick insights</span>
-                        </div>
-                    </a>
-                    <a href="https://youtube.com/channel/UC3n-_GFj-TC7ny516Kxsx6w" class="social-link youtube" target="_blank">
-                        <div class="social-icon">📹</div>
-                        <div class="social-info">
-                            <h3>YouTube</h3>
-                            <p>Tattoo timelapses and tutorials</p>
-                            <span>Watch the creation process unfold</span>
-                        </div>
-                    </a>
-                    <a href="https://instagram.com/wesche.machines" class="social-link machines" target="_blank">
-                        <div class="social-icon">⚙️</div>
-                        <div class="social-info">
-                            <h3>Custom Machines</h3>
-                            <p>@wesche.machines</p>
-                            <span>Handcrafted tattoo equipment</span>
-                        </div>
-                    </a>
-                    <a href="https://instagram.com/omfgeometry" class="social-link omf" target="_blank">
-                        <div class="social-icon">🔮</div>
-                        <div class="social-info">
-                            <h3>OMF Geometry</h3>
-                            <p>@omfgeometry • 119K followers</p>
-                            <span>Curated geometric tattoo showcase</span>
-                        </div>
-                    </a>
-                </div>
-                <div class="contact-info">
-                    <div class="contact-card">
-                        <h3>Booking & Inquiries</h3>
-                        <p>Currently booking months in advance</p>
-                        <p><strong>Rate:</strong> $2,500/day</p>
-                        <p><strong>Location:</strong> Tattoo Temple Houston, TX</p>
-                        <p class="booking-note">For booking inquiries, please reach out through Instagram DMs at @weschetattoo</p>
-                    </div>
-                </div>
-            </div>
+      </a>
+      <a href="https://instagram.com/omfgeometry" target="_blank" class="work-panel">
+        <div class="work-panel-bg" style="background-image: url('painting2.png');"></div>
+        <div class="work-panel-content">
+          <span class="work-panel-label">Community</span>
+          <div class="work-panel-title">OMF Geometry</div>
+          <div class="work-panel-sub">The world's geometric tattoo directory</div>
+          <div class="work-panel-arrow">Explore →</div>
         </div>
-    </section>
+      </a>
+    </div>
+  </div>
+</section>
 
-    <!-- Footer -->
-    <footer class="footer">
-        <div class="container">
-            <div class="footer-content">
-                <div class="footer-info">
-                    <h3>Raul Wesche</h3>
-                    <p>Sacred Geometry • Tattoo • Fine Art</p>
-                </div>
-                <div class="footer-links">
-                    <a href="#home">Home</a>
-                    <a href="#about">About</a>
-                    <a href="#tattoo">Tattoo</a>
-                    <a href="#paintings">Paintings</a>
-                    <a href="https://weschetattoo.com" target="_blank">Shop</a>
-                </div>
-            </div>
-            <div class="footer-bottom">
-                <p>&copy; 2026 Raul Wesche. All rights reserved.</p>
-            </div>
-        </div>
-    </footer>
+<!-- BOOK -->
+<section id="book">
+  <div class="book-section">
+    <div class="book-visual fade-up">
+      <img src="portal.png" alt="Coffee Table Book">
+      <div class="book-visual-overlay">
+        <div class="book-visual-title">Raul Wesche</div>
+        <div class="book-visual-sub">Coffee Table Book · 2026</div>
+      </div>
+    </div>
+    <div class="book-text fade-up">
+      <span class="section-label">Book</span>
+      <h2>A decade of geometry, bound.</h2>
+      <p>A hardcover collection of Raul's most significant work — large-scale geometric tattoos, sacred geometry studies, and the geometric forms that have defined his decade-long practice.</p>
+      <p>ISBN 9781807385019. Available now.</p>
+      <a href="https://all-sacred.myshopify.com" target="_blank" class="btn-gold">Get the Book</a>
+    </div>
+  </div>
+</section>
 
-    <script src="script.js"></script>
+<!-- FOOTER -->
+<footer>
+  <div class="footer-name">Raul Wesche</div>
+  <ul class="footer-links">
+    <li><a href="https://instagram.com/weschetattoo" target="_blank">Instagram</a></li>
+    <li><a href="https://weschetattoo.com" target="_blank">Tattoos</a></li>
+    <li><a href="https://omfgeometry.com" target="_blank">OMF Geometry</a></li>
+    <li><a href="mailto:hello@wesche.com">Contact</a></li>
+  </ul>
+  <div class="footer-copy">© 2026 Raul Wesche</div>
+</footer>
+
+<script>
+// Fade in on scroll
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.classList.add('visible');
+      observer.unobserve(e.target);
+    }
+  });
+}, { threshold: 0.12 });
+
+document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
+</script>
+
 </body>
 </html>
