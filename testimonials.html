@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Testimonials — Raúl Wesche</title>
+<meta name="description" content="What clients say about getting tattooed by Raúl Wesche — geometric tattoo artist in Houston, TX.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --black:#0a0a0a; --charcoal:#1a1a1a; --gold:#C9A84C; --white:#f5f5f0; --dim:#888; --border:rgba(255,255,255,0.07); }
+  html { scroll-behavior: smooth; }
+  body { font-family: 'Inter', sans-serif; background: var(--black); color: var(--white); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+
+  nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; padding: 24px 48px; background: rgba(10,10,10,0.95); border-bottom: 1px solid var(--border); backdrop-filter: blur(12px); }
+  .nav-name { font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; font-weight: 400; letter-spacing: 0.15em; text-transform: uppercase; color: var(--white); text-decoration: none; }
+  .nav-links { display: flex; gap: 32px; list-style: none; }
+  .nav-links a { font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); text-decoration: none; transition: color 0.3s; }
+  .nav-links a:hover, .nav-links a.active { color: var(--white); }
+  .nav-toggle { display: none; background: none; border: none; color: var(--white); font-size: 1.4rem; cursor: pointer; }
+
+  .page-hero { padding: 160px 72px 80px; max-width: 1100px; margin: 0 auto; border-bottom: 1px solid var(--border); }
+  .page-label { font-size: 0.65rem; letter-spacing: 0.25em; text-transform: uppercase; color: var(--gold); margin-bottom: 20px; display: block; }
+  .page-title { font-family: 'Cormorant Garamond', serif; font-size: clamp(3rem, 7vw, 6rem); font-weight: 300; line-height: 1; letter-spacing: -0.02em; color: var(--white); }
+
+  .testimonials-body { max-width: 1100px; margin: 0 auto; padding: 80px 72px; }
+
+  .testimonials-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 3px; margin-bottom: 80px; }
+
+  .testimonial-card { background: var(--charcoal); padding: 36px 32px; border: 1px solid var(--border); transition: border-color 0.3s; }
+  .testimonial-card:hover { border-color: rgba(201,168,76,0.2); }
+  .stars { color: var(--gold); font-size: 0.85rem; letter-spacing: 2px; margin-bottom: 16px; }
+  .testimonial-quote { font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; font-style: italic; color: var(--white); line-height: 1.7; margin-bottom: 20px; font-weight: 300; }
+  .testimonial-author { font-size: 0.75rem; color: var(--gold); letter-spacing: 0.08em; font-weight: 500; }
+  .testimonial-location { font-size: 0.72rem; color: var(--dim); margin-top: 2px; }
+
+  /* Share form */
+  .share-section { border-top: 1px solid var(--border); padding-top: 80px; max-width: 700px; }
+  .share-section h2 { font-family: 'Cormorant Garamond', serif; font-size: clamp(2rem, 4vw, 3rem); font-weight: 300; color: var(--white); margin-bottom: 12px; }
+  .share-section p { font-size: 0.88rem; color: var(--dim); margin-bottom: 40px; font-weight: 300; }
+
+  .share-form { display: flex; flex-direction: column; gap: 20px; }
+  .form-group { display: flex; flex-direction: column; gap: 8px; }
+  .form-group label { font-size: 0.68rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--dim); }
+  .form-group input, .form-group textarea, .form-group select {
+    background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 2px;
+    padding: 14px 16px; color: var(--white); font-family: 'Inter', sans-serif;
+    font-size: 0.9rem; font-weight: 300; outline: none; transition: border-color 0.2s; -webkit-appearance: none;
+  }
+  .form-group input:focus, .form-group textarea:focus, .form-group select:focus { border-color: rgba(201,168,76,0.4); }
+  .form-group input::placeholder, .form-group textarea::placeholder { color: rgba(136,136,136,0.5); }
+  .form-group select option { background: #1a1a1a; }
+  .form-group textarea { resize: vertical; min-height: 120px; line-height: 1.6; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .star-select { display: flex; gap: 8px; }
+  .star-select span { font-size: 1.4rem; cursor: pointer; color: #333; transition: color 0.2s; }
+  .star-select span.active { color: var(--gold); }
+
+  .btn-submit { display: inline-block; padding: 16px 40px; border: 1px solid var(--gold); color: var(--gold); font-family: 'Inter', sans-serif; font-size: 0.72rem; letter-spacing: 0.15em; text-transform: uppercase; background: none; cursor: pointer; transition: background 0.3s, color 0.3s; align-self: flex-start; }
+  .btn-submit:hover { background: var(--gold); color: var(--black); }
+  .success-msg { display: none; padding: 20px 24px; background: rgba(201,168,76,0.08); border: 1px solid rgba(201,168,76,0.2); font-size: 0.88rem; color: var(--gold); }
+
+  footer { border-top: 1px solid var(--border); padding: 40px 72px; display: flex; justify-content: space-between; align-items: center; max-width: 1100px; margin: 0 auto; }
+  .footer-name { font-family: 'Cormorant Garamond', serif; font-size: 0.9rem; font-weight: 300; letter-spacing: 0.15em; text-transform: uppercase; color: var(--dim); }
+  .footer-back { font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); text-decoration: none; transition: color 0.2s; }
+  .footer-back:hover { color: var(--white); }
+
+  .fade-up { opacity: 0; transform: translateY(20px); transition: opacity 0.7s ease, transform 0.7s ease; }
+  .fade-up.visible { opacity: 1; transform: none; }
+
+  @media (max-width: 900px) {
+    nav { padding: 18px 20px; }
+    .nav-links { display: none; flex-direction: column; position: absolute; top: 64px; left: 0; right: 0; background: rgba(10,10,10,0.98); padding: 20px; gap: 16px; border-bottom: 1px solid var(--border); z-index: 99; }
+    .nav-links.open { display: flex; }
+    .nav-toggle { display: block; }
+    .page-hero { padding: 120px 24px 60px; }
+    .testimonials-body { padding: 48px 24px; }
+    .testimonials-grid { grid-template-columns: 1fr; }
+    .form-row { grid-template-columns: 1fr; }
+    footer { padding: 32px 24px; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="nav-name">Raúl Wesche</a>
+  <button class="nav-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')">☰</button>
+  <ul class="nav-links">
+    <li><a href="/">Home</a></li>
+    <li><a href="/about.html">About</a></li>
+    <li><a href="/paintings.html">Paintings</a></li>
+    <li><a href="/tattoos.html">Tattoos</a></li>
+    <li><a href="/store.html">Store</a></li>
+    <li><a href="/booking.html">Booking</a></li>
+  </ul>
+</nav>
+
+<div class="page-hero">
+  <span class="page-label">Client Stories</span>
+  <h1 class="page-title">Testimonials</h1>
+</div>
+
+<div class="testimonials-body">
+  <div class="testimonials-grid">
+
+    <div class="testimonial-card fade-up">
+      <div class="stars">★★★★★</div>
+      <p class="testimonial-quote">"Best tattoo experience I ever had — the whole staff was very nice. I will be back this May."</p>
+      <div class="testimonial-author">Amir Bush</div>
+      <div class="testimonial-location">New Haven, CT</div>
+    </div>
+
+    <div class="testimonial-card fade-up">
+      <div class="stars">★★★★★</div>
+      <p class="testimonial-quote">"Raul's dedication to his craft is always evolving. He's the only geometric artist that uses shading and contrast the way he does. I travel from Tampa to get tattooed by him and would travel further."</p>
+      <div class="testimonial-author">Client</div>
+      <div class="testimonial-location">Tampa, FL</div>
+    </div>
+
+    <div class="testimonial-card fade-up">
+      <div class="stars">★★★★★</div>
+      <p class="testimonial-quote">"I flew from out of state to have Raul put his art on my arm and I couldn't be happier. We did three days for a sleeve — Raul is a master of his craft. His style is unmatched and his eye for flow is amazing."</p>
+      <div class="testimonial-author">Rob</div>
+      <div class="testimonial-location">Airville, PA</div>
+    </div>
+
+    <div class="testimonial-card fade-up">
+      <div class="stars">★★★★★</div>
+      <p class="testimonial-quote">"By far the best artist around. He is kind and easy to talk to, great taste in music as well."</p>
+      <div class="testimonial-author">Nick Heppes</div>
+      <div class="testimonial-location">Oregon City, OR</div>
+    </div>
+
+    <div class="testimonial-card fade-up">
+      <div class="stars">★★★★★</div>
+      <p class="testimonial-quote">"Great experience for my first tattoo. Very creative — I had my input and Raul put his artist touch on the whole sleeve project. I couldn't be happier with the result. 10/10 experience."</p>
+      <div class="testimonial-author">Keon Tucker</div>
+      <div class="testimonial-location">Denver, CO</div>
+    </div>
+
+    <div class="testimonial-card fade-up">
+      <div class="stars">★★★★★</div>
+      <p class="testimonial-quote">"I get compliments everywhere I go. Beyond the incredible artistry, he truly cares about his work and his clients — the only downside is knowing I'll eventually run out of skin."</p>
+      <div class="testimonial-author">Jason</div>
+      <div class="testimonial-location">Jacksonville, FL</div>
+    </div>
+
+    <div class="testimonial-card fade-up">
+      <div class="stars">★★★★★</div>
+      <p class="testimonial-quote">"Amazing experience getting my arm sleeve. We did the first two days live at an expo where his skill and artistry took home a blue ribbon! Great person, great artist. 11/10."</p>
+      <div class="testimonial-author">Adam Recker</div>
+      <div class="testimonial-location">Denver, CO</div>
+    </div>
+
+    <div class="testimonial-card fade-up">
+      <div class="stars">★★★★★</div>
+      <p class="testimonial-quote">"Hands down Raul always provides the best tattoo experiences. He is incredibly thoughtful about comfort and each session is relaxed and positive. Incredible work by an even better human."</p>
+      <div class="testimonial-author">Louie B</div>
+      <div class="testimonial-location">Austin, TX</div>
+    </div>
+
+  </div>
+
+  <!-- Share Your Experience -->
+  <div class="share-section fade-up">
+    <h2>Share Your Experience</h2>
+    <p>Got tattooed by Raúl? We'd love to hear your story.</p>
+
+    <form class="share-form" id="shareForm" onsubmit="submitShare(event)">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Your Name</label>
+          <input type="text" name="name" placeholder="First name or full name" required>
+        </div>
+        <div class="form-group">
+          <label>Location</label>
+          <input type="text" name="location" placeholder="City, State">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Your Review</label>
+        <textarea name="review" placeholder="Tell us about your experience..." required></textarea>
+      </div>
+
+      <div class="form-group">
+        <label>Rating</label>
+        <div class="star-select" id="starSelect">
+          <span data-val="1" onclick="setStars(1)">★</span>
+          <span data-val="2" onclick="setStars(2)">★</span>
+          <span data-val="3" onclick="setStars(3)">★</span>
+          <span data-val="4" onclick="setStars(4)">★</span>
+          <span data-val="5" onclick="setStars(5)">★</span>
+        </div>
+        <input type="hidden" name="rating" id="ratingInput" value="5">
+      </div>
+
+      <button type="submit" class="btn-submit">Submit Review →</button>
+      <div class="success-msg" id="shareSuccess">✓ Thank you! Your review has been submitted.</div>
+    </form>
+  </div>
+</div>
+
+<footer>
+  <div class="footer-name">Raúl Wesche</div>
+  <a href="/" class="footer-back">← Back to Home</a>
+</footer>
+
+<script>
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
+}, { threshold: 0.1 });
+document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
+
+// Set all 5 stars active by default
+setStars(5);
+
+function setStars(val) {
+  document.getElementById('ratingInput').value = val;
+  document.querySelectorAll('#starSelect span').forEach(s => {
+    s.classList.toggle('active', parseInt(s.dataset.val) <= val);
+  });
+}
+
+async function submitShare(e) {
+  e.preventDefault();
+  const form = document.getElementById('shareForm');
+  const btn = form.querySelector('.btn-submit');
+  btn.textContent = 'Submitting…';
+  btn.disabled = true;
+
+  const data = Object.fromEntries(new FormData(form));
+  try {
+    const res = await fetch('https://formspree.io/f/xpwrjypk', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ ...data, _subject: 'New testimonial from wesche.com' }),
+    });
+    if (res.ok) {
+      form.querySelectorAll('input:not([type=hidden]), textarea').forEach(el => el.value = '');
+      setStars(5);
+      document.getElementById('shareSuccess').style.display = 'block';
+      btn.textContent = 'Submitted ✓';
+    } else throw new Error();
+  } catch {
+    // mailto fallback
+    const body = `Name: ${data.name}\nLocation: ${data.location}\nRating: ${data.rating}/5\n\nReview:\n${data.review}`;
+    window.location.href = `mailto:WescheTattoo@gmail.com?subject=New Testimonial from ${data.name}&body=${encodeURIComponent(body)}`;
+    btn.textContent = 'Submit Review →';
+    btn.disabled = false;
+  }
+}
+</script>
+</body>
+</html>
