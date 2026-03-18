@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>About — Raúl Wesche</title>
+<meta name="description" content="About Raúl Wesche — geometric tattoo artist and painter based in Houston, TX.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --black:#0a0a0a; --charcoal:#1a1a1a; --gold:#C9A84C; --white:#f5f5f0; --dim:#888; --border:rgba(255,255,255,0.07); }
+  html { scroll-behavior: smooth; }
+  body { font-family: 'Inter', sans-serif; background: var(--black); color: var(--white); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 24px 48px;
+    background: rgba(10,10,10,0.95);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(12px);
+  }
+  .nav-name { font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; font-weight: 400; letter-spacing: 0.15em; text-transform: uppercase; color: var(--white); text-decoration: none; }
+  .nav-links { display: flex; gap: 32px; list-style: none; }
+  .nav-links a { font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); text-decoration: none; transition: color 0.3s; }
+  .nav-links a:hover, .nav-links a.active { color: var(--white); }
+  .nav-toggle { display: none; background: none; border: none; color: var(--white); font-size: 1.4rem; cursor: pointer; }
+
+  .page-hero {
+    padding: 160px 72px 80px;
+    max-width: 1100px; margin: 0 auto;
+    border-bottom: 1px solid var(--border);
+  }
+  .page-label { font-size: 0.65rem; letter-spacing: 0.25em; text-transform: uppercase; color: var(--gold); margin-bottom: 20px; display: block; }
+  .page-title { font-family: 'Cormorant Garamond', serif; font-size: clamp(3rem, 7vw, 6rem); font-weight: 300; line-height: 1; letter-spacing: -0.02em; color: var(--white); }
+
+  .about-body { max-width: 1100px; margin: 0 auto; padding: 80px 72px; display: grid; grid-template-columns: 1fr 1.2fr; gap: 80px; align-items: start; }
+
+  .about-photo { position: sticky; top: 100px; }
+  .about-photo img { width: 100%; display: block; filter: brightness(0.85); }
+
+  .about-content h2 { font-family: 'Cormorant Garamond', serif; font-size: 1.8rem; font-weight: 300; color: var(--white); margin: 0 0 20px; }
+  .about-content p { font-size: 0.95rem; color: var(--dim); line-height: 1.9; margin-bottom: 28px; font-weight: 300; }
+  .about-content p strong { color: var(--white); font-weight: 400; }
+
+  .divider { width: 40px; height: 1px; background: var(--gold); margin: 40px 0; }
+
+  .stat-row { display: flex; gap: 40px; margin-top: 48px; flex-wrap: wrap; }
+  .stat { border-left: 1px solid var(--gold); padding-left: 20px; }
+  .stat-number { font-family: 'Cormorant Garamond', serif; font-size: 2.2rem; font-weight: 300; color: var(--white); line-height: 1; }
+  .stat-label { font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); margin-top: 4px; }
+
+  footer { border-top: 1px solid var(--border); padding: 40px 72px; display: flex; justify-content: space-between; align-items: center; max-width: 1100px; margin: 0 auto; }
+  .footer-name { font-family: 'Cormorant Garamond', serif; font-size: 0.9rem; font-weight: 300; letter-spacing: 0.15em; text-transform: uppercase; color: var(--dim); }
+  .footer-back { font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); text-decoration: none; transition: color 0.2s; }
+  .footer-back:hover { color: var(--white); }
+
+  .fade-up { opacity: 0; transform: translateY(20px); transition: opacity 0.7s ease, transform 0.7s ease; }
+  .fade-up.visible { opacity: 1; transform: none; }
+
+  @media (max-width: 900px) {
+    nav { padding: 18px 20px; }
+    .nav-links { display: none; flex-direction: column; position: absolute; top: 64px; left: 0; right: 0; background: rgba(10,10,10,0.98); padding: 20px; gap: 16px; border-bottom: 1px solid var(--border); }
+    .nav-links.open { display: flex; }
+    .nav-toggle { display: block; }
+    .page-hero { padding: 120px 24px 60px; }
+    .about-body { grid-template-columns: 1fr; padding: 48px 24px; gap: 40px; }
+    .about-photo { position: static; }
+    footer { padding: 32px 24px; }
+    .stat-row { gap: 24px; }
+  }
+</style>
+</head>
+<body>
+<nav>
+  <a href="/" class="nav-name">Raúl Wesche</a>
+  <button class="nav-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')">☰</button>
+  <ul class="nav-links">
+    <li><a href="/">Home</a></li>
+    <li><a href="/about.html" class="active">About</a></li>
+    <li><a href="/paintings.html">Paintings</a></li>
+    <li><a href="https://weschetattoo.com" target="_blank">Tattoos</a></li>
+  </ul>
+</nav>
+
+<div class="page-hero">
+  <span class="page-label">About</span>
+  <h1 class="page-title">Raúl<br>Wesche</h1>
+</div>
+
+<div class="about-body">
+  <div class="about-photo fade-up">
+    <img src="raul.jpg" alt="Raúl Wesche">
+  </div>
+
+  <div class="about-content">
+    <div class="fade-up">
+      <h2>The work</h2>
+      <p>I've been tattooing geometric and sacred geometry for over a decade. Large-scale pieces — full sleeves, back pieces, chest panels. The kind of work that takes a full day and requires both of us to show up ready.</p>
+      <p>I specialize in <strong>sacred geometry</strong> — Platonic solids, mandalas, the Flower of Life, Metatron's Cube. Patterns that have existed for thousands of years and still feel like they're pointing at something real. I don't know exactly what, but that's part of why I keep making them.</p>
+      <p>I work out of Houston, TX at Tattoo Temple Houston. People fly in from all over — which still surprises me, honestly. I just try to do the work as well as I can.</p>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="fade-up">
+      <h2>The painting</h2>
+      <p>A few years ago I started painting on canvas. Same obsession, different surface. I wanted to see what the geometry looked like when it wasn't constrained by skin — when it could be as large as I wanted, as detailed as I wanted, without a client having to sit through it.</p>
+      <p>The studio closes in March 2027. After that I'm moving toward painting full time. This page is part of that transition — <strong>building something that outlasts any single tattoo.</strong></p>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="fade-up">
+      <h2>The community</h2>
+      <p>I run <strong>@omfgeometry</strong> on Instagram and the <strong>Geometric Tattoos</strong> Facebook group. Not for business reasons — just because I genuinely love this style and wanted a place where it could be celebrated properly. There are artists doing incredible geometric work all over the world who deserve more eyes on them.</p>
+    </div>
+
+    <div class="stat-row fade-up">
+      <div class="stat">
+        <div class="stat-number">12+</div>
+        <div class="stat-label">Years tattooing</div>
+      </div>
+      <div class="stat">
+        <div class="stat-number">297K</div>
+        <div class="stat-label">Instagram</div>
+      </div>
+      <div class="stat">
+        <div class="stat-number">45K</div>
+        <div class="stat-label">FB Community</div>
+      </div>
+      <div class="stat">
+        <div class="stat-number">∞</div>
+        <div class="stat-label">Geometry</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div class="footer-name">Raúl Wesche</div>
+  <a href="/" class="footer-back">← Back to Home</a>
+</footer>
+
+<script>
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
+}, { threshold: 0.1 });
+document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
+</script>
+</body>
+</html>

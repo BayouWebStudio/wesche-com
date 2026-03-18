@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Paintings — Raúl Wesche</title>
+<meta name="description" content="Fine art paintings by Raúl Wesche — sacred geometry and geometric abstraction on canvas.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --black:#0a0a0a; --charcoal:#1a1a1a; --gold:#C9A84C; --white:#f5f5f0; --dim:#888; --border:rgba(255,255,255,0.07); }
+  html { scroll-behavior: smooth; }
+  body { font-family: 'Inter', sans-serif; background: var(--black); color: var(--white); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 24px 48px;
+    background: rgba(10,10,10,0.95);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(12px);
+  }
+  .nav-name { font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; font-weight: 400; letter-spacing: 0.15em; text-transform: uppercase; color: var(--white); text-decoration: none; }
+  .nav-links { display: flex; gap: 32px; list-style: none; }
+  .nav-links a { font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); text-decoration: none; transition: color 0.3s; }
+  .nav-links a:hover, .nav-links a.active { color: var(--white); }
+  .nav-toggle { display: none; background: none; border: none; color: var(--white); font-size: 1.4rem; cursor: pointer; }
+
+  .page-hero {
+    padding: 160px 72px 80px;
+    max-width: 1200px; margin: 0 auto;
+    border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: flex-end;
+  }
+  .page-label { font-size: 0.65rem; letter-spacing: 0.25em; text-transform: uppercase; color: var(--gold); margin-bottom: 20px; display: block; }
+  .page-title { font-family: 'Cormorant Garamond', serif; font-size: clamp(3rem, 7vw, 6rem); font-weight: 300; line-height: 1; letter-spacing: -0.02em; color: var(--white); }
+  .page-intro { max-width: 380px; font-size: 0.9rem; color: var(--dim); line-height: 1.8; font-weight: 300; font-style: italic; font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; }
+
+  .gallery { max-width: 1200px; margin: 0 auto; padding: 48px 72px 80px; }
+
+  /* Masonry-style grid */
+  .gallery-grid { columns: 3; column-gap: 3px; }
+  .gallery-item { break-inside: avoid; margin-bottom: 3px; position: relative; overflow: hidden; cursor: pointer; }
+  .gallery-item img { width: 100%; display: block; filter: brightness(0.85); transition: filter 0.5s, transform 0.5s; }
+  .gallery-item:hover img { filter: brightness(1); transform: scale(1.02); }
+  .gallery-item .caption { position: absolute; bottom: 0; left: 0; right: 0; padding: 20px; background: linear-gradient(transparent, rgba(10,10,10,0.85)); opacity: 0; transition: opacity 0.4s; }
+  .gallery-item:hover .caption { opacity: 1; }
+  .caption-title { font-family: 'Cormorant Garamond', serif; font-size: 1rem; font-style: italic; color: var(--white); }
+  .caption-year { font-size: 0.7rem; letter-spacing: 0.1em; color: var(--gold); margin-top: 3px; }
+
+  .note { max-width: 1200px; margin: 0 auto; padding: 0 72px 80px; }
+  .note p { font-size: 0.85rem; color: rgba(136,136,136,0.6); font-style: italic; }
+
+  footer { border-top: 1px solid var(--border); padding: 40px 72px; display: flex; justify-content: space-between; align-items: center; max-width: 1200px; margin: 0 auto; }
+  .footer-name { font-family: 'Cormorant Garamond', serif; font-size: 0.9rem; font-weight: 300; letter-spacing: 0.15em; text-transform: uppercase; color: var(--dim); }
+  .footer-back { font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); text-decoration: none; transition: color 0.2s; }
+  .footer-back:hover { color: var(--white); }
+
+  .fade-up { opacity: 0; transform: translateY(20px); transition: opacity 0.7s ease, transform 0.7s ease; }
+  .fade-up.visible { opacity: 1; transform: none; }
+
+  @media (max-width: 900px) {
+    nav { padding: 18px 20px; }
+    .nav-links { display: none; flex-direction: column; position: absolute; top: 64px; left: 0; right: 0; background: rgba(10,10,10,0.98); padding: 20px; gap: 16px; border-bottom: 1px solid var(--border); }
+    .nav-links.open { display: flex; }
+    .nav-toggle { display: block; }
+    .page-hero { padding: 120px 24px 60px; flex-direction: column; gap: 24px; align-items: flex-start; }
+    .gallery { padding: 40px 24px 60px; }
+    .gallery-grid { columns: 2; }
+    .note { padding: 0 24px 60px; }
+    footer { padding: 32px 24px; }
+  }
+  @media (max-width: 540px) {
+    .gallery-grid { columns: 1; }
+  }
+</style>
+</head>
+<body>
+<nav>
+  <a href="/" class="nav-name">Raúl Wesche</a>
+  <button class="nav-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')">☰</button>
+  <ul class="nav-links">
+    <li><a href="/">Home</a></li>
+    <li><a href="/about.html">About</a></li>
+    <li><a href="/paintings.html" class="active">Paintings</a></li>
+    <li><a href="https://weschetattoo.com" target="_blank">Tattoos</a></li>
+  </ul>
+</nav>
+
+<div class="page-hero">
+  <div>
+    <span class="page-label">Fine Art</span>
+    <h1 class="page-title">Paintings</h1>
+  </div>
+  <p class="page-intro">The same geometry I've been tattooing for over a decade — now on canvas. More to come in 2026.</p>
+</div>
+
+<div class="gallery">
+  <div class="gallery-grid fade-up">
+    <div class="gallery-item">
+      <img src="w3.jpg" alt="Sacred Geometry — Raúl Wesche">
+      <div class="caption"><div class="caption-title">Sacred Geometry</div><div class="caption-year">2026</div></div>
+    </div>
+    <div class="gallery-item">
+      <img src="w1.jpg" alt="Dodecahedron — Raúl Wesche">
+      <div class="caption"><div class="caption-title">Dodecahedron</div><div class="caption-year">2026</div></div>
+    </div>
+    <div class="gallery-item">
+      <img src="w2.jpg" alt="Icosahedron — Raúl Wesche">
+      <div class="caption"><div class="caption-title">Icosahedron</div><div class="caption-year">2026</div></div>
+    </div>
+    <div class="gallery-item">
+      <img src="w4.jpg" alt="Geometry Study — Raúl Wesche">
+      <div class="caption"><div class="caption-title">Geometry Study</div><div class="caption-year">2026</div></div>
+    </div>
+    <div class="gallery-item">
+      <img src="w5.jpg" alt="Sepia Study — Raúl Wesche">
+      <div class="caption"><div class="caption-title">Sepia Study</div><div class="caption-year">2026</div></div>
+    </div>
+    <div class="gallery-item">
+      <img src="w6.jpg" alt="Mandala — Raúl Wesche">
+      <div class="caption"><div class="caption-title">Mandala</div><div class="caption-year">2026</div></div>
+    </div>
+    <div class="gallery-item">
+      <img src="w7.jpg" alt="Grayscale Panel — Raúl Wesche">
+      <div class="caption"><div class="caption-title">Grayscale Panel</div><div class="caption-year">2026</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="note">
+  <p>More work being added throughout 2026. These are early pieces — the transition from skin to canvas is still in progress.</p>
+</div>
+
+<footer>
+  <div class="footer-name">Raúl Wesche</div>
+  <a href="/" class="footer-back">← Back to Home</a>
+</footer>
+
+<script>
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
+}, { threshold: 0.1 });
+document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
+</script>
+</body>
+</html>
