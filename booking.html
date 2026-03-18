@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Booking — Raúl Wesche</title>
+<meta name="description" content="Book a tattoo session with Raúl Wesche — geometric tattoo artist based in Houston, TX.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --black:#0a0a0a; --charcoal:#1a1a1a; --gold:#C9A84C; --white:#f5f5f0; --dim:#888; --border:rgba(255,255,255,0.07); }
+  html { scroll-behavior: smooth; }
+  body { font-family: 'Inter', sans-serif; background: var(--black); color: var(--white); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+
+  nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; padding: 24px 48px; background: rgba(10,10,10,0.95); border-bottom: 1px solid var(--border); backdrop-filter: blur(12px); }
+  .nav-name { font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; font-weight: 400; letter-spacing: 0.15em; text-transform: uppercase; color: var(--white); text-decoration: none; }
+  .nav-links { display: flex; gap: 32px; list-style: none; }
+  .nav-links a { font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); text-decoration: none; transition: color 0.3s; }
+  .nav-links a:hover, .nav-links a.active { color: var(--white); }
+  .nav-toggle { display: none; background: none; border: none; color: var(--white); font-size: 1.4rem; cursor: pointer; }
+
+  .page-hero { padding: 160px 72px 80px; max-width: 1100px; margin: 0 auto; border-bottom: 1px solid var(--border); }
+  .page-label { font-size: 0.65rem; letter-spacing: 0.25em; text-transform: uppercase; color: var(--gold); margin-bottom: 20px; display: block; }
+  .page-title { font-family: 'Cormorant Garamond', serif; font-size: clamp(3rem, 7vw, 6rem); font-weight: 300; line-height: 1; letter-spacing: -0.02em; color: var(--white); }
+
+  .booking-body { max-width: 1100px; margin: 0 auto; padding: 80px 72px; display: grid; grid-template-columns: 1fr 1.6fr; gap: 80px; align-items: start; }
+
+  /* Info panel */
+  .info-panel { position: sticky; top: 100px; }
+  .info-panel h2 { font-family: 'Cormorant Garamond', serif; font-size: 1.8rem; font-weight: 300; color: var(--white); margin-bottom: 32px; line-height: 1.2; }
+
+  .info-item { margin-bottom: 28px; border-left: 1px solid var(--gold); padding-left: 20px; }
+  .info-label { font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--gold); margin-bottom: 6px; }
+  .info-value { font-size: 0.9rem; color: var(--dim); font-weight: 300; line-height: 1.5; }
+  .info-value a { color: var(--white); text-decoration: none; transition: color 0.2s; }
+  .info-value a:hover { color: var(--gold); }
+
+  .availability-note { margin-top: 40px; padding: 20px 24px; background: rgba(201,168,76,0.06); border: 1px solid rgba(201,168,76,0.15); border-radius: 2px; font-size: 0.82rem; color: var(--dim); line-height: 1.6; }
+  .availability-note strong { color: var(--gold); font-weight: 400; }
+
+  /* Form */
+  .booking-form { display: flex; flex-direction: column; gap: 24px; }
+  .form-group { display: flex; flex-direction: column; gap: 8px; }
+  .form-group label { font-size: 0.68rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--dim); }
+  .form-group input, .form-group select, .form-group textarea {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 14px 16px;
+    color: var(--white);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 300;
+    outline: none;
+    transition: border-color 0.2s;
+    -webkit-appearance: none;
+  }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: rgba(201,168,76,0.4); }
+  .form-group input::placeholder, .form-group textarea::placeholder { color: rgba(136,136,136,0.5); }
+  .form-group select option { background: #1a1a1a; }
+  .form-group textarea { resize: vertical; min-height: 120px; line-height: 1.6; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  .btn-submit { display: inline-block; padding: 16px 40px; border: 1px solid var(--gold); color: var(--gold); font-family: 'Inter', sans-serif; font-size: 0.72rem; letter-spacing: 0.15em; text-transform: uppercase; background: none; cursor: pointer; transition: background 0.3s, color 0.3s; align-self: flex-start; }
+  .btn-submit:hover { background: var(--gold); color: var(--black); }
+
+  .form-note { font-size: 0.75rem; color: rgba(136,136,136,0.5); margin-top: -10px; }
+
+  .success-msg { display: none; padding: 24px; background: rgba(201,168,76,0.08); border: 1px solid rgba(201,168,76,0.2); font-size: 0.9rem; color: var(--gold); line-height: 1.6; }
+
+  footer { border-top: 1px solid var(--border); padding: 40px 72px; display: flex; justify-content: space-between; align-items: center; max-width: 1100px; margin: 0 auto; }
+  .footer-name { font-family: 'Cormorant Garamond', serif; font-size: 0.9rem; font-weight: 300; letter-spacing: 0.15em; text-transform: uppercase; color: var(--dim); }
+  .footer-back { font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); text-decoration: none; transition: color 0.2s; }
+  .footer-back:hover { color: var(--white); }
+
+  .fade-up { opacity: 0; transform: translateY(20px); transition: opacity 0.7s ease, transform 0.7s ease; }
+  .fade-up.visible { opacity: 1; transform: none; }
+
+  @media (max-width: 900px) {
+    nav { padding: 18px 20px; }
+    .nav-links { display: none; flex-direction: column; position: absolute; top: 64px; left: 0; right: 0; background: rgba(10,10,10,0.98); padding: 20px; gap: 16px; border-bottom: 1px solid var(--border); z-index: 99; }
+    .nav-links.open { display: flex; }
+    .nav-toggle { display: block; }
+    .page-hero { padding: 120px 24px 60px; }
+    .booking-body { grid-template-columns: 1fr; padding: 48px 24px; gap: 48px; }
+    .info-panel { position: static; }
+    .form-row { grid-template-columns: 1fr; }
+    footer { padding: 32px 24px; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="nav-name">Raúl Wesche</a>
+  <button class="nav-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')">☰</button>
+  <ul class="nav-links">
+    <li><a href="/">Home</a></li>
+    <li><a href="/about.html">About</a></li>
+    <li><a href="/paintings.html">Paintings</a></li>
+    <li><a href="/tattoos.html">Tattoos</a></li>
+    <li><a href="/store.html">Store</a></li>
+    <li><a href="/booking.html" class="active">Booking</a></li>
+  </ul>
+</nav>
+
+<div class="page-hero">
+  <span class="page-label">Tattoo Inquiries</span>
+  <h1 class="page-title">Let's Create<br>Something.</h1>
+</div>
+
+<div class="booking-body">
+  <!-- Info Panel -->
+  <div class="info-panel fade-up">
+    <h2>Before you reach out</h2>
+
+    <div class="info-item">
+      <div class="info-label">Email</div>
+      <div class="info-value"><a href="mailto:WescheTattoo@gmail.com">WescheTattoo@gmail.com</a></div>
+    </div>
+
+    <div class="info-item">
+      <div class="info-label">Instagram</div>
+      <div class="info-value"><a href="https://instagram.com/weschetattoo" target="_blank">@weschetattoo</a></div>
+    </div>
+
+    <div class="info-item">
+      <div class="info-label">Location</div>
+      <div class="info-value">Houston, TX<br>Tattoo Temple Houston</div>
+    </div>
+
+    <div class="info-item">
+      <div class="info-label">Style</div>
+      <div class="info-value">Large-scale geometric & sacred geometry only. Full day sessions.</div>
+    </div>
+
+    <div class="availability-note">
+      <strong>Books are currently closed</strong> — but you're welcome to reach out for more information or to get on the waiting list.
+    </div>
+  </div>
+
+  <!-- Form -->
+  <form class="booking-form fade-up" id="bookingForm" onsubmit="submitForm(event)">
+    <div class="form-row">
+      <div class="form-group">
+        <label for="name">Your Name *</label>
+        <input type="text" id="name" name="name" placeholder="Full name" required>
+      </div>
+      <div class="form-group">
+        <label for="email">Email Address *</label>
+        <input type="email" id="email" name="email" placeholder="your@email.com" required>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="phone">Phone (Optional)</label>
+        <input type="tel" id="phone" name="phone" placeholder="+1 (000) 000-0000">
+      </div>
+      <div class="form-group">
+        <label for="placement">Placement *</label>
+        <input type="text" id="placement" name="placement" placeholder="e.g. Full sleeve, back piece..." required>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="vision">Describe Your Vision *</label>
+      <textarea id="vision" name="vision" placeholder="Tell me about the piece you have in mind — style, size, inspiration, any details that matter to you." required></textarea>
+    </div>
+
+    <div class="form-group">
+      <label for="references">Reference Image Links (Optional)</label>
+      <input type="text" id="references" name="references" placeholder="Instagram posts, Pinterest, Google Drive links...">
+      <p class="form-note">Paste links separated by commas.</p>
+    </div>
+
+    <button type="submit" class="btn-submit">Send Inquiry →</button>
+
+    <div class="success-msg" id="successMsg">
+      ✓ Your inquiry has been sent. I'll be in touch when bookings open up.
+    </div>
+  </form>
+</div>
+
+<footer>
+  <div class="footer-name">Raúl Wesche</div>
+  <a href="/" class="footer-back">← Back to Home</a>
+</footer>
+
+<script>
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
+}, { threshold: 0.1 });
+document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
+
+async function submitForm(e) {
+  e.preventDefault();
+  const form = document.getElementById('bookingForm');
+  const btn = form.querySelector('.btn-submit');
+  const successMsg = document.getElementById('successMsg');
+
+  btn.textContent = 'Sending…';
+  btn.disabled = true;
+
+  const data = {
+    name: document.getElementById('name').value,
+    email: document.getElementById('email').value,
+    phone: document.getElementById('phone').value,
+    placement: document.getElementById('placement').value,
+    vision: document.getElementById('vision').value,
+    references: document.getElementById('references').value,
+  };
+
+  // Send via Formspree (or mailto fallback)
+  try {
+    const res = await fetch('https://formspree.io/f/xpwrjypk', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify(data),
+    });
+
+    if (res.ok) {
+      form.querySelectorAll('input, textarea').forEach(el => el.value = '');
+      successMsg.style.display = 'block';
+      btn.textContent = 'Sent ✓';
+    } else {
+      throw new Error('Failed');
+    }
+  } catch {
+    // Fallback: mailto
+    const body = `Name: ${data.name}\nEmail: ${data.email}\nPhone: ${data.phone}\nPlacement: ${data.placement}\n\nVision:\n${data.vision}\n\nReferences: ${data.references}`;
+    window.location.href = `mailto:WescheTattoo@gmail.com?subject=Tattoo Inquiry - ${data.name}&body=${encodeURIComponent(body)}`;
+    btn.textContent = 'Send Inquiry →';
+    btn.disabled = false;
+  }
+}
+</script>
+
+</body>
+</html>
