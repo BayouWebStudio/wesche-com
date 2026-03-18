@@ -233,25 +233,10 @@ async function submitShare(e) {
   btn.disabled = true;
 
   const data = Object.fromEntries(new FormData(form));
-  try {
-    const res = await fetch('https://formspree.io/f/xpwrjypk', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify({ ...data, _subject: 'New testimonial from wesche.com' }),
-    });
-    if (res.ok) {
-      form.querySelectorAll('input:not([type=hidden]), textarea').forEach(el => el.value = '');
-      setStars(5);
-      document.getElementById('shareSuccess').style.display = 'block';
-      btn.textContent = 'Submitted ✓';
-    } else throw new Error();
-  } catch {
-    // mailto fallback
-    const body = `Name: ${data.name}\nLocation: ${data.location}\nRating: ${data.rating}/5\n\nReview:\n${data.review}`;
-    window.location.href = `mailto:WescheTattoo@gmail.com?subject=New Testimonial from ${data.name}&body=${encodeURIComponent(body)}`;
-    btn.textContent = 'Submit Review →';
-    btn.disabled = false;
-  }
+  const body = `Name: ${data.name}\nLocation: ${data.location}\nRating: ${data.rating}/5\n\nReview:\n${data.review}`;
+  window.location.href = `mailto:booking@weschetattoo.com?subject=New Testimonial from ${data.name}&body=${encodeURIComponent(body)}`;
+  btn.textContent = 'Submit Review →';
+  btn.disabled = false;
 }
 </script>
 </body>

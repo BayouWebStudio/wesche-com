@@ -214,27 +214,10 @@ async function submitForm(e) {
   };
 
   // Send via Formspree (or mailto fallback)
-  try {
-    const res = await fetch('https://formspree.io/f/xpwrjypk', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify(data),
-    });
-
-    if (res.ok) {
-      form.querySelectorAll('input, textarea').forEach(el => el.value = '');
-      successMsg.style.display = 'block';
-      btn.textContent = 'Sent ✓';
-    } else {
-      throw new Error('Failed');
-    }
-  } catch {
-    // Fallback: mailto
-    const body = `Name: ${data.name}\nEmail: ${data.email}\nPhone: ${data.phone}\nPlacement: ${data.placement}\n\nVision:\n${data.vision}\n\nReferences: ${data.references}`;
-    window.location.href = `mailto:WescheTattoo@gmail.com?subject=Tattoo Inquiry - ${data.name}&body=${encodeURIComponent(body)}`;
-    btn.textContent = 'Send Inquiry →';
-    btn.disabled = false;
-  }
+  const body = `Name: ${data.name}\nEmail: ${data.email}\nPhone: ${data.phone}\nPlacement: ${data.placement}\n\nVision:\n${data.vision}\n\nReferences: ${data.references}`;
+  window.location.href = `mailto:booking@weschetattoo.com?subject=Tattoo Inquiry - ${data.name}&body=${encodeURIComponent(body)}`;
+  btn.textContent = 'Send Inquiry →';
+  btn.disabled = false;
 }
 </script>
 
