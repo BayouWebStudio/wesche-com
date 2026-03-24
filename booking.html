@@ -233,16 +233,18 @@
   form.addEventListener('submit', function(e) {
     e.preventDefault();
     var email = document.getElementById('nl-email-booking').value;
-    var data = new FormData();
-    data.append('form_type', 'customer');
-    data.append('utf8', '\u2713');
-    data.append('contact[email]', email);
-    data.append('contact[tags]', 'newsletter');
-    fetch('https://curious-lemming-262.convex.site/api/newsletter/subscribe', { method: 'POST', body: data, headers: { 'Accept': 'application/json' } })
-      .then(function(r) {
-        msg.textContent = r.ok ? "You're in." : 'Something went wrong. Try again.';
+    msg.textContent = 'Subscribing...';
+    msg.style.opacity = '1';
+    fetch('https://fn.bayouwebstudio.com/newsletter', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email })
+    })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        msg.textContent = data.ok ? "You're in." : (data.error || 'Something went wrong. Try again.');
         msg.style.opacity = '1';
-        if (r.ok) form.reset();
+        if (data.ok) form.reset();
       })
       .catch(function() {
         msg.textContent = 'Something went wrong. Try again.';
