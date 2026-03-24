@@ -916,6 +916,47 @@
 
 </div><!-- /flower-bg -->
 
+<!-- NEWSLETTER -->
+<section id="newsletter" style="background:#0a0a0a; padding: 80px 24px; text-align: center; border-top: 1px solid rgba(255,255,255,0.06);">
+  <h2 style="font-family:'Cormorant Garamond', serif; font-size: clamp(1.8rem, 4vw, 2.8rem); font-weight: 300; letter-spacing: 0.1em; color: #f5f5f0; margin: 0 0 12px;">Stay in the loop</h2>
+  <p style="font-size: 0.82rem; letter-spacing: 0.15em; text-transform: uppercase; color: rgba(245,245,240,0.45); margin: 0 0 36px;">New work, new drops, once a month.</p>
+  <form id="nl-form-index" style="display:flex; gap: 0; justify-content: center; max-width: 440px; margin: 0 auto;">
+    <input type="email" id="nl-email-index" placeholder="your@email.com" required
+      style="flex: 1; padding: 14px 20px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); border-right: none; color: #f5f5f0; font-size: 0.82rem; letter-spacing: 0.08em; outline: none; font-family: inherit; border-radius: 0;">
+    <button type="submit"
+      style="padding: 14px 28px; background: #C9A84C; border: none; color: #0a0a0a; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; cursor: pointer; font-family: inherit; border-radius: 0; transition: background 0.2s;">Subscribe</button>
+  </form>
+  <p id="nl-msg-index" style="margin: 18px 0 0; font-size: 0.78rem; letter-spacing: 0.12em; text-transform: uppercase; min-height: 1.2em; color: #C9A84C; opacity: 0; transition: opacity 0.3s;"></p>
+</section>
+
+<script>
+(function() {
+  var form = document.getElementById('nl-form-index');
+  var msg = document.getElementById('nl-msg-index');
+  if (!form) return;
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    var email = document.getElementById('nl-email-index').value;
+    var data = new FormData();
+    data.append('form_type', 'customer');
+    data.append('utf8', '\u2713');
+    data.append('contact[email]', email);
+    data.append('contact[tags]', 'newsletter');
+    fetch('https://all-sacred.myshopify.com/contact', { method: 'POST', body: data, headers: { 'Accept': 'application/json' } })
+      .then(function(r) {
+        msg.textContent = r.ok ? "You're in." : 'Something went wrong. Try again.';
+        msg.style.opacity = '1';
+        if (r.ok) form.reset();
+      })
+      .catch(function() {
+        msg.textContent = 'Something went wrong. Try again.';
+        msg.style.opacity = '1';
+      });
+  });
+})();
+</script>
+
+
 <!-- FOOTER -->
 <footer>
   <div class="footer-name">Raúl Wesche</div>
@@ -963,4 +1004,5 @@ document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
 
 </body>
 </html>
+
 
