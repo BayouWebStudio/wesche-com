@@ -1,4 +1,3 @@
-SHA: b05607fc6db29fb79adb1960d73bfb5078b42a48
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -45,6 +44,15 @@ SHA: b05607fc6db29fb79adb1960d73bfb5078b42a48
   .page-intro { max-width: 380px; font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; color: var(--dim); line-height: 1.8; font-weight: 300; font-style: italic; }
 
   .store { max-width: 1200px; margin: 0 auto; padding: 60px 72px 80px; }
+
+  /* Section styles */
+  .product-section { margin-bottom: 72px; }
+  .product-section:last-child { margin-bottom: 0; }
+  .section-header { display: flex; align-items: center; gap: 14px; margin-bottom: 28px; padding-bottom: 18px; border-bottom: 1px solid var(--border); }
+  .section-emoji { font-size: 1.6rem; line-height: 1; }
+  .section-title { font-family: 'Cormorant Garamond', serif; font-size: 2rem; font-weight: 300; letter-spacing: 0.03em; color: var(--white); }
+  .section-count { font-size: 0.65rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--gold); margin-left: auto; }
+
   .products-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; }
 
   .product-card { display: block; text-decoration: none; background: var(--charcoal); overflow: hidden; transition: transform 0.3s; }
@@ -82,6 +90,7 @@ SHA: b05607fc6db29fb79adb1960d73bfb5078b42a48
     .page-hero { padding: 120px 24px 60px; flex-direction: column; gap: 24px; align-items: flex-start; }
     .store { padding: 40px 24px 60px; }
     .products-grid { grid-template-columns: repeat(2, 1fr); }
+    .section-title { font-size: 1.6rem; }
     footer { padding: 32px 24px; }
   }
   @media (max-width: 480px) {
@@ -143,6 +152,61 @@ const observer = new IntersectionObserver(entries => {
   });
 }, { threshold: 0.1 });
 
+// Section definitions — order matters (top to bottom)
+const SECTIONS = [
+  {
+    emoji: '📚',
+    name: 'Books',
+    handles: ['weschetattoo-2025-book']
+  },
+  {
+    emoji: '🖼',
+    name: 'Art Prints',
+    handles: [
+      'textured-watercolor-matte-posters',
+      'cosmic-dodecahedron-art-print',
+      'crystalline-consciousness-art-print',
+      'merkaba-codex-flower-of-life-print',
+      'quantum-garden-mandala-art-print',
+      'radiant-icosahedron-art-print'
+    ]
+  },
+  {
+    emoji: '👕',
+    name: 'Apparel',
+    handles: [
+      'golden-sacred-geometry-t-shirt',
+      'template3',
+      'bucket-hat-aop'
+    ]
+  },
+  {
+    emoji: '🏠',
+    name: 'Home & Objects',
+    handles: [
+      'woven-blanket',
+      'accent-coffee-mug-11-15oz',
+      'hardcover-journal-matte',
+      'hardcover-journal-matte-1'
+    ]
+  },
+  {
+    emoji: '💾',
+    name: 'Digital Downloads',
+    handles: [
+      'patterns-mandalas-brush-set-combo',
+      'patterns-book-v2',
+      'patterns-brush-set',
+      'mandalas-pattern-combo-v2',
+      'mandala-brush-set',
+      'mandala-book-v2'
+    ]
+  }
+];
+
+// Build a flat set of all known handles for "Other" detection
+const KNOWN_HANDLES = new Set(SECTIONS.flatMap(s => s.handles));
+
 function formatPrice(price) {
   const num = parseFloat(price);
   return '$' + num.toFixed(2).replace(/\.00$/, '');
@@ -155,7 +219,33 @@ function getLowestPrice(variants) {
   return Math.min(...prices).toFixed(2);
 }
 
-function renderProducts(products) {
+function buildProductCard(product) {
+  const imageUrl = product.featured_image
+    ? product.featured_image.src
+    : (product.images && product.images.length > 0 ? product.images[0].src : '');
+  const lowestPrice = getLowestPrice(product.variants);
+  const productUrl = 'https://weschetattoo.com/products/' + product.handle;
+
+  const card = document.createElement('a');
+  card.href = productUrl;
+  card.target = '_blank';
+  card.rel = 'noopener noreferrer';
+  card.className = 'product-card fade-up';
+
+  card.innerHTML = `
+    <div class="product-img">
+      <img src="${imageUrl}" alt="${product.title}" loading="lazy">
+    </div>
+    <div class="product-info">
+      <div class="product-title">${product.title}</div>
+      ${lowestPrice ? `<div class="product-price">${formatPrice(lowestPrice)}</div>` : ''}
+    </div>
+  `;
+
+  return card;
+}
+
+function renderSections(products) {
   const container = document.getElementById('products-container');
 
   if (!products || products.length === 0) {
@@ -163,42 +253,71 @@ function renderProducts(products) {
     return;
   }
 
-  // Sort by created_at descending (newest first)
-  products.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  // Index products by handle for O(1) lookup
+  const byHandle = {};
+  products.forEach(p => { byHandle[p.handle] = p; });
 
-  const grid = document.createElement('div');
-  grid.className = 'products-grid';
+  // Collect "other" products (published, not in any section)
+  const otherProducts = products.filter(p => !KNOWN_HANDLES.has(p.handle));
 
-  products.forEach(product => {
-    const imageUrl = product.featured_image ? product.featured_image.src : (
-      product.images && product.images.length > 0 ? product.images[0].src : ''
-    );
-    const lowestPrice = getLowestPrice(product.variants);
-    const productUrl = 'https://weschetattoo.com/products/' + product.handle;
+  const fragment = document.createDocumentFragment();
 
-    const card = document.createElement('a');
-    card.href = productUrl;
-    card.target = '_blank';
-    card.rel = 'noopener noreferrer';
-    card.className = 'product-card fade-up';
+  SECTIONS.forEach(section => {
+    // Map handles to products (skip missing ones)
+    const sectionProducts = section.handles
+      .map(h => byHandle[h])
+      .filter(Boolean);
 
-    card.innerHTML = `
-      <div class="product-img">
-        <img src="${imageUrl}" alt="${product.title}" loading="lazy">
-      </div>
-      <div class="product-info">
-        <div class="product-title">${product.title}</div>
-        ${lowestPrice ? `<div class="product-price">${formatPrice(lowestPrice)}</div>` : ''}
-      </div>
+    if (sectionProducts.length === 0) return; // skip empty sections
+
+    const sectionEl = document.createElement('div');
+    sectionEl.className = 'product-section fade-up';
+
+    const header = document.createElement('div');
+    header.className = 'section-header';
+    header.innerHTML = `
+      <span class="section-emoji">${section.emoji}</span>
+      <h2 class="section-title">${section.name}</h2>
+      <span class="section-count">${sectionProducts.length} ${sectionProducts.length === 1 ? 'item' : 'items'}</span>
     `;
 
-    grid.appendChild(card);
+    const grid = document.createElement('div');
+    grid.className = 'products-grid';
+    sectionProducts.forEach(p => grid.appendChild(buildProductCard(p)));
+
+    sectionEl.appendChild(header);
+    sectionEl.appendChild(grid);
+    fragment.appendChild(sectionEl);
   });
 
-  container.innerHTML = '';
-  container.appendChild(grid);
+  // Render "Other" section if there are uncategorized products
+  if (otherProducts.length > 0) {
+    otherProducts.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
-  // Trigger fade-up animations
+    const otherEl = document.createElement('div');
+    otherEl.className = 'product-section fade-up';
+
+    const header = document.createElement('div');
+    header.className = 'section-header';
+    header.innerHTML = `
+      <span class="section-emoji">✨</span>
+      <h2 class="section-title">Other</h2>
+      <span class="section-count">${otherProducts.length} ${otherProducts.length === 1 ? 'item' : 'items'}</span>
+    `;
+
+    const grid = document.createElement('div');
+    grid.className = 'products-grid';
+    otherProducts.forEach(p => grid.appendChild(buildProductCard(p)));
+
+    otherEl.appendChild(header);
+    otherEl.appendChild(grid);
+    fragment.appendChild(otherEl);
+  }
+
+  container.innerHTML = '';
+  container.appendChild(fragment);
+
+  // Trigger fade-up animations for sections and cards
   container.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
 }
 
@@ -213,7 +332,7 @@ async function loadProducts() {
     const data = await response.json();
     const products = (data.products || []).filter(p => p.published_at !== null);
 
-    renderProducts(products);
+    renderSections(products);
   } catch (err) {
     console.error('Failed to load products:', err);
     document.getElementById('products-container').innerHTML = `
@@ -235,4 +354,3 @@ loadProducts();
 
 </body>
 </html>
-
