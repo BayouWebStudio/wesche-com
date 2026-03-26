@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex">
+  <title>WESCHE — Be First to Know</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg: #0a0a0a;
+      --bg2: #111111;
+      --gold: #c9a84c;
+      --gold-glow: rgba(201,168,76,0.35);
+      --gold-subtle: rgba(201,168,76,0.15);
+      --text: #ffffff;
+      --text-muted: #888888;
+      --serif: 'Cormorant Garamond', serif;
+      --sans: 'Inter', sans-serif;
+    }
+
+    html, body {
+      height: 100%;
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 40px 24px;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 440px;
+      text-align: center;
+    }
+
+    /* Logo / Wordmark */
+    .logo {
+      font-family: var(--serif);
+      font-size: 2.4rem;
+      font-weight: 300;
+      letter-spacing: 0.32em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 48px;
+      opacity: 0;
+      animation: fadeUp 0.8s ease forwards;
+    }
+
+    /* Divider ornament */
+    .ornament {
+      width: 40px;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--gold), transparent);
+      margin: 0 auto 36px;
+      opacity: 0;
+      animation: fadeUp 0.8s ease 0.15s forwards;
+    }
+
+    /* Headline */
+    .headline {
+      font-family: var(--serif);
+      font-size: 2.8rem;
+      font-weight: 300;
+      line-height: 1.15;
+      letter-spacing: 0.02em;
+      color: var(--text);
+      margin-bottom: 14px;
+      opacity: 0;
+      animation: fadeUp 0.8s ease 0.25s forwards;
+    }
+
+    /* Subline */
+    .subline {
+      font-family: var(--sans);
+      font-size: 0.8rem;
+      font-weight: 400;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 40px;
+      opacity: 0;
+      animation: fadeUp 0.8s ease 0.35s forwards;
+    }
+
+    /* Form */
+    .form-wrap {
+      opacity: 0;
+      animation: fadeUp 0.8s ease 0.45s forwards;
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .email-input {
+      width: 100%;
+      padding: 18px 20px;
+      background: var(--bg2);
+      border: 1px solid rgba(201,168,76,0.25);
+      border-radius: 2px;
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 1rem;
+      letter-spacing: 0.04em;
+      outline: none;
+      -webkit-appearance: none;
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .email-input::placeholder {
+      color: #555;
+      letter-spacing: 0.08em;
+      font-size: 0.85rem;
+    }
+
+    .email-input:focus {
+      border-color: var(--gold);
+      box-shadow: 0 0 0 3px var(--gold-subtle);
+    }
+
+    .submit-btn {
+      width: 100%;
+      padding: 18px 20px;
+      background: var(--gold);
+      color: #0a0a0a;
+      border: none;
+      border-radius: 2px;
+      font-family: var(--sans);
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 0.25s ease, box-shadow 0.25s ease, transform 0.2s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .submit-btn:hover {
+      background: #d4af37;
+      box-shadow: 0 6px 28px var(--gold-glow);
+    }
+
+    .submit-btn:active {
+      transform: scale(0.98);
+    }
+
+    .submit-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* Micro-copy */
+    .micro {
+      margin-top: 18px;
+      font-size: 0.7rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    /* Success state */
+    .success-msg {
+      display: none;
+      padding: 28px 0 12px;
+      opacity: 0;
+      transition: opacity 0.5s ease;
+    }
+
+    .success-msg.visible {
+      display: block;
+      opacity: 1;
+    }
+
+    .success-icon {
+      font-size: 1.6rem;
+      margin-bottom: 14px;
+    }
+
+    .success-text {
+      font-family: var(--serif);
+      font-size: 1.5rem;
+      font-weight: 300;
+      letter-spacing: 0.05em;
+      color: var(--gold);
+    }
+
+    .success-sub {
+      margin-top: 10px;
+      font-size: 0.75rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    /* Error message */
+    .error-msg {
+      display: none;
+      margin-top: 14px;
+      font-size: 0.75rem;
+      letter-spacing: 0.08em;
+      color: #e07070;
+    }
+
+    .error-msg.visible {
+      display: block;
+    }
+
+    /* Animations */
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(16px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Mobile tweaks */
+    @media (max-width: 380px) {
+      .headline {
+        font-size: 2.4rem;
+      }
+      .logo {
+        font-size: 2rem;
+        letter-spacing: 0.28em;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <div class="logo">Wesche</div>
+    <div class="ornament"></div>
+    <h1 class="headline">Be first to know</h1>
+    <p class="subline">Early access + 10% off our next drop</p>
+
+    <div class="form-wrap" id="formWrap">
+      <div class="input-group">
+        <input
+          type="email"
+          class="email-input"
+          id="emailInput"
+          placeholder="your@email.com"
+          autocomplete="email"
+          inputmode="email"
+          required
+        >
+        <button class="submit-btn" id="submitBtn" type="button">Subscribe</button>
+      </div>
+      <p class="micro">No spam. Just drops.</p>
+      <p class="error-msg" id="errorMsg">Something went wrong. Try again.</p>
+    </div>
+
+    <div class="success-msg" id="successMsg">
+      <div class="success-icon">✦</div>
+      <div class="success-text">You're in. Watch your inbox.</div>
+      <div class="success-sub">Welcome to the list</div>
+    </div>
+  </div>
+
+  <script>
+    const emailInput = document.getElementById('emailInput');
+    const submitBtn = document.getElementById('submitBtn');
+    const formWrap = document.getElementById('formWrap');
+    const successMsg = document.getElementById('successMsg');
+    const errorMsg = document.getElementById('errorMsg');
+
+    const ENDPOINT = 'https://curious-lemming-262.convex.site/api/newsletter/subscribe';
+
+    async function handleSubscribe() {
+      const email = emailInput.value.trim();
+
+      if (!email || !email.includes('@')) {
+        emailInput.focus();
+        emailInput.style.borderColor = '#e07070';
+        setTimeout(() => emailInput.style.borderColor = '', 1200);
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Subscribing…';
+      errorMsg.classList.remove('visible');
+
+      try {
+        const res = await fetch(ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || 'Request failed');
+        }
+
+        // Success
+        formWrap.style.opacity = '0';
+        formWrap.style.transition = 'opacity 0.4s ease';
+        setTimeout(() => {
+          formWrap.style.display = 'none';
+          successMsg.style.display = 'block';
+          requestAnimationFrame(() => successMsg.classList.add('visible'));
+        }, 400);
+
+      } catch (err) {
+        console.error('Subscribe error:', err);
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Subscribe';
+        errorMsg.classList.add('visible');
+      }
+    }
+
+    submitBtn.addEventListener('click', handleSubscribe);
+
+    emailInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') handleSubscribe();
+    });
+  </script>
+
+</body>
+</html>
