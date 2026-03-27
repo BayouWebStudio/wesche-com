@@ -57,9 +57,9 @@
 
   .gallery { max-width: 1200px; margin: 0 auto; padding: 48px 72px 40px; }
 
-  .gallery-grid { columns: 3; column-gap: 3px; }
-  .gallery-item { break-inside: avoid; margin-bottom: 3px; overflow: hidden; }
-  .gallery-item img { width: 100%; display: block; filter: brightness(0.85); transition: filter 0.5s, transform 0.5s; }
+  .gallery-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; }
+  .gallery-item { overflow: hidden; }
+  .gallery-item img { width: 100%; height: 100%; aspect-ratio: 1; object-fit: cover; display: block; filter: brightness(0.85); transition: filter 0.5s, transform 0.5s; }
   .gallery-item:hover img { filter: brightness(1); transform: scale(1.02); }
 
   .booking-cta {
@@ -94,8 +94,11 @@
     .booking-cta { padding: 48px 24px; flex-direction: column; gap: 24px; align-items: flex-start; }
     footer { padding: 32px 24px; }
   }
+  @media (max-width: 900px) {
+    .gallery-grid { grid-template-columns: repeat(2, 1fr); }
+  }
   @media (max-width: 540px) {
-    .gallery-grid { columns: 1; }
+    .gallery-grid { grid-template-columns: repeat(2, 1fr); }
   }
 </style>
 <link rel="canonical" href="https://wesche.com/tattoos.html">
@@ -208,3 +211,4 @@ document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
 
 </body>
 </html>
+
