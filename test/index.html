@@ -158,7 +158,7 @@
     }
     .hero-bg {
       position: absolute; inset: 0;
-      background-image: url('img/DSCF0808-1774793180886.webp');
+      background-image: url('https://raw.githubusercontent.com/BayouWebStudio/bayouwebstudio.github.io/main/weschetattoo/img/DSCF0808-1774806586154.webp');
       background-size: cover; background-position: center top;
       filter: brightness(0.42); transform: scale(1.02);
     }
@@ -263,7 +263,7 @@
     <div class="hero-gradient"></div>
     <div class="hero-content">
       <p class="hero-eyebrow fade-up" data-en="Sacred Geometry" data-es="Sacred Geometry">Sacred Geometry &#xb7; Oaks, US</p>
-      <h1 class="fade-up" data-en="Raul Wesche" data-es="Raul Wesche">Raul Wesche</h1>
+      <h1 class="fade-up" data-en="Wesche Tattoo" data-es="Raul Wesche">Wesche Tattoo</h1>
       <p class="hero-sub fade-up" data-en="Tattoos that tell your story. Based in Oaks." data-es="Tattoos that tell your story. Based in Oaks.">Tattoos that tell your story. Based in Oaks.</p>
       <a href="./booking.html" class="hero-cta fade-up" data-en="Book a Session" data-es="Book a Session">Book a Session</a>
       <div class="social-row fade-up">
@@ -399,21 +399,26 @@
   </script>
   
   <script>
-    const LANG = { default: 'en', current: 'en' };
+    const LANG = { default: 'en', current: document.documentElement.lang || 'en' };
     function toggleLang() {
       LANG.current = LANG.current === 'es' ? 'en' : 'es';
+      document.documentElement.lang = LANG.current;
       document.querySelectorAll('[data-es][data-en]').forEach(el => {
         el.textContent = el.getAttribute('data-' + LANG.current) || el.textContent;
       });
       document.querySelectorAll('[data-es-href][data-en-href]').forEach(el => {
         el.setAttribute('href', el.getAttribute('data-' + LANG.current + '-href') || el.getAttribute('href'));
       });
+      const btn = document.querySelector('.lang-toggle');
+      if (btn) btn.textContent = LANG.current === 'es' ? 'EN' : 'ES';
     }
-    // Apply language on page load
+    // Apply language on page load based on html lang attribute
     document.addEventListener('DOMContentLoaded', function() {
       document.querySelectorAll('[data-es][data-en]').forEach(el => {
         el.textContent = el.getAttribute('data-' + LANG.current) || el.textContent;
       });
+      const btn = document.querySelector('.lang-toggle');
+      if (btn) btn.textContent = LANG.current === 'es' ? 'EN' : 'ES';
     });
 
     // Fade-up on scroll
