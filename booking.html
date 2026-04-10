@@ -314,11 +314,38 @@ async function submitForm(e) {
     references: document.getElementById('references').value,
   };
 
-  // Send via Formspree (or mailto fallback)
-  const body = `Name: ${data.name}\nEmail: ${data.email}\nPhone: ${data.phone}\nPlacement: ${data.placement}\n\nVision:\n${data.vision}\n\nReferences: ${data.references}`;
-  window.location.href = `mailto:booking@weschetattoo.com?subject=Tattoo Inquiry - ${data.name}&body=${encodeURIComponent(body)}`;
-  btn.textContent = 'Send Inquiry →';
-  btn.disabled = false;
+  const message = `Placement: ${data.placement}\n\nVision:\n${data.vision}\n\nReferences: ${data.references}`;
+
+  try {
+    // Save to dashboard
+    const res = await fetch('https://curious-lemming-262.convex.site/api/bookings/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        slug: 'weschetattoo',
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        service: data.placement,
+        message: message,
+      }),
+    });
+
+    if (res.ok) {
+      form.style.display = 'none';
+      successMsg.style.display = 'block';
+      btn.textContent = 'Send Inquiry →';
+      btn.disabled = false;
+    } else {
+      throw new Error('Submit failed');
+    }
+  } catch (err) {
+    // Fallback to email if API fails
+    const body = `Name: ${data.name}\nEmail: ${data.email}\nPhone: ${data.phone}\nPlacement: ${data.placement}\n\nVision:\n${data.vision}\n\nReferences: ${data.references}`;
+    window.location.href = `mailto:booking@weschetattoo.com?subject=Tattoo Inquiry - ${data.name}&body=${encodeURIComponent(body)}`;
+    btn.textContent = 'Send Inquiry →';
+    btn.disabled = false;
+  }
 }
 </script>
 
