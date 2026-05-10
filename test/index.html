@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr" data-theme="midnight">
+<html lang="fr" data-theme="coastal">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -29,12 +29,12 @@
   <style>
     
     :root {
-      --black: #0a0a0a;
-      --charcoal: #141414;
-      --gold: #C9A84C;
-      --white: #e8e0d0;
-      --dim: #e8e0d099;
-      --border: #323232;
+      --black: #eaf3f4;
+      --charcoal: #ffffff;
+      --gold: #3b7a80;
+      --white: #12252a;
+      --dim: #12252a99;
+      --border: #ffffff;
     }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html { scroll-behavior: smooth; }
@@ -232,6 +232,104 @@
   "description": "Raul wesche is a professional tattoo artist in la specializing in custom designs. View portfolio and book your appointment today."
 }</script>
   
+<!-- dashboard-animations-start -->
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script defer data-dashboard-anim="statsCounter,heroParallax,scrollProgress,fadeUp,galleryStagger">
+window.addEventListener('load', function() {
+(function() {
+  if (typeof gsap === 'undefined' || typeof ScrollTrigger === 'undefined') return;
+  try {
+    gsap.registerPlugin(ScrollTrigger);
+
+    // Fade-up on scroll — sections gently slide up and fade in.
+    // IMPORTANT: skip elements already in view on page load (gsap.from would
+    // hide them and the scroll trigger wouldn't fire because we're past it).
+    // Also narrowly target content sections only, NOT hero/nav/footer wrappers.
+    var faded = document.querySelectorAll('.fade-up, .section-title, .section-label, .about-preview, .gallery-cta-wrap, .testimonials-preview, .booking-preview, .testimonial-placeholder, .service-card, .style-card');
+    faded.forEach(function(el) {
+      if (el.dataset.dashFaded === '1') return;
+      el.dataset.dashFaded = '1';
+      var rect = el.getBoundingClientRect();
+      var alreadyVisible = rect.top < window.innerHeight * 0.95 && rect.bottom > 0;
+      if (alreadyVisible) {
+        // Already on screen — play once, no scroll trigger (so it can never stay hidden)
+        gsap.from(el, { y: 20, autoAlpha: 0, duration: 0.7, ease: 'power2.out' });
+      } else {
+        gsap.from(el, {
+          y: 28, autoAlpha: 0, duration: 0.8, ease: 'power2.out',
+          scrollTrigger: { trigger: el, start: 'top 92%', toggleActions: 'play none none none', once: true }
+        });
+      }
+    });
+
+    // Gallery cascade — items appear one after another.
+    // Same safety: skip grids already in view on load.
+    document.querySelectorAll('.gallery-grid, .masonry-grid').forEach(function(grid) {
+      var items = grid.querySelectorAll('.gallery-item, .masonry-item');
+      if (items.length === 0) return;
+      var rect = grid.getBoundingClientRect();
+      var alreadyVisible = rect.top < window.innerHeight * 0.95 && rect.bottom > 0;
+      if (alreadyVisible) {
+        gsap.from(items, { y: 16, autoAlpha: 0, duration: 0.5, stagger: 0.06, ease: 'power2.out' });
+      } else {
+        gsap.from(items, {
+          y: 20, autoAlpha: 0, duration: 0.6, stagger: 0.08, ease: 'power2.out',
+          scrollTrigger: { trigger: grid, start: 'top 90%', toggleActions: 'play none none none', once: true }
+        });
+      }
+    });
+
+    // Stats counter — animate numbers like "297K", "12", "5+" from 0 to target when in view
+    document.querySelectorAll('.stat-num, .stat-number, [data-count]').forEach(function(el) {
+      var text = (el.textContent || '').trim();
+      var m = text.match(/^([\d.,]+)\s*([a-zA-Z+%]*)\s*$/);
+      if (!m) return;
+      var raw = m[1].replace(/,/g, '');
+      var num = parseFloat(raw);
+      if (isNaN(num) || num <= 0) return;
+      var suffix = m[2] || '';
+      var hasDecimal = raw.indexOf('.') !== -1;
+      var obj = { val: 0 };
+      gsap.to(obj, {
+        val: num,
+        duration: 1.6,
+        ease: 'power2.out',
+        scrollTrigger: { trigger: el, start: 'top 90%', toggleActions: 'play none none none' },
+        onUpdate: function() {
+          el.textContent = (hasDecimal ? obj.val.toFixed(1) : Math.round(obj.val)) + suffix;
+        }
+      });
+    });
+
+    // Hero parallax — hero section moves slower than scroll
+    (function() {
+      var hero = document.querySelector('.hero, [class*="hero-"], header.hero, section.hero');
+      if (!hero) return;
+      gsap.to(hero, {
+        yPercent: 8,
+        ease: 'none',
+        scrollTrigger: { trigger: hero, start: 'top top', end: 'bottom top', scrub: 0.6 }
+      });
+    })();
+
+    // Scroll progress bar at the very top of the page
+    (function() {
+      var bar = document.createElement('div');
+      bar.setAttribute('data-dashboard-anim', 'progress');
+      bar.style.cssText = 'position:fixed;top:0;left:0;right:0;height:2px;background:var(--gold,var(--accent,#c9a84c));z-index:9999;transform-origin:left center;transform:scaleX(0);pointer-events:none;';
+      document.body.appendChild(bar);
+      gsap.to(bar, {
+        scaleX: 1, ease: 'none',
+        scrollTrigger: { trigger: document.documentElement, start: 'top top', end: 'bottom bottom', scrub: 0.2 }
+      });
+    })();
+  } catch (e) { /* animation failure must never break the site */ }
+})();
+});
+</script>
+<!-- dashboard-animations-end -->
+
 <style data-dashboard-style="1">
   html { font-size: 16px !important; }
   .btn-gold, .btn-outline, .book-btn, .hero-cta, .btn, button.cta, a.cta,
