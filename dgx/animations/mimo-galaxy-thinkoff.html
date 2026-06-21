@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MiMo TP3 Galaxy - Think Off</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    background: #020307;
+    color: #f6f2e8;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  canvas {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+  }
+  .hud {
+    position: fixed;
+    left: 24px;
+    top: 22px;
+    width: min(430px, calc(100vw - 48px));
+    padding: 18px 18px 16px;
+    border: 1px solid rgba(255,255,255,.16);
+    border-radius: 8px;
+    background: rgba(7, 10, 16, .68);
+    box-shadow: 0 22px 80px rgba(0,0,0,.42);
+    backdrop-filter: blur(12px);
+  }
+  .eyebrow {
+    color: #74e0ff;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+  }
+  h1 {
+    margin: 7px 0 12px;
+    font-size: clamp(27px, 5vw, 46px);
+    line-height: .98;
+    letter-spacing: 0;
+  }
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin: 12px 0 14px;
+  }
+  .metric {
+    min-height: 74px;
+    padding: 10px;
+    border-radius: 8px;
+    background: rgba(255,255,255,.08);
+    border: 1px solid rgba(255,255,255,.1);
+  }
+  .metric span {
+    display: block;
+    color: #abb7c4;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+  }
+  .metric strong {
+    display: block;
+    margin-top: 7px;
+    font-size: clamp(19px, 4vw, 27px);
+    line-height: 1;
+  }
+  .meta {
+    display: grid;
+    gap: 5px;
+    color: #c5ccd3;
+    font-size: 13px;
+  }
+  .legend {
+    position: fixed;
+    right: 22px;
+    bottom: 18px;
+    width: min(360px, calc(100vw - 44px));
+    padding: 12px 14px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,.14);
+    background: rgba(7, 10, 16, .56);
+    color: #dce4ea;
+    font-size: 12px;
+    line-height: 1.45;
+    backdrop-filter: blur(10px);
+  }
+  .dot {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    margin-right: 6px;
+    border-radius: 999px;
+    vertical-align: -1px;
+  }
+  @media (max-width: 680px) {
+    .hud {
+      left: 12px;
+      top: 12px;
+      width: calc(100vw - 24px);
+      padding: 14px;
+    }
+    .metrics { grid-template-columns: 1fr; }
+    .legend {
+      left: 12px;
+      right: auto;
+      bottom: 12px;
+      width: calc(100vw - 24px);
+    }
+  }
+</style>
+</head>
+<body>
+<canvas id="galaxy"></canvas>
+<section class="hud" aria-label="MiMo benchmark summary">
+  <div class="eyebrow">fresh spark-bench visual</div>
+  <h1>MiMo TP3 Galaxy</h1>
+  <div class="metrics">
+    <div class="metric"><span>TrueScore</span><strong>97.2</strong></div>
+    <div class="metric"><span>Latency</span><strong>1.51s</strong></div>
+    <div class="metric"><span>Spec</span><strong>MTP</strong></div>
+  </div>
+  <div class="meta">
+    <div><strong>Run:</strong> mimo-tp3-mtp-base-thinkoff-20260621-172823</div>
+    <div><strong>Model:</strong> MiMo-V2.5-NVFP4</div>
+    <div><strong>Topology:</strong> 3x-spark-tcp, TP3, thinking off</div>
+    <div><strong>Domains:</strong> tool use 100, structured 100, reasoning 100, instruction 90.5</div>
+  </div>
+</section>
+<section class="legend" aria-label="Galaxy legend">
+  <div><span class="dot" style="background:#75e6ff"></span>outer stars encode tool and structured reliability</div>
+  <div><span class="dot" style="background:#ffcd6b"></span>core brightness tracks TrueScore</div>
+  <div><span class="dot" style="background:#9cffb4"></span>arm density tracks reasoning and responsiveness</div>
+</section>
+<script>
+const canvas = document.getElementById("galaxy");
+const ctx = canvas.getContext("2d", { alpha: false });
+
+const run = {
+  score: 97.2,
+  latency: 1.51,
+  domains: {
+    tool: 100,
+    structured: 100,
+    reasoning: 100,
+    instruction: 90.5,
+    responsiveness: 93.0
+  }
+};
+
+let w = 0;
+let h = 0;
+let cx = 0;
+let cy = 0;
+let stars = [];
+let dust = [];
+let frame = 0;
+let rotation = 0;
+
+function rand(min, max) {
+  return min + Math.random() * (max - min);
+}
+
+function pick(items) {
+  return items[Math.floor(Math.random() * items.length)];
+}
+
+function resize() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  w = Math.floor(window.innerWidth * dpr);
+  h = Math.floor(window.innerHeight * dpr);
+  canvas.width = w;
+  canvas.height = h;
+  canvas.style.width = window.innerWidth + "px";
+  canvas.style.height = window.innerHeight + "px";
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  cx = window.innerWidth / 2;
+  cy = window.innerHeight / 2;
+  buildGalaxy();
+}
+
+function buildGalaxy() {
+  stars = [];
+  dust = [];
+  const minDim = Math.min(window.innerWidth, window.innerHeight);
+  const armCount = 4;
+  const armStars = Math.round(980 + run.score * 7);
+  const haloStars = Math.round(360 + run.domains.reliability || 360);
+  const radiusMax = minDim * 0.46;
+  const palette = [
+    [116, 224, 255],
+    [255, 205, 107],
+    [156, 255, 180],
+    [255, 134, 176],
+    [230, 236, 255]
+  ];
+
+  for (let i = 0; i < armStars; i++) {
+    const arm = i % armCount;
+    const t = Math.pow(Math.random(), 0.72);
+    const baseAngle = (arm / armCount) * Math.PI * 2;
+    const spiral = t * (5.4 + run.domains.reasoning / 90);
+    const spread = rand(-0.44, 0.44) * (0.28 + t);
+    const r = 18 + radiusMax * t;
+    const cross = rand(-1, 1) * (5 + t * 42);
+    const angle = baseAngle + spiral + spread;
+    const color = t < 0.18 ? [255, 226, 158] : pick(palette);
+
+    stars.push({
+      r,
+      angle,
+      cross,
+      size: rand(0.45, 1.5) + (t < 0.12 ? rand(0.8, 1.8) : 0),
+      color,
+      alpha: rand(0.35, 0.96),
+      twinkle: rand(0.012, 0.045),
+      phase: rand(0, Math.PI * 2),
+      speed: rand(0.00018, 0.00062) * (1.25 - t * 0.52)
+    });
+  }
+
+  for (let i = 0; i < haloStars; i++) {
+    const r = rand(radiusMax * 0.35, radiusMax * 1.18);
+    dust.push({
+      r,
+      angle: rand(0, Math.PI * 2),
+      size: rand(0.25, 0.9),
+      alpha: rand(0.12, 0.46),
+      color: pick([[110, 170, 255], [180, 150, 255], [120, 240, 210], [255, 210, 150]]),
+      speed: rand(0.00002, 0.00014)
+    });
+  }
+}
+
+function background() {
+  const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(window.innerWidth, window.innerHeight));
+  g.addColorStop(0, "#111019");
+  g.addColorStop(0.42, "#050712");
+  g.addColorStop(1, "#020307");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+}
+
+function drawCore(time) {
+  const strength = run.score / 100;
+  const layers = [
+    { r: 170, a: 0.045 },
+    { r: 104, a: 0.075 },
+    { r: 58, a: 0.14 },
+    { r: 24, a: 0.36 },
+    { r: 8, a: 0.92 }
+  ];
+  for (const layer of layers) {
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, layer.r);
+    g.addColorStop(0, `rgba(255, 244, 210, ${layer.a * strength})`);
+    g.addColorStop(0.38, `rgba(255, 190, 105, ${layer.a * 0.55})`);
+    g.addColorStop(0.78, `rgba(121, 224, 255, ${layer.a * 0.15})`);
+    g.addColorStop(1, "rgba(0, 0, 0, 0)");
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(cx, cy, layer.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(time * 0.0006);
+  ctx.strokeStyle = "rgba(255, 225, 158, .16)";
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 4; i++) {
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 82 + i * 18, 18 + i * 4, i * Math.PI / 7, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawStarBody(item, alphaScale, time) {
+  const angle = item.angle + rotation + time * item.speed;
+  const tangent = angle + Math.PI / 2;
+  const x = cx + Math.cos(angle) * item.r + Math.cos(tangent) * (item.cross || 0);
+  const y = cy + Math.sin(angle) * item.r + Math.sin(tangent) * (item.cross || 0);
+  const pulse = item.twinkle ? Math.sin(time * item.twinkle + item.phase) * 0.32 + 0.68 : 1;
+  const a = Math.max(0.05, item.alpha * alphaScale * pulse);
+  const [r, g, b] = item.color;
+
+  ctx.beginPath();
+  ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${a})`;
+  ctx.arc(x, y, item.size, 0, Math.PI * 2);
+  ctx.fill();
+
+  if (item.size > 1.25 && a > 0.45) {
+    ctx.beginPath();
+    ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${a * 0.13})`;
+    ctx.arc(x, y, item.size * 4.4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function draw() {
+  frame += 1;
+  const time = frame;
+  rotation += 0.00018;
+  background();
+
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  for (const item of dust) {
+    item.angle += item.speed;
+    drawStarBody(item, 0.58, time);
+  }
+  drawCore(time);
+  for (const item of stars) {
+    item.angle += item.speed;
+    drawStarBody(item, 1, time);
+  }
+  ctx.restore();
+
+  requestAnimationFrame(draw);
+}
+
+window.addEventListener("resize", resize);
+resize();
+draw();
+</script>
+</body>
+</html>

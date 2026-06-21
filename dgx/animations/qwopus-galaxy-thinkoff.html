@@ -1,0 +1,182 @@
+html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spiral Galaxy</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #000;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="galaxyCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('galaxyCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let width, height, centerX, centerY;
+        let stars = [];
+        const starCount = 1500; // Number of stars
+        const armCount = 4;    // Number of spiral arms
+        const armWidth = 0.8;  // Spread of the arms (radians)
+
+        // Resize handling
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            centerX = width / 2;
+            centerY = height / 2;
+            initStars();
+        }
+
+        window.addEventListener('resize', resize);
+
+        // Star Class
+        class Star {
+            constructor() {
+                this.reset();
+            }
+
+            reset() {
+                // Random radius with Gaussian distribution bias towards center
+                const r = Math.random() * Math.random() * Math.min(width, height) * 0.45;
+                this.radius = r;
+                
+                // Base angle based on spiral arm logic
+                // The angle increases with distance to create the spiral
+                const anglePerUnit = 0.005; 
+                const baseAngle = r * anglePerUnit;
+
+                // Assign to a specific arm
+                const armIndex = Math.floor(Math.random() * armCount);
+                const armOffset = (Math.PI * 2 / armCount) * armIndex;
+                
+                // Add randomness to spread stars within the arm
+                const spread = (Math.random() - 0.5) * armWidth;
+                
+                this.angle = baseAngle + armOffset + spread;
+
+                // Velocity: closer stars move faster (Keplerian approximation for visual effect)
+                // Base speed + variation
+                this.velocity = 0.002 + (Math.random() * 0.002); 
+                // Adjust velocity based on radius to keep spiral structure tight
+                // Inner stars rotate faster
+                this.velocity *= (1 + (100 / (r + 100)));
+
+                // Size variation
+                this.size = Math.random() * 1.5 + 0.5;
+                if (r < 50) this.size += 1; // Core stars are bigger
+
+                // Color variation
+                // Core: Warm (Orange/Yellow)
+                // Mid: Neutral (White)
+                // Outer: Cool (Blue/Purple)
+                const coreColor = { r: 255, g: 200, b: 100 };
+                const midColor = { r: 255, g: 255, b: 255 };
+                const outerColor = { r: 100, g: 150, b: 255 };
+
+                let color;
+                if (r < 80) {
+                    color = coreColor;
+                } else if (r > 300) {
+                    color = outerColor;
+                } else {
+                    // Interpolate between mid and outer
+                    const t = (r - 80) / 220;
+                    color = {
+                        r: midColor.r + (outerColor.r - midColor.r) * t,
+                        g: midColor.g + (outerColor.g - midColor.g) * t,
+                        b: midColor.b + (outerColor.b - midColor.b) * t
+                    };
+                }
+
+                // Add slight noise to color
+                this.color = `rgba(${Math.floor(color.r)}, ${Math.floor(color.g)}, ${Math.floor(color.b)},`;
+                
+                // Twinkle properties
+                this.brightness = 0.8 + Math.random() * 0.2;
+                this.twinkleSpeed = 0.02 + Math.random() * 0.05;
+                this.twinkleOffset = Math.random() * Math.PI * 2;
+            }
+
+            update(time) {
+                // Rotate star
+                this.angle += this.velocity;
+
+                // Twinkle effect
+                const twinkle = Math.sin(time * this.twinkleSpeed + this.twinkleOffset);
+                this.currentBrightness = this.brightness + (twinkle * 0.2);
+                if (this.currentBrightness > 1) this.currentBrightness = 1;
+            }
+
+            draw(ctx, time) {
+                const x = centerX + Math.cos(this.angle) * this.radius;
+                const y = centerY + Math.sin(this.angle) * this.radius;
+
+                ctx.beginPath();
+                ctx.arc(x, y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = this.color + this.currentBrightness + ")";
+                ctx.fill();
+            }
+        }
+
+        function initStars() {
+            stars = [];
+            for (let i = 0; i < starCount; i++) {
+                stars.push(new Star());
+            }
+        }
+
+        // Draw the glowing core
+        function drawCore() {
+            const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, 80);
+            gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+            gradient.addColorStop(0.2, 'rgba(255, 240, 200, 0.8)');
+            gradient.addColorStop(0.5, 'rgba(255, 200, 150, 0.3)');
+            gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 80, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Animation Loop
+        let time = 0;
+        function animate() {
+            // Clear canvas with slight transparency for trail effect (optional, here we clear fully)
+            ctx.clearRect(0, 0, width, height);
+
+            // Draw background stars (static, very faint)
+            // Not implemented to keep code simple, but could be added here
+
+            // Draw Core
+            drawCore();
+
+            // Update and Draw Stars
+            for (let star of stars) {
+                star.update(time);
+                star.draw(ctx, time);
+            }
+
+            time++;
+            requestAnimationFrame(animate);
+        }
+
+        // Initialize
+        resize();
+        animate();
+
+    </script>
+</body>
+</html>

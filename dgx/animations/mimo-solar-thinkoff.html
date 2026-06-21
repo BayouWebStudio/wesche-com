@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MiMo TP3 Solar System - Think Off</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    background: #03050a;
+    color: #f5f1e8;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  canvas { display: block; width: 100vw; height: 100vh; }
+  .panel {
+    position: fixed;
+    left: 22px;
+    top: 20px;
+    width: min(430px, calc(100vw - 44px));
+    padding: 17px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,.15);
+    background: rgba(6, 9, 16, .68);
+    box-shadow: 0 22px 80px rgba(0,0,0,.38);
+    backdrop-filter: blur(12px);
+  }
+  .label {
+    color: #81e2ff;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+  }
+  h1 {
+    margin: 7px 0 12px;
+    font-size: clamp(27px, 5vw, 44px);
+    line-height: .98;
+    letter-spacing: 0;
+  }
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 13px;
+  }
+  .stat {
+    min-height: 70px;
+    padding: 10px;
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 8px;
+    background: rgba(255,255,255,.08);
+  }
+  .stat span {
+    display: block;
+    color: #aeb8c2;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+  }
+  .stat strong {
+    display: block;
+    margin-top: 8px;
+    font-size: clamp(19px, 4vw, 27px);
+    line-height: 1;
+  }
+  .meta {
+    display: grid;
+    gap: 5px;
+    color: #cbd3da;
+    font-size: 13px;
+  }
+  .key {
+    position: fixed;
+    right: 22px;
+    bottom: 18px;
+    width: min(370px, calc(100vw - 44px));
+    padding: 12px 14px;
+    border: 1px solid rgba(255,255,255,.14);
+    border-radius: 8px;
+    background: rgba(6, 9, 16, .56);
+    color: #dce4ea;
+    font-size: 12px;
+    line-height: 1.45;
+    backdrop-filter: blur(10px);
+  }
+  .swatch {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    margin-right: 6px;
+    border-radius: 50%;
+    vertical-align: -1px;
+  }
+  @media (max-width: 680px) {
+    .panel {
+      left: 12px;
+      top: 12px;
+      width: calc(100vw - 24px);
+      padding: 14px;
+    }
+    .stats { grid-template-columns: 1fr; }
+    .key {
+      left: 12px;
+      right: auto;
+      bottom: 12px;
+      width: calc(100vw - 24px);
+    }
+  }
+</style>
+</head>
+<body>
+<canvas id="scene"></canvas>
+<section class="panel" aria-label="MiMo benchmark summary">
+  <div class="label">spark-bench solar visual</div>
+  <h1>MiMo TP3 System</h1>
+  <div class="stats">
+    <div class="stat"><span>TrueScore</span><strong>97.2</strong></div>
+    <div class="stat"><span>Median</span><strong>1.51s</strong></div>
+    <div class="stat"><span>Rows</span><strong>29</strong></div>
+  </div>
+  <div class="meta">
+    <div><strong>Run:</strong> mimo-tp3-mtp-base-thinkoff-20260621-172823</div>
+    <div><strong>Model:</strong> MiMo-V2.5-NVFP4</div>
+    <div><strong>Mode:</strong> thinking off, MTP speculative decoding on</div>
+    <div><strong>Topology:</strong> 3x-spark-tcp, TP3</div>
+  </div>
+</section>
+<section class="key" aria-label="Metric legend">
+  <div><span class="swatch" style="background:#75e6ff"></span>tool use, structured, and reasoning orbit at 100</div>
+  <div><span class="swatch" style="background:#ffcf72"></span>instruction orbit is slightly smaller at 90.5</div>
+  <div><span class="swatch" style="background:#9cffb4"></span>responsiveness controls orbit speed</div>
+</section>
+<script>
+const canvas = document.getElementById("scene");
+const ctx = canvas.getContext("2d", { alpha: false });
+
+const metrics = [
+  { name: "tool use", score: 100, color: "#75e6ff", speed: 0.0105, phase: 0.1 },
+  { name: "structured", score: 100, color: "#9cffb4", speed: 0.0086, phase: 1.5 },
+  { name: "reasoning", score: 100, color: "#d9b6ff", speed: 0.0072, phase: 2.7 },
+  { name: "instruction", score: 90.5, color: "#ffcf72", speed: 0.0062, phase: 3.9 },
+  { name: "responsiveness", score: 93.0, color: "#ff85ad", speed: 0.0053, phase: 5.2 }
+];
+
+const summary = {
+  truescore: 97.2,
+  latency: 1.51
+};
+
+let W = 0;
+let H = 0;
+let cx = 0;
+let cy = 0;
+let stars = [];
+let tick = 0;
+
+function rand(min, max) {
+  return min + Math.random() * (max - min);
+}
+
+function resize() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  W = Math.floor(window.innerWidth * dpr);
+  H = Math.floor(window.innerHeight * dpr);
+  canvas.width = W;
+  canvas.height = H;
+  canvas.style.width = window.innerWidth + "px";
+  canvas.style.height = window.innerHeight + "px";
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  cx = window.innerWidth / 2;
+  cy = window.innerHeight / 2;
+  buildStars();
+}
+
+function buildStars() {
+  stars = [];
+  const count = Math.round(420 + summary.truescore * 4);
+  for (let i = 0; i < count; i++) {
+    stars.push({
+      x: Math.random() * window.innerWidth,
+      y: Math.random() * window.innerHeight,
+      size: rand(0.35, 1.45),
+      alpha: rand(0.2, 0.9),
+      phase: rand(0, Math.PI * 2),
+      speed: rand(0.004, 0.018)
+    });
+  }
+}
+
+function bg() {
+  const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(window.innerWidth, window.innerHeight));
+  g.addColorStop(0, "#111322");
+  g.addColorStop(0.5, "#050814");
+  g.addColorStop(1, "#03050a");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+}
+
+function drawStars() {
+  for (const s of stars) {
+    const alpha = Math.max(0.05, s.alpha + Math.sin(tick * s.speed + s.phase) * 0.2);
+    ctx.fillStyle = `rgba(230, 238, 255, ${alpha})`;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawSun() {
+  const pulse = 1 + Math.sin(tick * 0.018) * 0.04;
+  const radius = 42 * pulse;
+  const glow = 156 * (summary.truescore / 100);
+  const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, glow);
+  g.addColorStop(0, "rgba(255, 252, 220, .98)");
+  g.addColorStop(0.22, "rgba(255, 206, 105, .72)");
+  g.addColorStop(0.58, "rgba(111, 218, 255, .18)");
+  g.addColorStop(1, "rgba(0, 0, 0, 0)");
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(cx, cy, glow, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "#fff0a8";
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawOrbit(radius, score) {
+  ctx.strokeStyle = `rgba(255,255,255,${0.08 + (score / 100) * 0.08})`;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.stroke();
+}
+
+function drawPlanet(metric, index, baseRadius) {
+  const orbit = baseRadius + index * 58 + (metric.score - 92) * 1.2;
+  const size = 8 + metric.score / 9.5;
+  const angle = metric.phase + tick * metric.speed * (summary.latency < 2 ? 1.18 : 0.88);
+  const x = cx + Math.cos(angle) * orbit;
+  const y = cy + Math.sin(angle) * orbit;
+
+  drawOrbit(orbit, metric.score);
+
+  ctx.save();
+  ctx.shadowColor = metric.color;
+  ctx.shadowBlur = 18;
+  ctx.fillStyle = metric.color;
+  ctx.beginPath();
+  ctx.arc(x, y, size, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  const light = ctx.createRadialGradient(x - size * 0.35, y - size * 0.35, 1, x, y, size * 1.4);
+  light.addColorStop(0, "rgba(255,255,255,.8)");
+  light.addColorStop(0.35, metric.color);
+  light.addColorStop(1, "rgba(0,0,0,.42)");
+  ctx.fillStyle = light;
+  ctx.beginPath();
+  ctx.arc(x, y, size, 0, Math.PI * 2);
+  ctx.fill();
+
+  if (metric.name === "reasoning") {
+    ctx.strokeStyle = "rgba(220, 190, 255, .68)";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.ellipse(x, y, size * 1.9, size * 0.66, Math.PI / 7, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  ctx.fillStyle = "rgba(245, 241, 232, .88)";
+  ctx.font = "12px Inter, system-ui, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText(metric.name, x, y + size + 18);
+  ctx.restore();
+}
+
+function draw() {
+  tick += 1;
+  const baseRadius = Math.max(80, Math.min(window.innerWidth, window.innerHeight) * 0.16);
+  bg();
+  drawStars();
+  drawSun();
+
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+  metrics.forEach((metric, index) => drawPlanet(metric, index, baseRadius));
+  ctx.restore();
+
+  requestAnimationFrame(draw);
+}
+
+window.addEventListener("resize", resize);
+resize();
+draw();
+</script>
+</body>
+</html>
