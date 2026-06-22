@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spiral Galaxy Animation</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="galaxyCanvas"></canvas>
+    <script>
+        const canvas = document.getElementById('galaxyCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let width = window.innerWidth;
+        let height = window.innerHeight;
+        let centerX = width / 2;
+        let centerY = height / 2;
+
+        canvas.width = width;
+        canvas.height = height;
+
+        window.addEventListener('resize', () => {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            centerX = width / 2;
+            centerY = height / 2;
+            canvas.width = width;
+            canvas.height = height;
+        });
+
+        // Configuration
+        const NUM_STARS = 600;
+        const NUM_ARMS = 3;
+        const ARM_SPREAD = 0.5; // How much the arms spread out
+        const GALAXY_RADIUS = Math.min(width, height) * 0.45;
+        const CORE_RADIUS = GALAXY_RADIUS * 0.15;
+        const ROTATION_SPEED = 0.0003;
+        
+        // Star properties
+        const stars = [];
+
+        class Star {
+            constructor() {
+                this.init();
+            }
+
+            init() {
+                // Determine if star is in a spiral arm or halo
+                const isArm = Math.random() < 0.7;
+                
+                if (isArm) {
+                    // Spiral arm star
+                    const armIndex = Math.floor(Math.random() * NUM_ARMS);
+                    const distance = Math.random() * GALAXY_RADIUS;
+                    
+                    // Angle based on distance + arm offset + some randomness
+                    const armAngle = (distance / GALAXY_RADIUS) * (Math.PI * 2.5); 
+                    const randomOffset = (Math.random() - 0.5) * ARM_SPREAD;
+                    const angle = (armIndex / NUM_ARMS) * Math.PI * 2 + armAngle + randomOffset;
+                    
+                    this.distance = distance;
+                    this.angle = angle;
+                    this.z = Math.random() * 2 - 1; // Depth for 3D effect
+                } else {
+                    // Halo star (scattered)
+                    this.distance = Math.random() * GALAXY_RADIUS;
+                    this.angle = Math.random() * Math.PI * 2;
+                    this.z = Math.random() * 2 - 1;
+                }
+
+                // Visuals
+                this.size = Math.random() * 2 + 0.5;
+                this.brightness = Math.random() * 0.5 + 0.5;
+                this.twinkleSpeed = Math.random() * 0.05 + 0.01;
+                this.twinkleOffset = Math.random() * Math.PI * 2;
+                
+                // Color variation (Blue/White/Yellow/Orange)
+                this.colorType = Math.random();
+                
+                // Speed relative to distance (Keplerian-ish, inner moves faster)
+                this.speedMultiplier = 1 / (this.distance * 0.01 + 0.5);
+            }
+
+            update(time) {
+                // Rotate
+                this.angle += ROTATION_SPEED * this.speedMultiplier;
+                
+                // Twinkle
+                this.currentBrightness = this.brightness * (0.7 + 0.3 * Math.sin(time * this.twinkleSpeed + this.twinkleOffset));
+            }
+
+            draw(ctx, time) {
+                // Calculate 3D position
+                const x = Math.cos(this.angle) * this.distance;
+                const y = Math.sin(this.angle) * this.distance * 0.4; // Flatten perspective
+                
+                // Apply z-depth slightly
+                const scale = 1 + this.z * 0.1;
+                const screenX = centerX + x * scale;
+                const screenY = centerY + y * scale;
+
+                // Distance from core for brightness falloff
+                const distFromCore = Math.sqrt(x*x + y*y);
+                const coreFade = Math.max(0, 1 - distFromCore / GALAXY_RADIUS);
+                
+                // Core glow boost
+                const coreBoost = Math.max(0, 1 - distFromCore / CORE_RADIUS);
+
+                // Determine color
+                let r, g, b;
+                if (this.colorType < 0.1) { // Hot blue
+                    r = 150; g = 180; b = 255;
+                } else if (this.colorType < 0.4) { // White
+                    r = 240; g = 240; b = 255;
+                } else if (this.colorType < 0.7) { // Yellowish
+                    r = 255; g = 250; b = 200;
+                } else { // Orange/Red
+                    r = 255; g = 180; b = 120;
+                }
+
+                // Core makes stars brighter/whiter
+                if (coreBoost > 0.5) {
+                    r = r + (255 - r) * coreBoost;
+                    g = g + (255 - g) * coreBoost;
+                    b = b + (255 - b) * coreBoost;
+                }
+
+                const alpha = Math.min(1, this.currentBrightness * (0.3 + coreFade * 0.7));
+                
+                ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
+                ctx.beginPath();
+                ctx.arc(screenX, screenY, this.size * (1 + coreBoost), 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        // Initialize stars
+        for (let i = 0; i < NUM_STARS; i++) {
+            stars.push(new Star());
+        }
+
+        // Draw Core Glow
+        function drawCore() {
+            const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, CORE_RADIUS * 2);
+            gradient.addColorStop(0, 'rgba(255, 255, 255, 0.5)');
+            gradient.addColorStop(0.2, 'rgba(200, 220, 255, 0.3)');
+            gradient.addColorStop(0.5, 'rgba(100, 120, 200, 0.1)');
+            gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, width, height);
+        }
+
+        // Draw Dust Lane (subtle)
+        function drawDust() {
+            ctx.save();
+            ctx.globalCompositeOperation = 'screen';
+            const gradient = ctx.createRadialGradient(centerX, centerY, CORE_RADIUS, centerX, centerY, GALAXY_RADIUS);
+            gradient.addColorStop(0, 'rgba(20, 20, 40, 0)');
+            gradient.addColorStop(0.3, 'rgba(10, 10, 20, 0.2)');
+            gradient.addColorStop(0.6, 'rgba(20, 20, 40, 0.1)');
+            gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            
+            // Slight elliptical shape
+            ctx.translate(centerX, centerY);
+            ctx.scale(1, 0.4);
+            ctx.translate(-centerX, -centerY);
+            
+            ctx.fillStyle = gradient;
+            ctx.fillRect(-width, -height, width*2, height*2);
+            ctx.restore();
+        }
+
+        function animate(time) {
+            ctx.clearRect(0, 0, width, height);
+            
+            // Background darkness
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, width, height);
+
+            // Sort stars by depth (z) for proper layering? 
+            // Actually for a flat galaxy it's better to just draw them all, 
+            // but we can sort by distance from center to draw outer ones first.
+            stars.sort((a, b) => b.distance - a.distance);
+
+            // Update and draw stars
+            for (let i = 0; i < stars.length; i++) {
+                stars[i].update(time);
+                stars[i].draw(ctx, time);
+            }
+
+            // Draw core glow overlay
+            drawCore();
+
+            requestAnimationFrame(animate);
+        }
+
+        requestAnimationFrame(animate);
+    </script>
+</body>
+</html>

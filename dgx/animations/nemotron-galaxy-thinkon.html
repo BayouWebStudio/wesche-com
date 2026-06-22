@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Spiral Galaxy Canvas</title>
+<style>
+  body,html{margin:0;padding:0;height:100%;overflow:hidden;background:#000;}
+  canvas{display:block;width:100%;height:100%;}
+</style>
+</head>
+<body>
+<canvas id="galaxy"></canvas>
+<script>
+(() => {
+  const canvas = document.getElementById('galaxy');
+  const ctx = canvas.getContext('2d');
+  function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  const starCount = 300;
+  const coreRadius = 20;
+  const stars = [];
+
+  for (let i = 0; i < starCount; i++) {
+    // radius distribution: more stars near core, fewer far out
+    const r = Math.pow(Math.random(), 2) * 300 + 5; // bias inward
+    // spiral angle: base angle plus winding factor proportional to radius
+    const baseAngle = Math.random() * Math.PI * 2;
+    const winding = 0.002; // controls tightness of spiral
+    const angle = baseAngle + winding * r;
+    // orbital speed: slower farther out
+    const speed = 0.0002 + Math.random() * 0.0005;
+    // twinkle phase offset
+    const twinkleOffset = Math.random() * Math.PI * 2;
+    // slight color variation
+    const hue = 200 + Math.random() * 30; // bluish-white
+    stars.push({ r, baseAngle, winding, angle, speed, twinkleOffset, hue });
+  }
+
+  let time = 0;
+  function draw() {
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // draw core
+    const grad = ctx.createRadialGradient(canvas.width/2, canvas.height/2, 0,
+                                          canvas.width/2, canvas.height/2, coreRadius);
+    grad.addColorStop(0, 'rgba(255,255,200,0.9)');
+    grad.addColorStop(0.7, 'rgba(255,200,100,0.4)');
+    grad.addColorStop(1, 'rgba(30,30,60,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(canvas.width/2, canvas.height/2, coreRadius, 0, Math.PI*2);
+    ctx.fill();
+
+    // draw stars
+    stars.forEach(s => {
+      const angle = s.baseAngle + s.winding * s.r + s.speed * time;
+      const x = canvas.width/2 + Math.cos(angle) * s.r;
+      const y = canvas.height/2 + Math.sin(angle) * s.r;
+      // twinkle: modulate alpha between 0.3 and 1
+      const twinkle = 0.3 + 0.7 * Math.abs(Math.sin(time * 0.001 + s.twinkleOffset));
+      const radius = 0.5 + Math.random() * 0.5; // slight size variation
+      ctx.fillStyle = `hsla(${s.hue}, 60%, 80%, ${twinkle})`;
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI*2);
+      ctx.fill();
+    });
+
+    time += 16; // approx 60fps delta
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+})();
+</script>
+</body>
+</html>
