@@ -2,14 +2,14 @@
 <html lang="en"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DGX Spark Benchmarks — by cluster size | wesche.com</title>
-<meta name="description" content="LLM benchmarks organized by DGX Spark cluster size: 1× Spark (Qwopus), 2× Spark (DeepSeek, Nemotron), 3× Spark (MiMo Omni), and 4× Spark (coming soon). TrueScore leaderboard with model-generated animations.">
+<meta name="description" content="LLM benchmarks organized by DGX Spark cluster size: 1× Spark (Qwopus, AEON, StepFun, Qwythos), 2× Spark (DeepSeek, Nemotron), 3× Spark (MiMo Omni), and 4× Spark (coming soon). TrueScore leaderboard with model-generated animations.">
 <meta property="og:title" content="DGX Spark Benchmarks — by cluster size">
 <meta property="og:description" content="See how models perform scaling from 1 to 4 DGX Sparks. TrueScore: deep multi-domain LLM eval with verifiable grading.">
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-WDWRJTR5BY"></script>
 <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}
 gtag('js',new Date());gtag('config','G-WDWRJTR5BY');</script>
 <style>
-:root{--bg:#0a0b14;--card:#13141f;--line:#23263a;--fg:#e7e9f3;--mut:#8b90a8;--acc:#6ea8ff;--grn:#4cd964;--ylw:#ffb45a;--red:#ff4757}
+:root{--bg:#0a0b14;--card:#13141f;--line:#23263a;--fg:#e7e9f3;--mut:#8b90a8;--acc:#6ea8ff;--grn:#4cd964;--ylw:#ffb45a;--red:#ff4757;--purp:#b47aff}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.6 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
 .wrap{max-width:1040px;margin:0 auto;padding:0 20px}
 header{padding:64px 0 40px;text-align:center;background:radial-gradient(1200px 400px at 50% -10%,rgba(110,168,255,.14),transparent)}
@@ -17,6 +17,7 @@ h1{font-size:40px;margin:0 0 8px;letter-spacing:-.02em}h2{font-size:24px;margin:
 h3{font-size:18px;margin:32px 0 10px;letter-spacing:-.01em;color:var(--acc)}
 .tag{color:var(--acc);font-weight:600;letter-spacing:.08em;text-transform:uppercase;font-size:13px}
 .lede{color:var(--mut);font-size:18px;max-width:680px;margin:14px auto 0}
+.sub{color:var(--mut);font-size:14px}
 
 /* Spark tier cards */
 .tier{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px;margin-top:16px}
@@ -43,9 +44,12 @@ h3{font-size:18px;margin:32px 0 10px;letter-spacing:-.01em;color:var(--acc)}
 .mode-tag{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
 .mode-tag.off{background:rgba(110,200,140,.15);color:#6ec88c}
 .mode-tag.on{background:rgba(255,180,90,.15);color:#ffb45a}
+.mode-tag.native{background:rgba(180,122,255,.15);color:#b47aff}
 .bar-mini{position:relative;background:#1c1e2e;border-radius:4px;height:16px;min-width:60px}
 .bar-mini span{position:absolute;left:0;top:0;bottom:0;border-radius:4px;opacity:.5}
 .bar-mini b{position:relative;padding-left:6px;line-height:16px;font-size:11px}
+
+/* Per-domain table */
 .dom-table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-top:10px}
 .dom-table th,.dom-table td{padding:9px 10px;text-align:center;border-bottom:1px solid var(--line);font-size:12px}
 .dom-table th{color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.03em}
@@ -57,7 +61,7 @@ h3{font-size:18px;margin:32px 0 10px;letter-spacing:-.01em;color:var(--acc)}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
 .anim-card{margin:0;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
 .anim-card iframe{width:100%;height:260px;border:0;display:block;background:#000}
-.anim-card figcaption{padding:10px 14px;color:var(--mut);font-size:12px;display:flex;justify-content:space-between;align-items:center}
+.anim-card figcaption{padding:10px 14px;color:var(--mut);font-size:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px}
 .anim-card figcaption b{color:var(--fg);font-size:13px}
 .anim-card a{color:var(--acc);text-decoration:none;font-size:13px}
 .anim-card .anim-mode{font-size:11px;padding:1px 6px;border-radius:12px;background:rgba(255,255,255,.05)}
@@ -70,14 +74,12 @@ h3{font-size:18px;margin:32px 0 10px;letter-spacing:-.01em;color:var(--acc)}
 code{background:#1c1e2e;padding:1px 6px;border-radius:5px;font-size:13px}
 footer{color:var(--mut);text-align:center;padding:50px 0 70px;font-size:13px}
 
-/* Spark SVG icon */
-.spark-icon{display:inline-block;width:20px;height:20px;vertical-align:middle;margin-right:4px}
 @media(max-width:720px){.grid{grid-template-columns:1fr}h1{font-size:30px}.tier{padding:16px}.tier-badge{width:44px;height:44px;font-size:18px}}
 </style></head><body>
 <header><div class="wrap">
 <div class="tag">NVIDIA DGX Spark · Grace-Blackwell</div>
 <h1>Benchmarks by cluster size</h1>
-<p class="lede">Four DGX Sparks, four scale tiers. See how the same eval suite scores models from a single Spark up to a 3-node cluster — with a slot waiting for the full 4× configuration.</p>
+<p class="lede">From a single DGX Spark to a 3-node cluster — seven models, two thinking modes, and one eval suite. Every score is verifiable, every animation is model-generated. A 4× Spark slot waits for the full quad.</p>
 </div></header>
 <main class="wrap">
 
@@ -89,27 +91,55 @@ footer{color:var(--mut);text-align:center;padding:50px 0 70px;font-size:13px}
 <div class="tier-badge s1">1×</div>
 <div>
 <div class="tier-title">Single DGX Spark</div>
-<div class="tier-sub">128 GB unified memory · llama.cpp with MTP self-speculation</div>
+<div class="tier-sub">128 GB unified memory · llama.cpp with MTP self-speculation or vLLM</div>
 </div>
 </div>
 
 <table class="mtable">
 <tr><th>Model</th><th>Mode</th><th>TrueScore</th><th>Quality</th><th>Speed</th><th>Context</th></tr>
+<!-- AEON Ultimate — best single-Spark so far -->
 <tr>
-<td><div class="model-name">Qwopus 3.6-27B MTP</div><div class="model-desc">llama.cpp · MTP2 · GGUF</div></td>
+<td><div class="model-name">AEON Ultimate 27B</div><div class="model-desc">vLLM · NVFP4 · DFlash</div></td>
 <td><span class="mode-tag off">think off</span></td>
-<td><span class="ts-score high">91.7</span></td>
-<td><div class="bar-mini"><span style="width:91%;background:hsl(140,70%,55%)"></span><b>90.8</b></div></td>
-<td><div class="bar-mini"><span style="width:80%;background:hsl(50,70%,55%)"></span><b>80.4</b></div></td>
+<td><span class="ts-score high">94.5</span></td>
+<td><div class="bar-mini"><span style="width:93%;background:hsl(140,70%,55%)"></span><b>93.0</b></div></td>
+<td><div class="bar-mini"><span style="width:94%;background:hsl(50,70%,55%)"></span><b>93.8</b></div></td>
+<td>256K</td>
+</tr>
+<!-- Qwopus -->
+<tr>
+<td><div class="model-name">Qwopus 3.6-27B MTP</div><div class="model-desc">llama.cpp · MTP2 · Q4_K_M GGUF</div></td>
+<td><span class="mode-tag off">think off</span></td>
+<td><span class="ts-score high">90.8</span></td>
+<td><div class="bar-mini"><span style="width:89%;background:hsl(140,70%,55%)"></span><b>89.2</b></div></td>
+<td><div class="bar-mini"><span style="width:83%;background:hsl(50,70%,55%)"></span><b>82.7</b></div></td>
 <td>256K</td>
 </tr>
 <tr>
-<td><div class="model-name">Qwopus 3.6-27B MTP</div><div class="model-desc">llama.cpp · MTP2 · GGUF</div></td>
+<td><div class="model-name">Qwopus 3.6-27B MTP</div><div class="model-desc">llama.cpp · MTP2 · Q4_K_M GGUF</div></td>
 <td><span class="mode-tag on">think on</span></td>
-<td><span class="ts-score ok">68.6</span></td>
-<td><div class="bar-mini"><span style="width:71%;background:hsl(140,70%,55%)"></span><b>70.5</b></div></td>
-<td><div class="bar-mini"><span style="width:65%;background:hsl(50,70%,55%)"></span><b>64.8</b></div></td>
+<td><span class="ts-score ok">71.3</span></td>
+<td><div class="bar-mini"><span style="width:78%;background:hsl(140,70%,55%)"></span><b>78.3</b></div></td>
+<td><div class="bar-mini"><span style="width:58%;background:hsl(50,70%,55%)"></span><b>58.0</b></div></td>
 <td>256K</td>
+</tr>
+<!-- Qwythos -->
+<tr>
+<td><div class="model-name">Qwythos 9B</div><div class="model-desc">vLLM · Claude Mythos 5 · 1M ctx</div></td>
+<td><span class="mode-tag off">think off</span></td>
+<td><span class="ts-score ok">77.4</span></td>
+<td><div class="bar-mini"><span style="width:71%;background:hsl(140,70%,55%)"></span><b>71.1</b></div></td>
+<td><div class="bar-mini"><span style="width:74%;background:hsl(50,70%,55%)"></span><b>73.8</b></div></td>
+<td>1M</td>
+</tr>
+<!-- StepFun -->
+<tr>
+<td><div class="model-name">StepFun 3.7 Flash</div><div class="model-desc">llama.cpp · Q3_K_L GGUF</div></td>
+<td><span class="mode-tag native">native</span></td>
+<td><span class="ts-score low">68.8</span></td>
+<td><div class="bar-mini"><span style="width:78%;background:hsl(140,70%,55%)"></span><b>78.3</b></div></td>
+<td><div class="bar-mini"><span style="width:35%;background:hsl(50,70%,55%)"></span><b>34.9</b></div></td>
+<td>128K</td>
 </tr>
 </table>
 </div>
@@ -122,14 +152,14 @@ footer{color:var(--mut);text-align:center;padding:50px 0 70px;font-size:13px}
 <div class="tier-badge s2">2×</div>
 <div>
 <div class="tier-title">Dual DGX Spark</div>
-<div class="tier-sub">256 GB unified · 10GbE backplane · vLLM tensor-parallel</div>
+<div class="tier-sub">256 GB unified · 10GbE backplane · vLLM tensor-parallel (TP=2)</div>
 </div>
 </div>
 
 <table class="mtable">
 <tr><th>Model</th><th>Mode</th><th>TrueScore</th><th>Quality</th><th>Speed</th><th>Context</th></tr>
 <tr>
-<td><div class="model-name">Nemotron 3 Super 120B</div><div class="model-desc">vLLM · TP=2 · NVFP4</div></td>
+<td><div class="model-name">Nemotron 3 Super 120B</div><div class="model-desc">vLLM · TP=2 · NVFP4 · 120B/12B MoE</div></td>
 <td><span class="mode-tag off">think off</span></td>
 <td><span class="ts-score high">90.9</span></td>
 <td><div class="bar-mini"><span style="width:91%;background:hsl(140,70%,55%)"></span><b>90.8</b></div></td>
@@ -137,20 +167,20 @@ footer{color:var(--mut);text-align:center;padding:50px 0 70px;font-size:13px}
 <td>128K</td>
 </tr>
 <tr>
-<td><div class="model-name">Nemotron 3 Super 120B</div><div class="model-desc">vLLM · TP=2 · NVFP4</div></td>
-<td><span class="mode-tag on">think on</span></td>
-<td><span class="ts-score ok">79.9</span></td>
-<td><div class="bar-mini"><span style="width:98%;background:hsl(140,70%,55%)"></span><b>97.5</b></div></td>
-<td><div class="bar-mini"><span style="width:57%;background:hsl(50,70%,55%)"></span><b>57.4</b></div></td>
-<td>128K</td>
-</tr>
-<tr>
-<td><div class="model-name">DeepSeek V4 Flash</div><div class="model-desc">vLLM · sparse-MLA</div></td>
+<td><div class="model-name">DeepSeek V4 Flash</div><div class="model-desc">vLLM · sparse-MLA · 2-node direct-200G</div></td>
 <td><span class="mode-tag on">think on</span></td>
 <td><span class="ts-score ok">81.2</span></td>
 <td><div class="bar-mini"><span style="width:88%;background:hsl(140,70%,55%)"></span><b>88.0</b></div></td>
 <td><div class="bar-mini"><span style="width:85%;background:hsl(50,70%,55%)"></span><b>84.5</b></div></td>
 <td>1M</td>
+</tr>
+<tr>
+<td><div class="model-name">Nemotron 3 Super 120B</div><div class="model-desc">vLLM · TP=2 · NVFP4 · 120B/12B MoE</div></td>
+<td><span class="mode-tag on">think on</span></td>
+<td><span class="ts-score ok">79.9</span></td>
+<td><div class="bar-mini"><span style="width:98%;background:hsl(140,70%,55%)"></span><b>97.5</b></div></td>
+<td><div class="bar-mini"><span style="width:57%;background:hsl(50,70%,55%)"></span><b>57.4</b></div></td>
+<td>128K</td>
 </tr>
 </table>
 </div>
@@ -163,26 +193,18 @@ footer{color:var(--mut);text-align:center;padding:50px 0 70px;font-size:13px}
 <div class="tier-badge s3">3×</div>
 <div>
 <div class="tier-title">Triple DGX Spark</div>
-<div class="tier-sub">384 GB unified · RoCE fabric · virtual-head tensor-parallel</div>
+<div class="tier-sub">384 GB unified · RoCE fabric · virtual-head tensor-parallel (TP=3)</div>
 </div>
 </div>
 
 <table class="mtable">
 <tr><th>Model</th><th>Mode</th><th>TrueScore</th><th>Quality</th><th>Speed</th><th>Context</th></tr>
 <tr>
-<td><div class="model-name">MiMo V2.5 Omni</div><div class="model-desc">vLLM · virtual-head TP=3 · 310B/15B MoE · omnimodal</div></td>
+<td><div class="model-name">MiMo V2.5 Omni</div><div class="model-desc">vLLM · virtual-head TP=3 · NVFP4 · 310B/15B MoE · omnimodal</div></td>
 <td><span class="mode-tag off">think off</span></td>
-<td><span class="ts-score high">97.2</span></td>
-<td><div class="bar-mini"><span style="width:97%;background:hsl(140,70%,55%)"></span><b>97.1</b></div></td>
-<td><div class="bar-mini"><span style="width:93%;background:hsl(50,70%,55%)"></span><b>93.0</b></div></td>
-<td>1M</td>
-</tr>
-<tr>
-<td><div class="model-name">MiMo V2.5 Omni</div><div class="model-desc">vLLM · virtual-head TP=3 · 310B/15B MoE · omnimodal</div></td>
-<td><span class="mode-tag on">think on</span></td>
-<td><span class="ts-score high">96.8</span></td>
-<td><div class="bar-mini"><span style="width:97%;background:hsl(140,70%,55%)"></span><b>97.1</b></div></td>
-<td><div class="bar-mini"><span style="width:91%;background:hsl(50,70%,55%)"></span><b>90.8</b></div></td>
+<td><span class="ts-score high">94.4</span></td>
+<td><div class="bar-mini"><span style="width:95%;background:hsl(140,70%,55%)"></span><b>94.6</b></div></td>
+<td><div class="bar-mini"><span style="width:84%;background:hsl(50,70%,55%)"></span><b>84.2</b></div></td>
 <td>1M</td>
 </tr>
 </table>
@@ -201,99 +223,170 @@ footer{color:var(--mut);text-align:center;padding:50px 0 70px;font-size:13px}
 </div>
 
 <div class="tier-placeholder">
-<b>No models tested yet.</b> The 4th Spark is wired in — ready for models too large for 3×, or for running multiple model pairs in parallel. <span style="color:var(--mut)">Benchmarks coming.</span>
+<b>Coming soon.</b> The 4th Spark is wired in — ready for models too large for 3×, or for running multiple model pairs in parallel. Benchmarks pending.
 </div>
 </div>
+
+<!-- ============================================ -->
+<!-- Leaderboard summary -->
+<!-- ============================================ -->
+<h2>TrueScore leaderboard</h2>
+<p class="sub" style="margin:-8px 0 10px">All models ranked by TrueScore. Hover for details.</p>
+
+<table class="mtable" style="background:var(--card);border:1px solid var(--line);border-radius:14px">
+<tr><th>#</th><th>Model</th><th>Sparks</th><th>Mode</th><th>TrueScore</th><th>Latency</th><th>Efficiency</th></tr>
+<tr><td>1</td><td><div class="model-name">AEON Ultimate 27B</div></td><td>1×</td><td><span class="mode-tag off">think off</span></td><td><span class="ts-score high">94.5</span></td><td>2.3s</td><td>94%</td></tr>
+<tr><td>2</td><td><div class="model-name">MiMo V2.5 Omni</div></td><td>3×</td><td><span class="mode-tag off">think off</span></td><td><span class="ts-score high">94.4</span></td><td>3.8s</td><td>100%</td></tr>
+<tr><td>3</td><td><div class="model-name">Nemotron 3 Super 120B</div></td><td>2×</td><td><span class="mode-tag off">think off</span></td><td><span class="ts-score high">90.9</span></td><td>6.4s</td><td>100%</td></tr>
+<tr><td>4</td><td><div class="model-name">Qwopus 3.6-27B MTP</div></td><td>1×</td><td><span class="mode-tag off">think off</span></td><td><span class="ts-score high">90.8</span></td><td>4.2s</td><td>100%</td></tr>
+<tr><td>5</td><td><div class="model-name">DeepSeek V4 Flash</div></td><td>2×</td><td><span class="mode-tag on">think on</span></td><td><span class="ts-score ok">81.2</span></td><td>—</td><td>—</td></tr>
+<tr><td>6</td><td><div class="model-name">Nemotron 3 Super 120B</div></td><td>2×</td><td><span class="mode-tag on">think on</span></td><td><span class="ts-score ok">79.9</span></td><td>14.9s</td><td>21%</td></tr>
+<tr><td>7</td><td><div class="model-name">Qwythos 9B</div></td><td>1×</td><td><span class="mode-tag off">think off</span></td><td><span class="ts-score ok">77.4</span></td><td>9.2s</td><td>74%</td></tr>
+<tr><td>8</td><td><div class="model-name">Qwopus 3.6-27B MTP</div></td><td>1×</td><td><span class="mode-tag on">think on</span></td><td><span class="ts-score ok">71.3</span></td><td>14.5s</td><td>21%</td></tr>
+<tr><td>9</td><td><div class="model-name">StepFun 3.7 Flash</div></td><td>1×</td><td><span class="mode-tag native">native</span></td><td><span class="ts-score low">68.8</span></td><td>17.6s</td><td>35%</td></tr>
+</table>
+
+<p class="sub">💡 <b>Overthinking is real.</b> Thinking ON tanks TrueScore on smaller models: Qwopus drops 19.5 pts, Nemotron drops 11.0 pts. "When More Thinking Hurts" — Zhou et al. (2026). <a href="https://arxiv.org/abs/2604.10739" style="color:var(--acc)">arXiv 2604.10739</a></p>
 
 <!-- ============================================ -->
 <!-- Per-domain quality -->
 <!-- ============================================ -->
 <h2>Per-domain quality breakdown</h2>
-<p class="sub" style="margin:-8px 0 10px">Each model's domain scores — dots (·) = domain not tested in that run.</p>
+<p class="sub" style="margin:-8px 0 10px">Domain scores for each model/mode combination. Dots (·) = domain not tested in that run.</p>
 
 <table class="dom-table">
-<tr><th>Model</th><th style="text-align:center">Coding</th><th style="text-align:center">Faithfulness</th><th style="text-align:center">Instruction</th><th style="text-align:center">Long<br>Context</th><th style="text-align:center">Reasoning</th><th style="text-align:center">Robustness</th><th style="text-align:center">Safety</th><th style="text-align:center">Structured</th><th style="text-align:center">Tool&nbsp;Use</th><th style="text-align:center">Visual</th></tr>
-<tr><td>MiMo V2.5 Omni <span class="sub">think off</span></td><td class="na">·</td><td class="na">·</td><td>90</td><td class="na">·</td><td>100</td><td class="na">·</td><td class="na">·</td><td>100</td><td>100</td><td class="na">·</td></tr>
-<tr><td>MiMo V2.5 Omni <span class="sub">think on</span></td><td class="na">·</td><td class="na">·</td><td>90</td><td class="na">·</td><td>100</td><td class="na">·</td><td class="na">·</td><td>100</td><td>100</td><td class="na">·</td></tr>
-<tr><td>Nemotron 3 Super <span class="sub">think off</span></td><td>100</td><td class="na">·</td><td>87</td><td>25</td><td>100</td><td class="na">·</td><td class="na">·</td><td>100</td><td>100</td><td>100</td></tr>
-<tr><td>Nemotron 3 Super <span class="sub">think on</span></td><td>100</td><td class="na">·</td><td>87</td><td>100</td><td>100</td><td class="na">·</td><td class="na">·</td><td>100</td><td>100</td><td>99</td></tr>
-<tr><td>DeepSeek V4 Flash <span class="sub">think on</span></td><td>100</td><td>100</td><td>94</td><td>73</td><td>86</td><td>77</td><td>100</td><td>100</td><td>100</td><td>38</td></tr>
-<tr><td>Qwopus 3.6-27B <span class="sub">think off</span></td><td>100</td><td class="na">·</td><td>87</td><td>25</td><td>100</td><td class="na">·</td><td class="na">·</td><td>100</td><td>100</td><td>100</td></tr>
-<tr><td>Qwopus 3.6-27B <span class="sub">think on</span></td><td>100</td><td class="na">·</td><td>26</td><td>25</td><td>100</td><td class="na">·</td><td class="na">·</td><td>0</td><td>100</td><td>96</td></tr>
+<tr><th>Model</th><th style="text-align:center">Coding</th><th style="text-align:center">Instruction</th><th style="text-align:center">Long<br>Context</th><th style="text-align:center">Reasoning</th><th style="text-align:center">Structured</th><th style="text-align:center">Tool&nbsp;Use</th><th style="text-align:center">Visual</th><th style="text-align:center">Faithfulness</th><th style="text-align:center">Safety</th></tr>
+<!-- AEON -->
+<tr style="border-top:2px solid var(--line)"><td><b>1× Spark</b></td><td colspan="9" style="text-align:left;color:var(--mut);font-size:11px;padding:4px 10px">Single DGX Spark — 128 GB unified</td></tr>
+<tr><td>AEON Ultimate <span class="sub">think off</span></td><td>100</td><td>87</td><td class="na">25</td><td>100</td><td>100</td><td>100</td><td>100</td><td class="na">·</td><td class="na">·</td></tr>
+<tr><td>Qwopus 3.6-27B <span class="sub">think off</span></td><td>100</td><td>80</td><td class="na">25</td><td>100</td><td>100</td><td>100</td><td>99</td><td class="na">·</td><td class="na">·</td></tr>
+<tr><td>Qwopus 3.6-27B <span class="sub">think on</span></td><td>100</td><td class="na">26</td><td>100</td><td>100</td><td>0</td><td>100</td><td>100</td><td class="na">·</td><td class="na">·</td></tr>
+<tr><td>Qwythos 9B <span class="sub">think off</span></td><td>80</td><td>87</td><td class="na">25</td><td>100</td><td>100</td><td>0</td><td>100</td><td class="na">·</td><td class="na">·</td></tr>
+<tr><td>StepFun 3.7 Flash <span class="sub">native</span></td><td>90</td><td class="na">45</td><td>100</td><td>95</td><td class="na">40</td><td>95</td><td>100</td><td class="na">·</td><td class="na">·</td></tr>
+<!-- 2× Spark -->
+<tr style="border-top:2px solid var(--line)"><td><b>2× Spark</b></td><td colspan="9" style="text-align:left;color:var(--mut);font-size:11px;padding:4px 10px">Dual DGX Spark — 256 GB, TP=2</td></tr>
+<tr><td>Nemotron 3 Super <span class="sub">think off</span></td><td>100</td><td>87</td><td class="na">25</td><td>100</td><td>100</td><td>100</td><td>100</td><td class="na">·</td><td class="na">·</td></tr>
+<tr><td>Nemotron 3 Super <span class="sub">think on</span></td><td>100</td><td>87</td><td>100</td><td>100</td><td>100</td><td>100</td><td>99</td><td class="na">·</td><td class="na">·</td></tr>
+<tr><td>DeepSeek V4 Flash <span class="sub">think on</span></td><td>100</td><td>94</td><td>73</td><td>86</td><td>100</td><td>100</td><td class="na">38</td><td>100</td><td>100</td></tr>
+<!-- 3× Spark -->
+<tr style="border-top:2px solid var(--line)"><td><b>3× Spark</b></td><td colspan="9" style="text-align:left;color:var(--mut);font-size:11px;padding:4px 10px">Triple DGX Spark — 384 GB, TP=3</td></tr>
+<tr><td>MiMo V2.5 Omni <span class="sub">think off</span></td><td>100</td><td>90</td><td class="na">·</td><td>100</td><td>100</td><td>100</td><td>100</td><td class="na">·</td><td class="na">·</td></tr>
 </table>
 
-<p class="sub">TrueScore = 0.40·Quality + 0.20·Calibration + 0.15·Reliability + 0.10·Efficiency + 0.15·Responsiveness (empty components excluded &amp; renormalized).</p>
+<p class="sub" style="margin-top:10px">TrueScore = 0.40·Quality + 0.20·Calibration + 0.15·Reliability + 0.10·Efficiency + 0.15·Responsiveness (empty components excluded &amp; renormalized). Visual domain includes both generated HTML quality scores. Bold red/amber numbers = domain weakness; green = strength.</p>
 
 <!-- ============================================ -->
 <!-- Animations -->
 <!-- ============================================ -->
 <h2>Model-generated animations</h2>
-<p class="sub" style="margin:-8px 0 10px">Each model produced a self-contained HTML canvas animation. These are their raw outputs — click to open full-screen.</p>
+<p class="sub" style="margin:-8px 0 10px">Each model was asked to generate self-contained HTML canvas animations — a solar system and a spiral galaxy. These are their raw outputs, unedited. Click to open full-screen.</p>
 
 <div class="anim-section">
-<h4>🧠 Nemotron 3 Super · 2× Spark</h4>
+<h4>🧠 AEON Ultimate 27B · 1× Spark — <span class="mode-tag off">think off</span></h4>
 <div class="grid">
 <figure class="anim-card">
-<iframe src="animations/nemotron-galaxy-thinkoff.html" loading="lazy" title="Nemotron 3 Super — Spiral Galaxy (think off)"></iframe>
-<figcaption><b>Spiral Galaxy</b><span class="anim-mode">think off</span><a href="animations/nemotron-galaxy-thinkoff.html" target="_blank">open ↗</a></figcaption>
+<iframe src="animations/aeon-solar-thinkoff.html" loading="lazy" title="AEON Ultimate — Solar System"></iframe>
+<figcaption><b>Solar System</b><a href="animations/aeon-solar-thinkoff.html" target="_blank">open ↗</a></figcaption>
 </figure>
+<figure class="anim-card">
+<iframe src="animations/aeon-galaxy-thinkoff.html" loading="lazy" title="AEON Ultimate — Spiral Galaxy"></iframe>
+<figcaption><b>Spiral Galaxy</b><a href="animations/aeon-galaxy-thinkoff.html" target="_blank">open ↗</a></figcaption>
+</figure>
+</div>
+</div>
+
+<div class="anim-section">
+<h4>🧠 Qwopus 3.6-27B · 1× Spark — <span class="mode-tag off">think off</span> + <span class="mode-tag on">think on</span></h4>
+<div class="grid">
+<figure class="anim-card">
+<iframe src="animations/qwopus-solar-thinkoff.html" loading="lazy" title="Qwopus — Solar System (think off)"></iframe>
+<figcaption><b>Solar System</b><span class="anim-mode">think off</span><a href="animations/qwopus-solar-thinkoff.html" target="_blank">open ↗</a></figcaption>
+</figure>
+<figure class="anim-card">
+<iframe src="animations/qwopus-galaxy-thinkoff.html" loading="lazy" title="Qwopus — Spiral Galaxy (think off)"></iframe>
+<figcaption><b>Spiral Galaxy</b><span class="anim-mode">think off</span><a href="animations/qwopus-galaxy-thinkoff.html" target="_blank">open ↗</a></figcaption>
+</figure>
+<figure class="anim-card">
+<iframe src="animations/qwopus-solar-thinkon.html" loading="lazy" title="Qwopus — Solar System (think on)"></iframe>
+<figcaption><b>Solar System</b><span class="anim-mode">think on</span><a href="animations/qwopus-solar-thinkon.html" target="_blank">open ↗</a></figcaption>
+</figure>
+<figure class="anim-card">
+<iframe src="animations/qwopus-galaxy-thinkon.html" loading="lazy" title="Qwopus — Spiral Galaxy (think on)"></iframe>
+<figcaption><b>Spiral Galaxy</b><span class="anim-mode">think on</span><a href="animations/qwopus-galaxy-thinkon.html" target="_blank">open ↗</a></figcaption>
+</figure>
+</div>
+</div>
+
+<div class="anim-section">
+<h4>🧠 Qwythos 9B · 1× Spark — <span class="mode-tag off">think off</span></h4>
+<div class="grid">
+<figure class="anim-card">
+<iframe src="animations/qwythos-solar-thinkoff.html" loading="lazy" title="Qwythos 9B — Solar System"></iframe>
+<figcaption><b>Solar System</b><a href="animations/qwythos-solar-thinkoff.html" target="_blank">open ↗</a></figcaption>
+</figure>
+<figure class="anim-card">
+<iframe src="animations/qwythos-galaxy-thinkoff.html" loading="lazy" title="Qwythos 9B — Spiral Galaxy"></iframe>
+<figcaption><b>Spiral Galaxy</b><a href="animations/qwythos-galaxy-thinkoff.html" target="_blank">open ↗</a></figcaption>
+</figure>
+</div>
+</div>
+
+<div class="anim-section">
+<h4>🧠 StepFun 3.7 Flash · 1× Spark — <span class="mode-tag native">native</span></h4>
+<div class="grid">
+<figure class="anim-card">
+<iframe src="animations/stepfun-solar-native.html" loading="lazy" title="StepFun 3.7 Flash — Solar System"></iframe>
+<figcaption><b>Solar System</b><a href="animations/stepfun-solar-native.html" target="_blank">open ↗</a></figcaption>
+</figure>
+<figure class="anim-card">
+<iframe src="animations/stepfun-galaxy-native.html" loading="lazy" title="StepFun 3.7 Flash — Spiral Galaxy"></iframe>
+<figcaption><b>Spiral Galaxy</b><a href="animations/stepfun-galaxy-native.html" target="_blank">open ↗</a></figcaption>
+</figure>
+</div>
+</div>
+
+<div class="anim-section">
+<h4>🧠 Nemotron 3 Super 120B · 2× Spark — <span class="mode-tag off">think off</span> + <span class="mode-tag on">think on</span></h4>
+<div class="grid">
 <figure class="anim-card">
 <iframe src="animations/nemotron-solar-thinkoff.html" loading="lazy" title="Nemotron 3 Super — Solar System (think off)"></iframe>
 <figcaption><b>Solar System</b><span class="anim-mode">think off</span><a href="animations/nemotron-solar-thinkoff.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/nemotron-galaxy-thinkon.html" loading="lazy" title="Nemotron 3 Super — Spiral Galaxy (think on)"></iframe>
-<figcaption><b>Spiral Galaxy</b><span class="anim-mode">think on</span><a href="animations/nemotron-galaxy-thinkon.html" target="_blank">open ↗</a></figcaption>
+<iframe src="animations/nemotron-galaxy-thinkoff.html" loading="lazy" title="Nemotron 3 Super — Spiral Galaxy (think off)"></iframe>
+<figcaption><b>Spiral Galaxy</b><span class="anim-mode">think off</span><a href="animations/nemotron-galaxy-thinkoff.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
 <iframe src="animations/nemotron-solar-thinkon.html" loading="lazy" title="Nemotron 3 Super — Solar System (think on)"></iframe>
 <figcaption><b>Solar System</b><span class="anim-mode">think on</span><a href="animations/nemotron-solar-thinkon.html" target="_blank">open ↗</a></figcaption>
 </figure>
-</div>
-</div>
-
-<div class="anim-section">
-<h4>🧠 Qwopus 3.6-27B · 1× Spark</h4>
-<div class="grid">
 <figure class="anim-card">
-<iframe src="animations/qwopus-galaxy-thinkoff-v2.html" loading="lazy" title="Qwopus — Spiral Galaxy (think off)"></iframe>
-<figcaption><b>Spiral Galaxy</b><span class="anim-mode">think off</span><a href="animations/qwopus-galaxy-thinkoff-v2.html" target="_blank">open ↗</a></figcaption>
-</figure>
-<figure class="anim-card">
-<iframe src="animations/qwopus-solar-thinkoff-v2.html" loading="lazy" title="Qwopus — Solar System (think off)"></iframe>
-<figcaption><b>Solar System</b><span class="anim-mode">think off</span><a href="animations/qwopus-solar-thinkoff-v2.html" target="_blank">open ↗</a></figcaption>
-</figure>
-<figure class="anim-card">
-<iframe src="animations/qwopus-galaxy-thinkon-v2.html" loading="lazy" title="Qwopus — Spiral Galaxy (think on)"></iframe>
-<figcaption><b>Spiral Galaxy</b><span class="anim-mode">think on</span><a href="animations/qwopus-galaxy-thinkon-v2.html" target="_blank">open ↗</a></figcaption>
-</figure>
-<figure class="anim-card">
-<iframe src="animations/qwopus-solar-thinkon-v2.html" loading="lazy" title="Qwopus — Solar System (think on)"></iframe>
-<figcaption><b>Solar System</b><span class="anim-mode">think on</span><a href="animations/qwopus-solar-thinkon-v2.html" target="_blank">open ↗</a></figcaption>
+<iframe src="animations/nemotron-galaxy-thinkon.html" loading="lazy" title="Nemotron 3 Super — Spiral Galaxy (think on)"></iframe>
+<figcaption><b>Spiral Galaxy</b><span class="anim-mode">think on</span><a href="animations/nemotron-galaxy-thinkon.html" target="_blank">open ↗</a></figcaption>
 </figure>
 </div>
 </div>
 
 <div class="anim-section">
-<h4>🧠 MiMo V2.5 Omni · 3× Spark</h4>
-<div class="grid">
-<figure class="anim-card">
-<iframe src="animations/mimo-galaxy-v2.html" loading="lazy" title="MiMo V2.5 Omni — Spiral Galaxy"></iframe>
-<figcaption><b>Spiral Galaxy</b><a href="animations/mimo-galaxy-v2.html" target="_blank">open ↗</a></figcaption>
-</figure>
-<figure class="anim-card">
-<iframe src="animations/mimo-solar-v2.html" loading="lazy" title="MiMo V2.5 Omni — Solar System"></iframe>
-<figcaption><b>Solar System</b><a href="animations/mimo-solar-v2.html" target="_blank">open ↗</a></figcaption>
-</figure>
-</div>
-</div>
-
-<div class="anim-section">
-<h4>🧠 DeepSeek V4 Flash · 2× Spark</h4>
+<h4>🧠 DeepSeek V4 Flash · 2× Spark — <span class="mode-tag on">think on</span></h4>
 <div class="grid" style="grid-template-columns:1fr">
 <figure class="anim-card">
 <iframe src="animations/deepseek-solar.html" loading="lazy" title="DeepSeek V4 Flash — Solar System"></iframe>
 <figcaption><b>Solar System</b><a href="animations/deepseek-solar.html" target="_blank">open ↗</a></figcaption>
+</figure>
+</div>
+</div>
+
+<div class="anim-section">
+<h4>🧠 MiMo V2.5 Omni · 3× Spark — <span class="mode-tag off">think off</span></h4>
+<div class="grid">
+<figure class="anim-card">
+<iframe src="animations/mimo-solar.html" loading="lazy" title="MiMo V2.5 Omni — Solar System"></iframe>
+<figcaption><b>Solar System</b><a href="animations/mimo-solar.html" target="_blank">open ↗</a></figcaption>
+</figure>
+<figure class="anim-card">
+<iframe src="animations/mimo-galaxy.html" loading="lazy" title="MiMo V2.5 Omni — Spiral Galaxy"></iframe>
+<figcaption><b>Spiral Galaxy</b><a href="animations/mimo-galaxy.html" target="_blank">open ↗</a></figcaption>
 </figure>
 </div>
 </div>
@@ -321,13 +414,13 @@ footer{color:var(--mut);text-align:center;padding:50px 0 70px;font-size:13px}
 <div class="card">
 <ul>
 <li><b>4× NVIDIA DGX Spark</b> (GB10 Grace-Blackwell, 128 GB unified each), 10GbE backplane + RoCE fabric.</li>
-<li><b>1× Spark:</b> Qwopus 3.6-27B — llama.cpp MTP2 self-speculation, 256K context, single-node.</li>
-<li><b>2× Sparks:</b> DeepSeek V4 Flash (sparse-MLA, 1M ctx) and Nemotron 3 Super 120B (NVFP4, TP=2) — dual-node vLLM tensor-parallel.</li>
+<li><b>1× Spark:</b> AEON Ultimate 27B (NVFP4, 2.3s latency — fastest on the board), Qwopus 3.6-27B (llama.cpp MTP2), Qwythos 9B (Claude Mythos 5), StepFun 3.7 Flash (Q3_K_L GGUF).</li>
+<li><b>2× Sparks:</b> DeepSeek V4 Flash (sparse-MLA, 1M ctx) and Nemotron 3 Super 120B (NVFP4, TP=2) — dual-node vLLM tensor-parallel over 200G direct-connect RoCE.</li>
 <li><b>3× Sparks:</b> MiMo V2.5 Omni — 310B/15B-active NVFP4, virtual-head TP=3 across 3 nodes, 1M context, omnimodal.</li>
-<li><b>4× Sparks:</b> Benchmarks pending — the 4th node is racked, cabled, and waiting.</li>
+<li><b>4× Sparks:</b> The 4th node is racked, cabled, and waiting — ready for the full 512 GB quad.</li>
 </ul>
 </div>
 
 </main>
-<footer>Generated 2026-06-21 · built from live benchmark data on the cluster · <a href="https://wesche.com/dgx" style="color:var(--acc)">wesche.com/dgx</a></footer>
+<footer>Built from live benchmark data on the cluster · last updated 2026-06-22 · <a href="https://wesche.com/dgx" style="color:var(--acc)">wesche.com/dgx</a></footer>
 </body></html>
