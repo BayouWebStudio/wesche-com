@@ -5,11 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Spiral Galaxy Animation</title>
     <style>
-        body, html {
+        body {
             margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
             overflow: hidden;
             background-color: #000;
         }
@@ -19,161 +16,157 @@
     </style>
 </head>
 <body>
-    <canvas id="galaxyCanvas"></canvas>
-
+    <canvas id="galaxy"></canvas>
     <script>
-        const canvas = document.getElementById('galaxyCanvas');
+        const canvas = document.getElementById('galaxy');
         const ctx = canvas.getContext('2d');
 
         let width, height, centerX, centerY;
-        const starCount = 1500; // Number of stars
-        const stars = [];
         
-        // Galaxy configuration
-        const galaxyConfig = {
-            coreBrightness: 0.8,
-            rotationSpeed: 0.0005, // Base rotation speed
-            spiralArms: 3,
-            armSpread: 0.8, // How wide the arms are
-            dustiness: 0.6 // Probability of a star being "dust" (dimmer/darker)
-        };
+        // Galaxy Configuration
+        const STAR_COUNT = 1500;
+        const ARMS = 3;
+        const ARM_SPREAD = 0.8; // How wide the arms are (0 to 1)
+        const ARM_CURVE = 0.005; // The spiral tightness
+        const ROTATION_SPEED = 0.0005; // Global rotation speed
+        const CORE_SIZE = 25;
+        
+        // Star Data Array
+        const stars = [];
 
-        // Initialize canvas size
         function resize() {
-            width = window.innerWidth;
-            height = window.innerHeight;
-            canvas.width = width;
-            canvas.height = height;
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
             centerX = width / 2;
             centerY = height / 2;
         }
 
-        // Star class
+        // Utility: Random number between min and max
+        function random(min, max) {
+            return Math.random() * (max - min) + min;
+        }
+
+        // Utility: Random integer
+        function randomInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
         class Star {
             constructor() {
                 this.reset();
             }
 
             reset() {
-                // Distance from center (Gaussian distribution for density)
-                const r = Math.abs(Math.random() * Math.random() * Math.min(width, height) * 0.45);
+                // Distance from center (0 to 1, normalized)
+                // More stars near the center
+                this.distance = Math.pow(Math.random(), 1.5); 
                 
-                // Angle based on distance (creates the spiral)
-                // Further stars are rotated more to form arms
-                const baseAngle = (r / (Math.min(width, height) * 0.45)) * Math.PI * 2 * galaxyConfig.spiralArms;
+                // Angle logic for spiral arms
+                // Base angle based on distance to create the spiral shape
+                const spiralAngle = this.distance * ARM_CURVE * 500;
                 
-                // Add randomness to angle to create "arms" rather than solid lines
-                // The further out, the wider the spread
-                const spread = (r / (Math.min(width, height) * 0.45)) * galaxyConfig.armSpread;
-                const angleOffset = (Math.random() - 0.5) * spread;
+                // Add a random offset to spread stars along the arms
+                const armOffset = random(-ARM_SPREAD, ARM_SPREAD);
                 
-                this.angle = baseAngle + angleOffset;
-                this.radius = r;
-                
-                // Calculate x, y relative to center
-                this.x = centerX + Math.cos(this.angle) * this.radius;
-                this.y = centerY + Math.sin(this.angle) * this.radius;
-                
-                // Size based on distance (closer = bigger)
-                this.size = Math.random() * 1.5 + 0.5;
-                if (r < 20) this.size += 2; // Core stars are bigger
-                
-                // Color variation
-                const hue = Math.random() * 60 + 200; // Blue to Purple range
-                const saturation = Math.random() * 50 + 50;
-                const lightness = Math.random() * 40 + 60; // Brightness
-                
-                // Some stars are red/orange (older stars on outside)
-                if (Math.random() > 0.8) {
-                    this.color = `hsla(${Math.random() * 40 + 10}, ${Math.random() * 50 + 50}%, ${Math.random() * 40 + 60}%, 1)`;
-                } else {
-                    this.color = `hsla(${hue}, ${saturation}%, ${lightness}%, 1)`;
-                }
-                
+                // Determine which arm this star belongs to
+                const armIndex = randomInt(0, ARMS - 1);
+                const armAngle = (Math.PI * 2 / ARMS) * armIndex;
+
+                this.angle = spiralAngle + armAngle + armOffset;
+
                 // Twinkle properties
-                this.twinkleSpeed = Math.random() * 0.05 + 0.01;
-                this.twinklePhase = Math.random() * Math.PI * 2;
-                this.baseAlpha = Math.random() * 0.5 + 0.5;
-                
-                // Rotation speed (closer stars rotate faster)
-                this.rotationSpeed = galaxyConfig.rotationSpeed / (this.radius * 0.01 + 1);
+                this.twinkleSpeed = random(0.01, 0.05);
+                this.twinklePhase = random(0, Math.PI * 2);
+                this.baseAlpha = random(0.3, 1);
+                this.alpha = this.baseAlpha;
+
+                // Size
+                this.size = this.distance < 0.1 ? random(1, 3) : random(0.5, 1.5);
+
+                // Color: Core is warmer (orange/yellow), outer is cooler (blue/white)
+                // HSL: 200-280 is blue/purple, 30-60 is orange/yellow
+                const hue = this.distance < 0.2 ? random(20, 50) : random(200, 280);
+                const saturation = random(50, 100);
+                const lightness = random(60, 90);
+                this.color = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
             }
 
-            update(time) {
-                // Rotate around center
-                this.angle += this.rotationSpeed;
-                
-                // Update position
-                this.x = centerX + Math.cos(this.angle) * this.radius;
-                this.y = centerY + Math.sin(this.angle) * this.radius;
-                
+            update() {
+                // Rotate the star around the center
+                // Closer stars rotate faster (differential rotation)
+                const speed = this.distance < 0.1 ? ROTATION_SPEED * 2 : ROTATION_SPEED / (this.distance * 2 + 0.5);
+                this.angle += speed;
+
                 // Twinkle effect
-                this.alpha = this.baseAlpha + Math.sin(time * this.twinkleSpeed + this.twinklePhase) * 0.3;
+                this.alpha = this.baseAlpha + Math.sin(Date.now() * this.twinkleSpeed + this.twinklePhase) * 0.3;
+                if (this.alpha < 0) this.alpha = 0;
+                if (this.alpha > 1) this.alpha = 1;
             }
 
-            draw(ctx) {
-                ctx.fillStyle = this.color.replace('1)', `${this.alpha})`);
+            draw() {
+                // Convert polar coordinates to cartesian
+                // Scale distance to screen size (max radius is half the smallest dimension)
+                const maxRadius = Math.min(width, height) / 2;
+                const x = centerX + Math.cos(this.angle) * (this.distance * maxRadius);
+                const y = centerY + Math.sin(this.angle) * (this.distance * maxRadius);
+
+                ctx.globalAlpha = this.alpha;
+                ctx.fillStyle = this.color;
                 ctx.beginPath();
-                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.arc(x, y, this.size, 0, Math.PI * 2);
                 ctx.fill();
             }
         }
 
-        // Initialize stars
         function init() {
+            resize();
             stars.length = 0;
-            for (let i = 0; i < starCount; i++) {
+            for (let i = 0; i < STAR_COUNT; i++) {
                 stars.push(new Star());
             }
         }
 
-        // Draw the bright core
         function drawCore() {
-            const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, 60);
-            gradient.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
-            gradient.addColorStop(0.3, 'rgba(200, 200, 255, 0.5)');
-            gradient.addColorStop(0.7, 'rgba(100, 100, 200, 0.1)');
+            // Draw a glowing core
+            const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, CORE_SIZE * 3);
+            gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+            gradient.addColorStop(0.2, 'rgba(255, 230, 200, 0.8)');
+            gradient.addColorStop(0.5, 'rgba(255, 150, 100, 0.3)');
             gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
-            
+
             ctx.fillStyle = gradient;
             ctx.beginPath();
-            ctx.arc(centerX, centerY, 60, 0, Math.PI * 2);
+            ctx.arc(centerX, centerY, CORE_SIZE * 3, 0, Math.PI * 2);
             ctx.fill();
         }
 
-        // Animation loop
-        let time = 0;
         function animate() {
-            // Clear canvas with slight transparency for trail effect (optional, currently disabled)
-            // ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
-            // ctx.fillRect(0, 0, width, height);
-            
-            // Clear completely for crisp animation
+            // Clear canvas
             ctx.clearRect(0, 0, width, height);
-            
+
             // Draw core
             drawCore();
-            
+
             // Update and draw stars
-            time++;
-            for (let i = 0; i < stars.length; i++) {
-                stars[i].update(time);
-                stars[i].draw(ctx);
-            }
-            
+            stars.forEach(star => {
+                star.update();
+                star.draw();
+            });
+
             requestAnimationFrame(animate);
         }
 
-        // Event listeners
+        // Event Listeners
         window.addEventListener('resize', () => {
             resize();
-            init(); // Reinitialize stars on resize
+            // Re-calculate star positions if needed, but for this simple simulation
+            // we can just let them continue rotating in the new bounds.
         });
 
         // Start
-        resize();
         init();
         animate();
+
     </script>
 </body>
 </html>

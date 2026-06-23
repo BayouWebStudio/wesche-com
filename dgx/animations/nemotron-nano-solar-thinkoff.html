@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Solar System Animation</title>
+    <style>
+        body, html { margin:0; padding:0; overflow:hidden; background:#000; }
+        canvas { display:block; }
+    </style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<script>
+(function() {
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    const width = canvas.width;
+    const height = canvas.height;
+
+    // Starfield particles
+    const stars = [];
+    const starCount = 500;
+    for (let i = 0; i < starCount; i++) {
+        stars.push({
+            x: Math.random() * width,
+            y: Math.random() * height,
+            radius: Math.random() * 2 + 1,
+            speed: Math.random() * 0.2 + 0.1
+        });
+    }
+
+    // Sun
+    const sun = {
+        x: width / 2,
+        y: height / 2,
+        radius: 50,
+        glow: 0
+    };
+
+    // Planets data: name, radius, distance (au), speed (rad/s), color
+    const planets = [
+        { name: 'Mercury', radius: 5, distance: 2, speed: 0.15, color: '#a8a8a8' },
+        { name: 'Venus',   radius: 7, distance: 4, speed: 0.10, color: '#e8c1a0' },
+        { name: 'Earth',   radius: 8, distance: 7, speed: 0.08, color: '#45a29e' },
+        { name: 'Mars',    radius: 6, distance: 10, speed: 0.05, color: '#d66a4c' },
+        { name: 'Jupiter', radius: 12, distance: 15, speed: 0.03, color: '#d9b054' },
+        { name: 'Saturn',  radius: 10, distance: 20, speed: 0.02, color: '#f4a261' }
+    ];
+
+    let angle = 0;
+
+    function drawStarfield() {
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, width, height);
+        ctx.fillStyle = '#fff';
+        for (const s of stars) {
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    function drawSun() {
+        const gradient = ctx.createRadialGradient(
+            sun.x, sun.y, 0,
+            sun.x, sun.y, sun.radius
+        );
+        gradient.addColorStop(0, 'rgba(255,200,0,1)');
+        gradient.addColorStop(1, 'rgba(255,150,0,0.2)');
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(sun.x, sun.y, sun.radius, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Glow effect
+        const glowRadius = sun.radius + 30;
+        const glowGradient = ctx.createRadialGradient(
+            sun.x, sun.y, sun.radius,
+            sun.x, sun.y, glowRadius
+        );
+        glowGradient.addColorStop(0, 'rgba(255,200,0,0.6)');
+        glowGradient.addColorStop(1, 'rgba(255,150,0,0)');
+        ctx.fillStyle = glowGradient;
+        ctx.beginPath();
+        ctx.arc(sun.x, sun.y, glowRadius, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    function drawPlanet(planet) {
+        const x = sun.x + Math.cos(angle * planet.speed) * planet.distance * 100;
+        const y = sun.y + Math.sin(angle * planet.speed) * planet.distance * 100;
+
+        // Orbit trail (optional faint circle)
+        ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(sun.x, sun.y, planet.distance * 100, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Planet
+        ctx.fillStyle = planet.color;
+        ctx.beginPath();
+        ctx.arc(x, y, planet.radius * 2, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Glow around planet
+        const glowRadius = planet.radius * 4;
+        const grad = ctx.createRadialGradient(x, y, 0, x, y, glowRadius);
+        grad.addColorStop(0, `rgba(${hexToRgb(planet.color)},0.8)`);
+        grad.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(x, y, glowRadius, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    function hexToRgb(hex) {
+        // Very simple hex to rgb, assumes #rrggbb
+        const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
+        hex = hex.replace(shorthandRegex, (m, r, g, b) => r + r + g + g + b + b);
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? `${parseInt(result[1], 16)},${parseInt(result[2], 16)},${parseInt(result[3], 16)}` : '255,255,255';
+    }
+
+    function update() {
+        // Slowly rotate the whole system for visual interest
+        angle += 0.02;
+    }
+
+    function render() {
+        update();
+        drawStarfield();
+        drawSun();
+
+        for (const p of planets) {
+            drawPlanet(p);
+        }
+
+        requestAnimationFrame(render);
+    }
+
+    render();
+})();
+</script>
+</body>
+</html>
