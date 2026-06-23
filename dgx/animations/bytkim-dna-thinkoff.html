@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rotating DNA Double Helix</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #0a0a12;
+            font-family: sans-serif;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="dnaCanvas"></canvas>
+    <script>
+        const canvas = document.getElementById('dnaCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let width, height;
+        let rotationAngle = 0;
+
+        // DNA Configuration
+        const config = {
+            strandAColor: '#00ffcc', // Cyan
+            strandBColor: '#ff3366', // Pink/Red
+            rungColor: 'rgba(255, 255, 255, 0.15)',
+            nodeRadius: 6,
+            helixRadius: 120,
+            helixHeight: 800,
+            segments: 80,
+            rotationSpeed: 0.015,
+            depthScale: 0.5 // Perspective scaling
+        };
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+
+        window.addEventListener('resize', resize);
+        resize();
+
+        function drawDNA() {
+            ctx.clearRect(0, 0, width, height);
+
+            const centerX = width / 2;
+            const centerY = height / 2;
+            const yStart = centerY - config.helixHeight / 2;
+            const step = config.helixHeight / config.segments;
+
+            // Store calculated points to draw rungs first, then strands on top
+            const pointsA = [];
+            const pointsB = [];
+
+            for (let i = 0; i <= config.segments; i++) {
+                const y = yStart + i * step;
+                const angle = (i * Math.PI / 4) + rotationAngle;
+
+                // Calculate 3D coordinates projected to 2D
+                // Strand A
+                const xA = Math.cos(angle) * config.helixRadius;
+                const zA = Math.sin(angle) * config.helixRadius;
+                
+                // Strand B (180 degrees / PI radians offset)
+                const xB = Math.cos(angle + Math.PI) * config.helixRadius;
+                const zB = Math.sin(angle + Math.PI) * config.helixRadius;
+
+                // Apply simple perspective scaling
+                // Depth goes from -radius to +radius. 
+                // We want objects further back (negative z) to be smaller and objects closer (positive z) to be larger.
+                const scaleA = 1 + (zA * config.depthScale / config.helixRadius);
+                const scaleB = 1 + (zB * config.depthScale / config.helixRadius);
+
+                pointsA.push({ x: centerX + xA, y: y, z: zA, scale: scaleA });
+                pointsB.push({ x: centerX + xB, y: y, z: zB, scale: scaleB });
+            }
+
+            // 1. Draw Rungs (Connecting bars)
+            ctx.lineWidth = 4;
+            ctx.lineCap = 'round';
+            
+            for (let i = 0; i <= config.segments; i++) {
+                const pA = pointsA[i];
+                const pB = pointsB[i];
+
+                // Calculate opacity based on depth to simulate lighting/fading
+                // Average depth of the rung
+                const avgZ = (pA.z + pB.z) / 2;
+                let opacity = (avgZ / config.helixRadius + 1) / 2; // 0 to 1
+                opacity = Math.max(0.05, Math.min(0.4, opacity * 0.4)); // Clamp and dim slightly
+
+                ctx.strokeStyle = `rgba(255, 255, 255, ${opacity})`;
+                
+                ctx.beginPath();
+                ctx.moveTo(pA.x, pA.y);
+                ctx.lineTo(pB.x, pB.y);
+                ctx.stroke();
+            }
+
+            // 2. Draw Strands
+            function drawStrand(points, color) {
+                ctx.lineWidth = 8;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                
+                // We draw the strand as a series of segments to apply per-segment opacity
+                for (let i = 0; i < points.length - 1; i++) {
+                    const p1 = points[i];
+                    const p2 = points[i+1];
+                    
+                    // Midpoint depth for opacity
+                    const midZ = (p1.z + p2.z) / 2;
+                    let opacity = (midZ / config.helixRadius + 1) / 2;
+                    
+                    // Create a subtle gradient for the opacity to make it look smoother
+                    // Actually, simple solid opacity per segment is usually fine for this style, 
+                    // but let's boost the max opacity for the front.
+                    opacity = Math.max(0.2, opacity);
+
+                    ctx.strokeStyle = color.replace(')', `, ${opacity})`).replace('rgb', 'rgba');
+
+                    ctx.beginPath();
+                    ctx.moveTo(p1.x, p1.y);
+                    ctx.lineTo(p2.x, p2.y);
+                    ctx.stroke();
+                }
+
+                // 3. Draw Nodes
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = color;
+                
+                for (let i = 0; i < points.length; i++) {
+                    const p = points[i];
+                    const opacity = (p.z / config.helixRadius + 1) / 2;
+                    const size = config.nodeRadius * p.scale;
+                    
+                    ctx.fillStyle = color.replace(')', `, ${opacity})`).replace('rgb', 'rgba');
+                    
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.shadowBlur = 0;
+            }
+
+            // Convert hex to rgb for opacity manipulation
+            const rgbA = hexToRgb(config.strandAColor);
+            const rgbB = hexToRgb(config.strandBColor);
+
+            drawStrand(pointsA, `rgb(${rgbA.r}, ${rgbA.g}, ${rgbA.b})`);
+            drawStrand(pointsB, `rgb(${rgbB.r}, ${rgbB.g}, ${rgbB.b})`);
+        }
+
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : null;
+        }
+
+        function animate() {
+            rotationAngle += config.rotationSpeed;
+            drawDNA();
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+    </script>
+</body>
+</html>
