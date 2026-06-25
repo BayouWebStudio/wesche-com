@@ -1,10 +1,11 @@
 <!doctype html>
 <html lang="en"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>DGX Spark Benchmarks — v2 deep eval | wesche.com</title>
-<meta name="description" content="LLM benchmarks on DGX Spark: 10 models, 49 scenarios, 10 domains, two thinking modes. TrueScore leaderboard with model-generated animations.">
-<meta property="og:title" content="DGX Spark Benchmarks — v2 deep eval">
-<meta property="og:description" content="10 models, 49 scenarios, verifiable grading. TrueScore leaderboard with model-generated animations.">
+<title>Spark-Bench — LLM Benchmarks on DGX Spark | wesche.com</title>
+<meta name="description" content="Mixed-capability LLM benchmark for NVIDIA DGX Spark. 57 scenarios, 10 domains, partial-credit grading, trial statistics. Open source.">
+<meta property="og:title" content="Spark-Bench — LLM Benchmarks on DGX Spark">
+<meta property="og:description" content="57 scenarios · 10 domains · partial-credit grading · Pass@1/Pass@K trial statistics. Open source.">
+<meta property="og:image" content="spark-bench-promo.jpg">
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-WDWRJTR5BY"></script>
 <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}
 gtag('js',new Date());gtag('config','G-WDWRJTR5BY');</script>
@@ -17,6 +18,14 @@ h1{font-size:36px;margin:0 0 6px;letter-spacing:-.02em}h2{font-size:22px;margin:
 .tag{color:var(--acc);font-weight:600;letter-spacing:.08em;text-transform:uppercase;font-size:12px}
 .lede{color:var(--mut);font-size:16px;max-width:680px;margin:10px auto 0}
 .sub{color:var(--mut);font-size:14px}
+/* Promo */
+.promo{width:100%;max-width:900px;border-radius:16px;margin:20px auto 0;border:1px solid var(--line);display:block}
+/* Intro */
+.intro{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px 28px;margin:20px 0}
+.intro p{margin:0 0 12px}.intro p:last-child{margin:0}
+.intro a{color:var(--acc);text-decoration:none}
+.gh-badge{display:inline-flex;align-items:center;gap:8px;background:rgba(110,168,255,.1);border:1px solid rgba(110,168,255,.25);border-radius:10px;padding:6px 14px;font-size:13px;font-weight:600;color:var(--acc);text-decoration:none;transition:all .2s}
+.gh-badge:hover{background:rgba(110,168,255,.2)}
 /* Tabs */
 .tabs{position:sticky;top:0;z-index:100;display:flex;gap:0;background:var(--bg);border-bottom:1px solid var(--line);padding:0 20px;margin-top:24px}
 .tab{padding:12px 24px;cursor:pointer;border:none;background:none;color:var(--mut);font:600 14px system-ui;letter-spacing:.02em;border-bottom:2px solid transparent;transition:all .2s}
@@ -35,24 +44,19 @@ h1{font-size:36px;margin:0 0 6px;letter-spacing:-.02em}h2{font-size:22px;margin:
 .ts-score.high{color:var(--grn)}.ts-score.ok{color:var(--ylw)}.ts-score.low{color:var(--red)}
 .mode-tag{display:inline-block;padding:2px 7px;border-radius:20px;font-size:10px;font-weight:600}
 .mode-tag.off{background:rgba(110,200,140,.15);color:#6ec88c}
-.mode-tag.on{background:rgba(255,180,90,.15);color:#ffb45a}
-.mode-tag.native{background:rgba(180,122,255,.15);color:#b47aff}
-.tier{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;margin-top:14px}
-.tier-header{display:flex;align-items:center;gap:12px;margin-bottom:14px}
-.tier-badge{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;flex-shrink:0}
-.tier-badge.s1{background:linear-gradient(135deg,#1a3a2a,#2d6a4f);color:#4cd964}
-.tier-badge.s2{background:linear-gradient(135deg,#1a2a4a,#2d4f8a);color:#6ea8ff}
-.tier-title{font-size:18px;font-weight:700}
-.tier-sub{color:var(--mut);font-size:12px;margin-top:2px}
+/* Stats badges */
+.stats-row{display:flex;gap:12px;flex-wrap:wrap;margin:12px 0}
+.stat-badge{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 16px;text-align:center;flex:1;min-width:100px}
+.stat-badge .val{font-size:22px;font-weight:800;color:var(--acc)}
+.stat-badge .lbl{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em;margin-top:2px}
 /* Animations */
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px}
+.grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:10px}
 .anim-card{margin:0;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
-.anim-card iframe{width:100%;height:240px;border:0;display:block;background:#000}
+.anim-card iframe{width:100%;height:200px;border:0;display:block;background:#000}
 .anim-card figcaption{padding:8px 12px;color:var(--mut);font-size:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px}
 .anim-card figcaption b{color:var(--fg);font-size:13px}
 .anim-card a{color:var(--acc);text-decoration:none;font-size:12px}
-.anim-card .anim-mode{font-size:10px;padding:1px 6px;border-radius:10px;background:rgba(255,255,255,.05)}
-.anim-section{margin-bottom:20px}
+.anim-section{margin-bottom:24px}
 .anim-section h4{margin:16px 0 8px;font-size:15px;color:var(--fg);display:flex;align-items:center;gap:10px}
 /* Cards */
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-top:12px}
@@ -60,371 +64,148 @@ h1{font-size:36px;margin:0 0 6px;letter-spacing:-.02em}h2{font-size:22px;margin:
 code{background:#1c1e2e;padding:1px 6px;border-radius:5px;font-size:13px}
 .na{color:#4a4e66}
 footer{color:var(--mut);text-align:center;padding:40px 0 60px;font-size:13px}
-@media(max-width:720px){.grid{grid-template-columns:1fr}h1{font-size:28px}.tier{padding:14px}.tabs{padding:0 10px}.tab{padding:10px 16px;font-size:13px}.mtable th:nth-child(5),.mtable td:nth-child(5){display:none}}
+footer a{color:var(--acc);text-decoration:none}
+@media(max-width:720px){.grid{grid-template-columns:1fr}h1{font-size:28px}.intro{padding:16px}.tabs{padding:0 10px}.tab{padding:10px 16px;font-size:13px}.mtable th:nth-child(5),.mtable td:nth-child(5){display:none}}
 </style></head><body>
 <header><div class="wrap">
-<div class="tag">NVIDIA DGX Spark · Grace-Blackwell · v2 Deep Eval</div>
-<h1>Benchmarks by cluster size</h1>
-<p class="lede">10 models · 19 configs · 49 scenarios · 10 domains · verifiable grading — no LLM-judge. Every animation is model-generated.</p>
+<div class="tag">NVIDIA DGX Spark · Grace-Blackwell · v3 Mixed-Capability Benchmark</div>
+<h1>Spark-Bench</h1>
+<p class="lede">57 scenarios · 10 domains · partial-credit grading · Pass@1/Pass@K trial statistics · visual artifact generation</p>
 </div></header>
 
+<img class="promo" src="spark-bench-promo.jpg" alt="Spark-Bench promotional graphic — 57 scenarios, 10 domains, partial-credit grading, TrueScore leaderboard">
+
+<main class="wrap">
+
+<!-- INTRO -->
+<div class="intro">
+<p><strong>Spark-Bench</strong> is a mixed-capability LLM benchmark built specifically for the NVIDIA DGX Spark (GB10 Grace-Blackwell) platform. It evaluates models across <strong>57 scenarios in 10 domains</strong> — tool use, instruction following, structured output, long context retrieval, safety, robustness, multi-step tool chains, restraint/refusal detection, autonomous planning, and visual artifact generation.</p>
+
+<p>Unlike saturated leaderboards where every decent model clusters at 88–97, Spark-Bench is designed to <strong>discriminate</strong>. Grading is deterministic (no LLM-judge): unit tests, JSON-schema validation, exact tool-argument matching, and needle retrieval. Models receive <strong>partial credit</strong> — hitting 3/5 constraints scores 0.60, not 0.00.</p>
+
+<p>Every scenario runs K=2 times. We report <strong>Pass@1</strong> (passes on at least one trial), <strong>Pass@K</strong> (passes on ALL trials), and the <strong>Reliability Gap</strong> between them — so you know not just whether a model can do it, but whether it <em>consistently</em> can.</p>
+
+<p>Visual scenarios ask models to generate self-contained HTML5 canvas animations (no external libraries). Every animation on this page is raw model output, unedited.</p>
+
+<p style="margin-top:16px">
+<a class="gh-badge" href="https://github.com/Weschera/spark-bench" target="_blank">
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+  Open source on GitHub →
+</a>
+</p>
+</div>
+
+<!-- TABS -->
 <div class="tabs">
 <button class="tab active" onclick="showTab('leaderboard')">Leaderboard</button>
 <button class="tab" onclick="showTab('animations')">Animations</button>
 <button class="tab" onclick="showTab('methodology')">Methodology</button>
 </div>
 
-<main class="wrap">
-
 <!-- TAB: LEADERBOARD -->
 <div id="leaderboard" class="tab-panel active">
 
 <h2>TrueScore leaderboard</h2>
-<p class="sub" style="margin:-6px 0 10px">Ranked by think-OFF TrueScore. Δ = OFF minus ON (positive = overthinking hurts). v2 weights: Q40% Cal25% Rel15% Eff5% Resp15%.</p>
+<p class="sub" style="margin:-6px 0 10px">Ranked by think-OFF TrueScore. Weights: Quality 50%, Reliability 20%, Efficiency 10%, Responsiveness 20%. Safety excluded from scoring.</p>
+
 <table class="mtable" style="background:var(--card);border:1px solid var(--line);border-radius:14px">
-<tr><th>#</th><th>Model</th><th>Sparks</th><th>OFF</th><th>ON</th><th>Δ</th><th>Latency</th></tr>
+<tr><th>#</th><th>Model</th><th>Serving</th><th>TrueScore</th><th>Quality</th><th>Cal</th><th>Rel</th><th>Eff</th><th>Resp</th><th>Pass@1</th><th>Pass@K</th></tr>
 <tr>
 <td>1</td>
-<td><div class="model-name">Qwopus 3.6-27B MTP</div><div class="model-desc">llama.cpp · MTP2 · Q4_K_M GGUF</div></td>
-<td>1×</td>
-<td><span class="ts-score high">94.9</span></td>
-<td><span class="ts-score ok">73.7</span></td>
-<td><span style="color:var(--red)">+21.2</span></td>
-<td>2.48s</td>
+<td><div class="model-name">GLM-5.2</div><div class="model-desc">OpenRouter API</div></td>
+<td>API</td>
+<td><span class="ts-score high">77.1</span></td>
+<td>67.3</td><td>85.0</td><td>93.0</td><td>29.0</td><td>77.0</td>
+<td>84.2%</td><td>77.2%</td>
 </tr>
 <tr>
 <td>2</td>
-<td><div class="model-name">Qwable-5-27B-Coder <a href="https://huggingface.co/DJLougen/Qwable-5-27B-Coder-GGUF" style="color:var(--acc);font-size:11px">HF</a></div><div class="model-desc">llama.cpp · Q4_K_M GGUF</div></td>
-<td>1×</td>
-<td><span class="ts-score high">92.5</span></td>
-<td><span class="ts-score low">59.3</span></td>
-<td><span style="color:var(--red)">+33.2</span></td>
-<td>2.44s</td>
+<td><div class="model-name">Qwopus 3.6-27B v2</div><div class="model-desc">llama.cpp · MTP · Q4_K_M</div></td>
+<td>1× Spark</td>
+<td><span class="ts-score ok">68.1</span></td>
+<td>61.0</td><td>82.0</td><td>93.0</td><td>12.0</td><td>56.0</td>
+<td>75.4%</td><td>70.2%</td>
 </tr>
 <tr>
 <td>3</td>
-<td><div class="model-name">AEON Ultimate 27B</div><div class="model-desc">vLLM · NVFP4 · DFlash</div></td>
-<td>1×</td>
-<td><span class="ts-score high">87.4</span></td>
-<td><span class="ts-score low">59.4</span></td>
-<td><span style="color:var(--red)">+28.0</span></td>
-<td>1.70s</td>
+<td><div class="model-name">Qwen 3.6-27B base</div><div class="model-desc">llama.cpp · Q4_K_M</div></td>
+<td>1× Spark</td>
+<td><span class="ts-score low">53.4</span></td>
+<td>49.0</td><td>66.0</td><td>83.0</td><td>6.0</td><td>30.0</td>
+<td>66.7%</td><td>47.4%</td>
 </tr>
-<tr>
-<td>4</td>
-<td><div class="model-name">Huihui Qwen3.6-35B-A3B <a href="https://huggingface.co/huihui-ai/Huihui-Qwen3.6-35B-A3B-Claude-4.6-Opus-abliterated" style="color:var(--acc);font-size:11px">HF</a></div><div class="model-desc">llama.cpp · Q4_K_M GGUF</div></td>
-<td>1×</td>
-<td><span class="ts-score high">87.0</span></td>
-<td><span class="ts-score ok">76.6</span></td>
-<td><span style="color:var(--red)">+10.4</span></td>
-<td>1.03s</td>
-</tr>
-<tr>
-<td>5</td>
-<td><div class="model-name">Nemotron-3-Nano-Omni-30B A3B</div><div class="model-desc">llama.cpp · Q4_K_M GGUF</div></td>
-<td>1×</td>
-<td><span class="ts-score ok">86.9</span></td>
-<td><span class="ts-score ok">79.2</span></td>
-<td><span style="color:var(--red)">+7.7</span></td>
-<td>0.93s</td>
-</tr>
-<tr>
-<td>6</td>
-<td><div class="model-name">HauhauCS Qwen3.6-35B-A3B <a href="https://huggingface.co/HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive" style="color:var(--acc);font-size:11px">HF</a></div><div class="model-desc">llama.cpp · Q4_K_M GGUF</div></td>
-<td>1×</td>
-<td><span class="ts-score ok">85.8</span></td>
-<td><span class="ts-score low">60.3</span></td>
-<td><span style="color:var(--red)">+25.5</span></td>
-<td>1.01s</td>
-</tr>
-<tr>
-<td>7</td>
-<td><div class="model-name">DeepSeek V4 Flash</div><div class="model-desc">vLLM · sparse-MLA · 200G RoCE</div></td>
-<td>2×</td>
-<td><span class="ts-score ok">85.6</span></td>
-<td><span class="ts-score ok">86.0</span></td>
-<td><span style="color:var(--mut)">-0.4</span></td>
-<td>3.34s</td>
-</tr>
-<tr>
-<td>8</td>
-<td><div class="model-name">Bytkim Qwen3.6-27B-MTP-pi-tune <a href="https://huggingface.co/bytkim/Qwen3.6-27B-MTP-pi-tune-GGUF" style="color:var(--acc);font-size:11px">HF</a></div><div class="model-desc">llama.cpp · Q4_K_M GGUF</div></td>
-<td>1×</td>
-<td><span class="ts-score ok">85.1</span></td>
-<td><span class="ts-score low">67.3</span></td>
-<td><span style="color:var(--red)">+17.8</span></td>
-<td>2.42s</td>
-</tr>
-<tr>
-<td>9</td>
-<td><div class="model-name">StepFun 3.7 Flash</div><div class="model-desc">llama.cpp · Q3_K_L GGUF</div></td>
-<td>1×</td>
-<td><span class="ts-score ok">70.5</span></td>
-<td><span class="ts-score ok">70.4</span></td>
-<td><span style="color:var(--mut)">+0.1</span></td>
-<td>8.60s</td>
-</tr>
-<tr>
-<td>10</td>
-<td><div class="model-name">Qwythos 9B</div><div class="model-desc">vLLM · Claude Mythos 5</div></td>
-<td>1×</td>
-<td><span class="ts-score low">68.0</span></td>
-<td><span class="na">—</span></td>
-<td><span class="na">—</span></td>
-<td>8.05s</td>
-</tr>
-
 </table>
 
-<p class="sub" style="margin-top:10px">💡 <b>Overthinking is real.</b> Only DeepSeek V4 Flash improves with thinking ON (86.0 &gt; 85.6). Worst collapse: Qwable −33.2 pts, AEON −28.0 pts, HauhauCS −25.5 pts. <a href="https://arxiv.org/abs/2604.10739" style="color:var(--acc)">Zhou et al. 2026</a></p>
-
-<div class="tier">
-<div class="tier-header">
-<div class="tier-badge s1">1×</div>
-<div><div class="tier-title">Single DGX Spark</div><div class="tier-sub">128 GB unified · llama.cpp MTP or vLLM</div></div>
-</div>
-<table class="mtable">
-<tr><th>Model</th><th>Mode</th><th>TrueScore</th><th>Q</th><th>Cal</th><th>Latency</th><th>Ctx</th></tr>
-<tr>
-<td><div class="model-name">Qwopus 3.6-27B MTP</div><div class="model-desc">llama.cpp · MTP2 · Q4_K_M GGUF</div></td>
-<td><span class="mode-tag off">OFF</span></td>
-<td><span class="ts-score high">94.9</span></td>
-<td>92</td><td>100</td><td>2.48s</td>
-<td>256K</td></tr>
-<tr>
-<td></td>
-<td><span class="mode-tag on">ON</span></td>
-<td><span class="ts-score ok">73.7</span></td>
-<td>78</td><td>71</td><td>10.20s</td>
-<td></td></tr>
-<tr>
-<td><div class="model-name">Qwable-5-27B-Coder</div><div class="model-desc">llama.cpp · Q4_K_M GGUF · <a href="https://huggingface.co/DJLougen/Qwable-5-27B-Coder-GGUF" style="color:var(--acc)">HF</a></div></td>
-<td><span class="mode-tag off">OFF</span></td>
-<td><span class="ts-score high">92.5</span></td>
-<td>92</td><td>90</td><td>2.44s</td>
-<td>256K</td></tr>
-<tr>
-<td></td>
-<td><span class="mode-tag on">ON</span></td>
-<td><span class="ts-score low">59.3</span></td>
-<td>51</td><td>66</td><td>15.10s</td>
-<td></td></tr>
-<tr>
-<td><div class="model-name">AEON Ultimate 27B</div><div class="model-desc">vLLM · NVFP4 · DFlash</div></td>
-<td><span class="mode-tag off">OFF</span></td>
-<td><span class="ts-score high">87.4</span></td>
-<td>91</td><td>60</td><td>1.70s</td>
-<td>256K</td></tr>
-<tr>
-<td></td>
-<td><span class="mode-tag on">ON</span></td>
-<td><span class="ts-score low">59.4</span></td>
-<td>61</td><td>53</td><td>9.20s</td>
-<td></td></tr>
-<tr>
-<td><div class="model-name">Huihui Qwen3.6-35B-A3B</div><div class="model-desc">llama.cpp · Q4_K_M GGUF · <a href="https://huggingface.co/huihui-ai/Huihui-Qwen3.6-35B-A3B-Claude-4.6-Opus-abliterated" style="color:var(--acc)">HF</a></div></td>
-<td><span class="mode-tag off">OFF</span></td>
-<td><span class="ts-score high">87.0</span></td>
-<td>89</td><td>71</td><td>1.03s</td>
-<td>256K</td></tr>
-<tr>
-<td></td>
-<td><span class="mode-tag on">ON</span></td>
-<td><span class="ts-score ok">76.6</span></td>
-<td>74</td><td>75</td><td>4.04s</td>
-<td></td></tr>
-<tr>
-<td><div class="model-name">Nemotron-3-Nano-Omni-30B A3B</div><div class="model-desc">llama.cpp · Q4_K_M GGUF</div></td>
-<td><span class="mode-tag off">OFF</span></td>
-<td><span class="ts-score ok">86.9</span></td>
-<td>92</td><td>63</td><td>0.93s</td>
-<td>256K</td></tr>
-<tr>
-<td></td>
-<td><span class="mode-tag on">ON</span></td>
-<td><span class="ts-score ok">79.2</span></td>
-<td>85</td><td>74</td><td>3.00s</td>
-<td></td></tr>
-<tr>
-<td><div class="model-name">HauhauCS Qwen3.6-35B-A3B</div><div class="model-desc">llama.cpp · Q4_K_M GGUF · <a href="https://huggingface.co/HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive" style="color:var(--acc)">HF</a></div></td>
-<td><span class="mode-tag off">OFF</span></td>
-<td><span class="ts-score ok">85.8</span></td>
-<td>85</td><td>71</td><td>1.01s</td>
-<td>256K</td></tr>
-<tr>
-<td></td>
-<td><span class="mode-tag on">ON</span></td>
-<td><span class="ts-score low">60.3</span></td>
-<td>58</td><td>46</td><td>5.93s</td>
-<td></td></tr>
-<tr>
-<td><div class="model-name">Bytkim Qwen3.6-27B-MTP-pi-tune</div><div class="model-desc">llama.cpp · Q4_K_M GGUF · <a href="https://huggingface.co/bytkim/Qwen3.6-27B-MTP-pi-tune-GGUF" style="color:var(--acc)">HF</a></div></td>
-<td><span class="mode-tag off">OFF</span></td>
-<td><span class="ts-score ok">85.1</span></td>
-<td>91</td><td>63</td><td>2.42s</td>
-<td>256K</td></tr>
-<tr>
-<td></td>
-<td><span class="mode-tag on">ON</span></td>
-<td><span class="ts-score low">67.3</span></td>
-<td>62</td><td>76</td><td>11.34s</td>
-<td></td></tr>
-<tr>
-<td><div class="model-name">StepFun 3.7 Flash</div><div class="model-desc">llama.cpp · Q3_K_L GGUF</div></td>
-<td><span class="mode-tag off">OFF</span></td>
-<td><span class="ts-score ok">70.5</span></td>
-<td>73</td><td>76</td><td>8.60s</td>
-<td>128K</td></tr>
-<tr>
-<td></td>
-<td><span class="mode-tag on">ON</span></td>
-<td><span class="ts-score ok">70.4</span></td>
-<td>67</td><td>76</td><td>9.63s</td>
-<td></td></tr>
-<tr>
-<td><div class="model-name">Qwythos 9B</div><div class="model-desc">vLLM · Claude Mythos 5</div></td>
-<td><span class="mode-tag off">OFF</span></td>
-<td><span class="ts-score low">68.0</span></td>
-<td>69</td><td>41</td><td>8.05s</td>
-<td>1M</td></tr>
-
-</table>
+<div class="stats-row">
+<div class="stat-badge"><div class="val">57</div><div class="lbl">Scenarios</div></div>
+<div class="stat-badge"><div class="val">10</div><div class="lbl">Domains</div></div>
+<div class="stat-badge"><div class="val">2</div><div class="lbl">Repeats</div></div>
+<div class="stat-badge"><div class="val">3</div><div class="lbl">Models</div></div>
+<div class="stat-badge"><div class="val">26</div><div class="lbl">Perfect Ties</div></div>
+<div class="stat-badge"><div class="val">24</div><div class="lbl">Discriminating</div></div>
 </div>
 
-<div class="tier">
-<div class="tier-header">
-<div class="tier-badge s2">2×</div>
-<div><div class="tier-title">Dual DGX Spark</div><div class="tier-sub">256 GB unified · 200G RoCE · vLLM TP=2</div></div>
-</div>
-<table class="mtable">
-<tr><th>Model</th><th>Mode</th><th>TrueScore</th><th>Q</th><th>Cal</th><th>Latency</th><th>Ctx</th></tr>
-<tr>
-<td><div class="model-name">DeepSeek V4 Flash</div><div class="model-desc">vLLM · sparse-MLA · 200G RoCE</div></td>
-<td><span class="mode-tag off">OFF</span></td>
-<td><span class="ts-score ok">85.6</span></td>
-<td>93</td><td>95</td><td>3.34s</td>
-<td>1M</td></tr>
-<tr>
-<td></td>
-<td><span class="mode-tag on">ON</span></td>
-<td><span class="ts-score ok">86.0</span></td>
-<td>94</td><td>95</td><td>3.30s</td>
-<td></td></tr>
+<p class="sub" style="margin-top:14px">💡 <strong>Key finding:</strong> GLM-5.2 wins on quality and responsiveness (API latency). Qwopus is the most consistent local model (RelGap 5.3%). Qwen base has high variance (RelGap 19.3%) — it passes 66.7% of scenarios at least once, but only 47.4% consistently.</p>
 
-</table>
-</div>
+<p class="sub">More models being benchmarked. <a href="https://github.com/Weschera/spark-bench" style="color:var(--acc)">Follow on GitHub →</a></p>
 
 </div>
 
 <!-- TAB: ANIMATIONS -->
 <div id="animations" class="tab-panel">
 <h2>Model-generated animations</h2>
-<p class="sub" style="margin:-6px 0 10px">Each model was asked to generate self-contained HTML canvas animations — solar system, spiral galaxy, DNA helix. These are raw model outputs, unedited. Click to open full-screen.</p>
+<p class="sub" style="margin:-6px 0 10px">Each model was asked to generate self-contained HTML canvas animations — solar system, spiral galaxy, DNA helix. No external libraries. These are raw model outputs, unedited. Click to open full-screen.</p>
+
 <div class="anim-section">
-<h4>Qwopus 3.6-27B MTP <span class="ts-score high" style="font-size:16px">94.9</span></h4>
-<div class="grid"><figure class="anim-card">
-<iframe src="animations/qwopus-solar-thinkoff.html" loading="lazy" title="Qwopus 3.6-27B MTP — Solar System"></iframe>
-<figcaption><b>Solar System</b><span><span class="anim-mode">think off</span> <a href="animations/qwopus-solar-thinkoff.html" target="_blank">open ↗</a></span></figcaption>
+<h4>GLM-5.2 <span class="ts-score high" style="font-size:16px">77.1</span></h4>
+<div class="grid">
+<figure class="anim-card">
+<iframe src="animations/glm-solar-thinkoff.html" loading="lazy" title="GLM-5.2 — Solar System"></iframe>
+<figcaption><b>Solar System</b><a href="animations/glm-solar-thinkoff.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/qwopus-galaxy-thinkoff.html" loading="lazy" title="Qwopus 3.6-27B MTP — Spiral Galaxy"></iframe>
-<figcaption><b>Spiral Galaxy</b><span><span class="anim-mode">think off</span> <a href="animations/qwopus-galaxy-thinkoff.html" target="_blank">open ↗</a></span></figcaption>
+<iframe src="animations/glm-galaxy-thinkoff.html" loading="lazy" title="GLM-5.2 — Spiral Galaxy"></iframe>
+<figcaption><b>Spiral Galaxy</b><a href="animations/glm-galaxy-thinkoff.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/qwopus-solar-thinkon.html" loading="lazy" title="Qwopus 3.6-27B MTP — Solar System"></iframe>
-<figcaption><b>Solar System</b><span><span class="anim-mode">think on</span> <a href="animations/qwopus-solar-thinkon.html" target="_blank">open ↗</a></span></figcaption>
-</figure>
-<figure class="anim-card">
-<iframe src="animations/qwopus-galaxy-thinkon.html" loading="lazy" title="Qwopus 3.6-27B MTP — Spiral Galaxy"></iframe>
-<figcaption><b>Spiral Galaxy</b><span><span class="anim-mode">think on</span> <a href="animations/qwopus-galaxy-thinkon.html" target="_blank">open ↗</a></span></figcaption>
+<iframe src="animations/glm-dna-thinkoff.html" loading="lazy" title="GLM-5.2 — DNA Helix"></iframe>
+<figcaption><b>DNA Helix</b><a href="animations/glm-dna-thinkoff.html" target="_blank">open ↗</a></figcaption>
 </figure>
 </div>
 </div>
+
 <div class="anim-section">
-<h4>Qwable-5-27B-Coder <span class="ts-score high" style="font-size:16px">92.5</span></h4>
-<div class="grid"><figure class="anim-card">
-<iframe src="animations/qwable-solar-thinkoff.html" loading="lazy" title="Qwable-5-27B-Coder — Solar System"></iframe>
-<figcaption><b>Solar System</b><span><span class="anim-mode">think off</span> <a href="animations/qwable-solar-thinkoff.html" target="_blank">open ↗</a></span></figcaption>
+<h4>Qwopus 3.6-27B v2 <span class="ts-score ok" style="font-size:16px">68.1</span></h4>
+<div class="grid">
+<figure class="anim-card">
+<iframe src="animations/qwopus-solar-thinkoff-v3.html" loading="lazy" title="Qwopus — Solar System"></iframe>
+<figcaption><b>Solar System</b><a href="animations/qwopus-solar-thinkoff-v3.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/qwable-galaxy-thinkoff.html" loading="lazy" title="Qwable-5-27B-Coder — Spiral Galaxy"></iframe>
-<figcaption><b>Spiral Galaxy</b><span><span class="anim-mode">think off</span> <a href="animations/qwable-galaxy-thinkoff.html" target="_blank">open ↗</a></span></figcaption>
+<iframe src="animations/qwopus-galaxy-thinkoff-v3.html" loading="lazy" title="Qwopus — Spiral Galaxy"></iframe>
+<figcaption><b>Spiral Galaxy</b><a href="animations/qwopus-galaxy-thinkoff-v3.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/qwable-dna-thinkoff.html" loading="lazy" title="Qwable-5-27B-Coder — DNA Helix"></iframe>
-<figcaption><b>DNA Helix</b><span><span class="anim-mode">think off</span> <a href="animations/qwable-dna-thinkoff.html" target="_blank">open ↗</a></span></figcaption>
+<iframe src="animations/qwopus-dna-thinkoff.html" loading="lazy" title="Qwopus — DNA Helix"></iframe>
+<figcaption><b>DNA Helix</b><a href="animations/qwopus-dna-thinkoff.html" target="_blank">open ↗</a></figcaption>
 </figure>
 </div>
 </div>
+
 <div class="anim-section">
-<h4>AEON Ultimate 27B <span class="ts-score high" style="font-size:16px">87.4</span></h4>
-<div class="grid"><figure class="anim-card">
-<iframe src="animations/aeon-solar-thinkoff.html" loading="lazy" title="AEON Ultimate 27B — Solar System"></iframe>
-<figcaption><b>Solar System</b><span><span class="anim-mode">think off</span> <a href="animations/aeon-solar-thinkoff.html" target="_blank">open ↗</a></span></figcaption>
+<h4>Qwen 3.6-27B base <span class="ts-score low" style="font-size:16px">53.4</span></h4>
+<div class="grid">
+<figure class="anim-card">
+<iframe src="animations/qwen-base-solar-thinkoff.html" loading="lazy" title="Qwen base — Solar System"></iframe>
+<figcaption><b>Solar System</b><a href="animations/qwen-base-solar-thinkoff.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/aeon-galaxy-thinkoff.html" loading="lazy" title="AEON Ultimate 27B — Spiral Galaxy"></iframe>
-<figcaption><b>Spiral Galaxy</b><span><span class="anim-mode">think off</span> <a href="animations/aeon-galaxy-thinkoff.html" target="_blank">open ↗</a></span></figcaption>
-</figure>
-</div>
-</div>
-<div class="anim-section">
-<h4>Bytkim Qwen3.6-27B-MTP-pi-tune <span class="ts-score ok" style="font-size:16px">85.1</span></h4>
-<div class="grid"><figure class="anim-card">
-<iframe src="animations/bytkim-solar-thinkoff.html" loading="lazy" title="Bytkim Qwen3.6-27B-MTP-pi-tune — Solar System"></iframe>
-<figcaption><b>Solar System</b><span><span class="anim-mode">think off</span> <a href="animations/bytkim-solar-thinkoff.html" target="_blank">open ↗</a></span></figcaption>
+<iframe src="animations/qwen-base-galaxy-thinkoff.html" loading="lazy" title="Qwen base — Spiral Galaxy"></iframe>
+<figcaption><b>Spiral Galaxy</b><a href="animations/qwen-base-galaxy-thinkoff.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/bytkim-galaxy-thinkoff.html" loading="lazy" title="Bytkim Qwen3.6-27B-MTP-pi-tune — Spiral Galaxy"></iframe>
-<figcaption><b>Spiral Galaxy</b><span><span class="anim-mode">think off</span> <a href="animations/bytkim-galaxy-thinkoff.html" target="_blank">open ↗</a></span></figcaption>
-</figure>
-<figure class="anim-card">
-<iframe src="animations/bytkim-dna-thinkoff.html" loading="lazy" title="Bytkim Qwen3.6-27B-MTP-pi-tune — DNA Helix"></iframe>
-<figcaption><b>DNA Helix</b><span><span class="anim-mode">think off</span> <a href="animations/bytkim-dna-thinkoff.html" target="_blank">open ↗</a></span></figcaption>
-</figure>
-</div>
-</div>
-<div class="anim-section">
-<h4>Nemotron-3-Nano-Omni-30B A3B <span class="ts-score ok" style="font-size:16px">86.9</span></h4>
-<div class="grid"><figure class="anim-card">
-<iframe src="animations/nemotron-nano-solar-thinkoff.html" loading="lazy" title="Nemotron-3-Nano-Omni-30B A3B — Solar System"></iframe>
-<figcaption><b>Solar System</b><span><span class="anim-mode">think off</span> <a href="animations/nemotron-nano-solar-thinkoff.html" target="_blank">open ↗</a></span></figcaption>
-</figure>
-<figure class="anim-card">
-<iframe src="animations/nemotron-nano-galaxy-thinkoff.html" loading="lazy" title="Nemotron-3-Nano-Omni-30B A3B — Spiral Galaxy"></iframe>
-<figcaption><b>Spiral Galaxy</b><span><span class="anim-mode">think off</span> <a href="animations/nemotron-nano-galaxy-thinkoff.html" target="_blank">open ↗</a></span></figcaption>
-</figure>
-</div>
-</div>
-<div class="anim-section">
-<h4>DeepSeek V4 Flash <span class="ts-score ok" style="font-size:16px">86.0</span></h4>
-<div class="grid"><figure class="anim-card">
-<iframe src="animations/deepseek-solar.html" loading="lazy" title="DeepSeek V4 Flash — Solar System"></iframe>
-<figcaption><b>Solar System</b><span><span class="anim-mode">think on</span> <a href="animations/deepseek-solar.html" target="_blank">open ↗</a></span></figcaption>
-</figure>
-</div>
-</div>
-<div class="anim-section">
-<h4>Qwythos 9B <span class="ts-score low" style="font-size:16px">68.0</span></h4>
-<div class="grid"><figure class="anim-card">
-<iframe src="animations/qwythos-solar-thinkoff.html" loading="lazy" title="Qwythos 9B — Solar System"></iframe>
-<figcaption><b>Solar System</b><span><span class="anim-mode">think off</span> <a href="animations/qwythos-solar-thinkoff.html" target="_blank">open ↗</a></span></figcaption>
-</figure>
-<figure class="anim-card">
-<iframe src="animations/qwythos-galaxy-thinkoff.html" loading="lazy" title="Qwythos 9B — Spiral Galaxy"></iframe>
-<figcaption><b>Spiral Galaxy</b><span><span class="anim-mode">think off</span> <a href="animations/qwythos-galaxy-thinkoff.html" target="_blank">open ↗</a></span></figcaption>
-</figure>
-</div>
-</div>
-<div class="anim-section">
-<h4>StepFun 3.7 Flash <span class="ts-score ok" style="font-size:16px">70.5</span></h4>
-<div class="grid"><figure class="anim-card">
-<iframe src="animations/stepfun-solar-native.html" loading="lazy" title="StepFun 3.7 Flash — Solar System"></iframe>
-<figcaption><b>Solar System</b><span><span class="anim-mode">native</span> <a href="animations/stepfun-solar-native.html" target="_blank">open ↗</a></span></figcaption>
-</figure>
-<figure class="anim-card">
-<iframe src="animations/stepfun-galaxy-native.html" loading="lazy" title="StepFun 3.7 Flash — Spiral Galaxy"></iframe>
-<figcaption><b>Spiral Galaxy</b><span><span class="anim-mode">native</span> <a href="animations/stepfun-galaxy-native.html" target="_blank">open ↗</a></span></figcaption>
+<iframe src="animations/qwen-base-dna-thinkoff.html" loading="lazy" title="Qwen base — DNA Helix"></iframe>
+<figcaption><b>DNA Helix</b><a href="animations/qwen-base-dna-thinkoff.html" target="_blank">open ↗</a></figcaption>
 </figure>
 </div>
 </div>
@@ -433,38 +214,66 @@ footer{color:var(--mut);text-align:center;padding:40px 0 60px;font-size:13px}
 
 <!-- TAB: METHODOLOGY -->
 <div id="methodology" class="tab-panel">
-<h2>The methodology</h2>
+<h2>Methodology</h2>
 <div class="card">
-<p>Most LLM leaderboards saturate — every decent model clusters at 88–97 and the ranking stops meaning anything. This eval is built to <b>discriminate</b> and to be <b>verifiable</b>:</p>
+<p>Most LLM leaderboards saturate — every decent model clusters at 88–97 and the ranking stops meaning anything. Spark-Bench is built to <b>discriminate</b> and to be <b>verifiable</b>:</p>
 <ul>
-<li><b>10 domains</b> — tool-use, instruction-following, structured output, coding, reasoning, long-context, faithfulness, visual generation (capability) + safety, robustness (calibration).</li>
-<li><b>49 scenarios</b> — 42 base + 7 hard-tier agent-grade (multi-step tool chains, prompt injection resistance, nested JSON, large toolset selection).</li>
+<li><b>10 domains</b> — tool use, instruction following, structured output, long context, safety, robustness, multi-step tool chains, restraint/refusal, autonomous planning, visual generation.</li>
+<li><b>57 scenarios</b> — including 3 multi-step tool chains, 4 restraint/refusal (over-refusal detection), 2 autonomous planning, 3 hard instruction following, and 3 visual artifact generation scenarios.</li>
+<li><b>Partial-credit grading</b> — a model hitting 3/5 constraints scores 0.60, not 0.00. No binary pass/fail.</li>
 <li><b>Deterministic grading</b> — unit tests, JSON-schema validation, exact tool-argument matching, needle retrieval. No LLM-judge.</li>
-<li><b>Reliability</b> — every scenario runs K=2 times; consistency is scored.</li>
-<li><b>Calibration</b> — penalizes both over- and under-refusal. Uncensored models score lower by design.</li>
-<li><b>Efficiency</b> — useful-token ratio, penalizing overthinking.</li>
+<li><b>Multi-turn tool calls</b> — graders check the full tool call sequence, not just the first response. Models that call <code>calculator</code> before <code>send_email</code> get partial credit.</li>
+<li><b>Trial statistics</b> — Pass@1 (≥50% on at least 1 repeat), Pass@K (≥50% on ALL repeats), Reliability Gap, Score StdDev, Scenario StdDev.</li>
+<li><b>Safety excluded from TrueScore</b> — uncensored models shouldn't be penalized for refusing fewer prompts. Safety is shown as notes only.</li>
 </ul>
 </div>
 
 <h2>TrueScore formula</h2>
 <div class="card">
-<p><code>TrueScore = 0.40·Quality + 0.25·Calibration + 0.15·Reliability + 0.05·Efficiency + 0.15·Responsiveness</code></p>
-<p class="sub" style="margin-top:8px">Empty components are excluded and renormalized. v2 weights (Jun 2026) raised Calibration from 20→25% and lowered Efficiency from 10→5% based on community feedback — badly calibrated models that fabricate tool args or miss refusals should cost more, and large models on multi-Spark TP shouldn't be unfairly penalized for latency when quality is high.</p>
+<p><code>TrueScore = 0.50·Quality + 0.20·Reliability + 0.10·Efficiency + 0.20·Responsiveness</code></p>
+<p class="sub" style="margin-top:8px">Quality = task correctness across all domains. Reliability = consistency across repeated trials. Efficiency = tokens/second relative to fastest model. Responsiveness = time-to-first-token + total latency. Empty components are excluded and renormalized.</p>
+</div>
+
+<h2>Domain breakdown</h2>
+<div class="card">
+<table class="mtable">
+<tr><th>Domain</th><th>Scenarios</th><th>Description</th></tr>
+<tr><td>tool_use</td><td>8</td><td>Function calling with real tool schemas</td></tr>
+<tr><td>instruction</td><td>6</td><td>Hard instruction following (constraints, format)</td></tr>
+<tr><td>structured</td><td>5</td><td>JSON output with schema validation</td></tr>
+<tr><td>long_context</td><td>6</td><td>Needle-in-haystack retrieval (8K–64K tokens)</td></tr>
+<tr><td>safety</td><td>4</td><td>Refusal + appropriate compliance</td></tr>
+<tr><td>robustness</td><td>4</td><td>Missing params, malformed input, injection</td></tr>
+<tr><td>multi_step_chain</td><td>3</td><td>Sequential tool calls with dependencies</td></tr>
+<tr><td>restraint_refusal</td><td>4</td><td>Over-refusal detection (should comply)</td></tr>
+<tr><td>autonomous_planning</td><td>2</td><td>Multi-step planning with tool orchestration</td></tr>
+<tr><td>visual</td><td>3</td><td>Generate animated HTML5 canvas artifacts</td></tr>
+</table>
 </div>
 
 <h2>The hardware</h2>
 <div class="card">
 <ul>
-<li><b>4× NVIDIA DGX Spark</b> (GB10 Grace-Blackwell, 128 GB unified each), 10GbE backplane + 200G direct-connect RoCE.</li>
-<li><b>1× Spark:</b> Qwopus 3.6-27B (94.9), Qwable-5-27B-Coder (92.5), AEON Ultimate 27B (87.4), Huihui/HauhauCS Qwen3.6-35B-A3B (uncensored), Nemotron-3-Nano-Omni-30B A3B, Bytkim 27B, StepFun 3.7 Flash, Qwythos 9B.</li>
-<li><b>2× Sparks:</b> DeepSeek V4 Flash (sparse-MLA, 1M ctx) — dual-node vLLM TP=2 over 200G RoCE.</li>
-<li><b>4× Sparks:</b> The 4th node is racked and waiting — ready for the full 512 GB quad.</li>
+<li><b>4× NVIDIA DGX Spark</b> (GB10 Grace-Blackwell, 128 GB unified memory each).</li>
+<li><b>Local models:</b> served via llama.cpp (Q4_K_M quantization) or vLLM (NVFP4). One model per Spark at a time.</li>
+<li><b>API models:</b> served via OpenRouter for comparison against local deployment.</li>
+<li><b>Pure stdlib Python</b> — no pip dependencies. Any OpenAI-compatible <code>/v1/chat/completions</code> endpoint works.</li>
 </ul>
+</div>
+
+<h2>Open source</h2>
+<div class="card">
+<p>The full benchmark — 57 scenarios, graders, harness, and all results — is open source:</p>
+<p style="margin-top:8px"><a class="gh-badge" href="https://github.com/Weschera/spark-bench" target="_blank">
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+  github.com/Weschera/spark-bench
+</a></p>
+<p class="sub" style="margin-top:8px">MIT licensed. Methodology inspired by <a href="https://github.com/miaAI-lab/tool-eval-bench" style="color:var(--acc)">tool-eval-bench</a>.</p>
 </div>
 </div>
 
 </main>
-<footer>v2 49-scenario deep eval · last updated 2026-06-23 · <a href="https://wesche.com/dgx" style="color:var(--acc)">wesche.com/dgx</a></footer>
+<footer>v3 57-scenario mixed-capability benchmark · last updated 2026-06-25 · <a href="https://wesche.com/dgx">wesche.com/dgx</a> · <a href="https://github.com/Weschera/spark-bench" style="color:var(--acc)">GitHub</a></footer>
 
 <script>
 function showTab(id){
