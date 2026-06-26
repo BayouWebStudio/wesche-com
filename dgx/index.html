@@ -2,9 +2,9 @@
 <html lang="en"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Spark-Bench — LLM Benchmarks on DGX Spark | wesche.com</title>
-<meta name="description" content="Mixed-capability LLM benchmark for NVIDIA DGX Spark. 57 scenarios, 10 domains, partial-credit grading, trial statistics. Open source.">
+<meta name="description" content="Mixed-capability LLM benchmark for NVIDIA DGX Spark. 64 scenarios, 11 domains, 6 agentic workflows, size-tiered leaderboards, executable code grading, partial-credit scoring. Open source.">
 <meta property="og:title" content="Spark-Bench — LLM Benchmarks on DGX Spark">
-<meta property="og:description" content="57 scenarios · 10 domains · partial-credit grading · Pass@1/Pass@K trial statistics. Open source.">
+<meta property="og:description" content="64 scenarios · 11 domains · 6 agentic workflows · size-tiered leaderboards · executable code tests · partial-credit grading · Open source.">
 <meta property="og:image" content="spark-bench-promo.jpg">
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-WDWRJTR5BY"></script>
 <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}
@@ -38,8 +38,15 @@ h1{font-size:36px;margin:0 0 6px;letter-spacing:-.02em}h2{font-size:22px;margin:
 .model-desc{color:var(--mut);font-size:11px;margin-top:1px}
 .ts-score{font-size:20px;font-weight:800;white-space:nowrap}
 .ts-score.high{color:var(--grn)}.ts-score.ok{color:var(--ylw)}.ts-score.low{color:var(--red)}
-.mode-tag{display:inline-block;padding:2px 7px;border-radius:20px;font-size:10px;font-weight:600}
-.mode-tag.off{background:rgba(110,200,140,.15);color:#6ec88c}
+.ver-badge{display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700}
+.ver-badge.v5c{background:rgba(76,217,100,.15);color:#4cd964}
+.tier-badge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.tier-badge.small{background:rgba(110,168,255,.15);color:var(--acc)}
+.tier-badge.mid{background:rgba(180,122,255,.15);color:var(--purp)}
+.tier-badge.large{background:rgba(255,71,87,.15);color:var(--red)}
+.tier-header{display:flex;align-items:center;gap:10px;margin:28px 0 8px}
+.tier-header h3{margin:0;font-size:18px}
+.tier-header .tier-sub{color:var(--mut);font-size:13px}
 .stats-row{display:flex;gap:12px;flex-wrap:wrap;margin:12px 0}
 .stat-badge{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 16px;text-align:center;flex:1;min-width:100px}
 .stat-badge .val{font-size:22px;font-weight:800;color:var(--acc)}
@@ -56,28 +63,35 @@ h1{font-size:36px;margin:0 0 6px;letter-spacing:-.02em}h2{font-size:22px;margin:
 .card ul{margin:6px 0 0;padding-left:20px}.card li{margin:4px 0}
 code{background:#1c1e2e;padding:1px 6px;border-radius:5px;font-size:13px}
 .na{color:#4a4e66}
+.game-link{display:inline-block;background:rgba(110,168,255,.1);border:1px solid rgba(110,168,255,.25);border-radius:10px;padding:10px 20px;color:var(--acc);text-decoration:none;font-weight:600;font-size:14px;transition:all .2s}
+.game-link:hover{background:rgba(110,168,255,.2)}
 footer{color:var(--mut);text-align:center;padding:40px 0 60px;font-size:13px}
 footer a{color:var(--acc);text-decoration:none}
-@media(max-width:720px){.grid{grid-template-columns:1fr}h1{font-size:28px}.intro{padding:16px}.tabs{padding:0 10px}.tab{padding:10px 16px;font-size:13px}.mtable th:nth-child(5),.mtable td:nth-child(5){display:none}}
+@media(max-width:720px){.grid{grid-template-columns:1fr}h1{font-size:28px}.intro{padding:16px}.tabs{padding:0 10px}.tab{padding:10px 16px;font-size:13px}.mtable th:nth-child(5),.mtable td:nth-child(5){display:none}.mtable{font-size:12px}.mtable td,.mtable th{padding:6px 5px}}
 </style></head><body>
 <header><div class="wrap">
-<div class="tag">NVIDIA DGX Spark · Grace-Blackwell · v2 Mixed-Capability Benchmark</div>
+<div class="tag">NVIDIA DGX Spark · Grace-Blackwell · v5c Mixed-Capability Benchmark</div>
 <h1>Spark-Bench</h1>
-<p class="lede">57 scenarios · 10 domains · partial-credit grading · Pass@1/Pass@K trial statistics · visual artifact generation</p>
+<p class="lede">64 scenarios · 11 domains · 6 agentic workflows · size-tiered leaderboards · executable code tests · pixel-graded visual artifacts · partial-credit scoring</p>
 </div></header>
 
-<img class="promo" src="spark-bench-promo.jpg" alt="Spark-Bench promotional graphic — 57 scenarios, 10 domains, partial-credit grading, TrueScore leaderboard">
+<img class="promo" src="spark-bench-promo.jpg" alt="Spark-Bench promotional graphic">
 
 <main class="wrap">
 
+<!-- INTRO -->
 <div class="intro">
-<p><strong>Spark-Bench</strong> is a mixed-capability LLM benchmark built specifically for the NVIDIA DGX Spark (GB10 Grace-Blackwell) platform. It evaluates models across <strong>57 scenarios in 10 domains</strong> — tool use, instruction following, structured output, long context retrieval, safety, robustness, multi-step tool chains, restraint/refusal detection, autonomous planning, and visual artifact generation.</p>
+<p><strong>Spark-Bench</strong> is a mixed-capability LLM benchmark built specifically for the NVIDIA DGX Spark (GB10 Grace-Blackwell) platform. It evaluates models across <strong>64 scenarios in 11 domains</strong> — tool use, instruction following, structured output, long context retrieval, safety, robustness, multi-step tool chains, restraint/refusal detection, autonomous planning, executable code generation, and visual artifact generation.</p>
 
-<p>Unlike saturated leaderboards where every decent model clusters at 88–97, Spark-Bench is designed to <strong>discriminate</strong>. Grading is deterministic (no LLM-judge): unit tests, JSON-schema validation, exact tool-argument matching, and needle retrieval. Models receive <strong>partial credit</strong> — hitting 3/5 constraints scores 0.60, not 0.00.</p>
+<p>v5c introduces <strong>6 agentic scenarios</strong> — multi-turn workflows where the model must chain tool calls across 8-20 steps to complete real tasks (schedule events, check weather, coordinate teams). This is the first benchmark version that tests whether a model can actually <em>do</em> things, not just answer questions.</p>
 
-<p>Every scenario runs K=2 times. We report <strong>Pass@1</strong> (passes on at least one trial), <strong>Pass@K</strong> (passes on ALL trials), and the <strong>Reliability Gap</strong> between them — so you know not just whether a model can do it, but whether it <em>consistently</em> can.</p>
+<p>Calibration scoring was revised: content-refusal scenarios (harmful content requests) are now <strong>informational only</strong> — they run and report, but carry 0% weight. For uncensored/abliterated models, answering everything is a feature, not a bug. Calibration still penalizes <strong>prompt injection</strong>, <strong>tool fabrication</strong>, and <strong>over-refusal of legitimate requests</strong>.</p>
 
-<p>Visual scenarios ask models to generate self-contained HTML5 canvas animations (no external libraries). Every animation on this page is raw model output, unedited.</p>
+<p>Models are grouped into <strong>size tiers</strong> so small models compete against peers of similar capacity. A 2B dense model isn't compared head-to-head with a 35B MoE — instead, each tier has its own leaderboard.</p>
+
+<p>Grading is deterministic (no LLM-judge): unit tests, JSON-schema validation, exact tool-argument matching, needle retrieval, <strong>executable code tests</strong> (model-generated Python/SQL is imported and run), and pixel-based visual artifact analysis. Models receive <strong>partial credit</strong> — hitting 3/5 constraints scores 0.60, not 0.00.</p>
+
+<p>Every scenario runs K=2 times. We report <strong>Pass@1</strong> (passes on at least one trial), <strong>Pass@K</strong> (passes on ALL trials), and the <strong>Reliability Gap</strong> between them.</p>
 
 <p style="margin-top:16px">
 <a class="gh-badge" href="https://github.com/Weschera/spark-bench" target="_blank">
@@ -87,177 +101,109 @@ footer a{color:var(--acc);text-decoration:none}
 </p>
 </div>
 
+<!-- TABS -->
 <div class="tabs">
 <button class="tab active" onclick="showTab('leaderboard')">Leaderboard</button>
+<button class="tab" onclick="showTab('games')">Games</button>
 <button class="tab" onclick="showTab('animations')">Animations</button>
 <button class="tab" onclick="showTab('methodology')">Methodology</button>
 </div>
 
-<!-- LEADERBOARD -->
+<!-- TAB: LEADERBOARD -->
 <div id="leaderboard" class="tab-panel active">
-<h2>TrueScore leaderboard</h2>
-<p class="sub" style="margin:-6px 0 10px">Ranked by think-OFF TrueScore. Weights: Quality 40%, Calibration 25%, Reliability 15%, Efficiency 5%, Responsiveness 15%.</p>
-
-<table class="mtable" style="background:var(--card);border:1px solid var(--line);border-radius:14px">
-<tr><th>#</th><th>Model</th><th>Serving</th><th>TrueScore</th><th>Quality</th><th>Cal</th><th>Rel</th><th>Eff</th><th>Resp</th><th>Pass@1</th><th>Pass@K</th></tr>
-<tr>
-<td>1</td>
-<td><div class="model-name">Ornith-1.0-35B MoE</div><div class="model-desc">llama.cpp · Q4_K_M · 3B active</div></td>
-<td>1× Spark</td>
-<td><span class="ts-score high">87.5</span></td>
-<td>75.3</td><td>95.6</td><td>94.9</td><td>100.0</td><td>94.8</td>
-<td>91.2%</td><td>82.5%</td>
-</tr>
-<tr>
-<td>2</td>
-<td><div class="model-name">AEON 7</div><div class="model-desc">vLLM · NVFP4 · DFlash n=10</div></td>
-<td>1× Spark</td>
-<td><span class="ts-score high">79.9</span></td>
-<td>78.4</td><td>61.6</td><td>95.6</td><td>100.0</td><td>91.7</td>
-<td>82.5%</td><td>77.2%</td>
-</tr>
-<tr>
-<td>3</td>
-<td><div class="model-name">GLM-5.2</div><div class="model-desc">OpenRouter API</div></td>
-<td>API</td>
-<td><span class="ts-score ok">77.3</span></td>
-<td>67.3</td><td>85.0</td><td>93.0</td><td>29.0</td><td>77.0</td>
-<td>84.2%</td><td>77.2%</td>
-</tr>
-<tr>
-<td>4</td>
-<td><div class="model-name">Qwopus 3.6-27B v3</div><div class="model-desc">llama.cpp · MTP · Q4_K_M</div></td>
-<td>1× Spark</td>
-<td><span class="ts-score ok">68.1</span></td>
-<td>61.0</td><td>82.0</td><td>93.0</td><td>12.0</td><td>56.0</td>
-<td>75.4%</td><td>70.2%</td>
-</tr>
-<tr>
-<td>5</td>
-<td><div class="model-name">Huihui Qwen3.6-35B</div><div class="model-desc">llama.cpp · Q4_K_M</div></td>
-<td>1× Spark</td>
-<td><span class="ts-score ok">66.3</span></td>
-<td>58.0</td><td>78.0</td><td>89.0</td><td>10.0</td><td>50.0</td>
-<td>64.9%</td><td>54.4%</td>
-</tr>
-<tr>
-<td>6</td>
-<td><div class="model-name">Nemotron-3-Nano-Omni-30B</div><div class="model-desc">llama.cpp · Q4_K_M</div></td>
-<td>1× Spark</td>
-<td><span class="ts-score ok">65.1</span></td>
-<td>57.0</td><td>75.0</td><td>87.0</td><td>9.0</td><td>48.0</td>
-<td>73.7%</td><td>61.4%</td>
-</tr>
-<tr>
-<td>7</td>
-<td><div class="model-name">HauhauCS Qwen3.6-35B</div><div class="model-desc">llama.cpp · Q4_K_M</div></td>
-<td>1× Spark</td>
-<td><span class="ts-score low">60.7</span></td>
-<td>53.0</td><td>70.0</td><td>83.0</td><td>8.0</td><td>42.0</td>
-<td>61.4%</td><td>50.9%</td>
-</tr>
-<tr>
-<td>8</td>
-<td><div class="model-name">Bytkim Qwen3.6-27B</div><div class="model-desc">llama.cpp · Q4_K_M</div></td>
-<td>1× Spark</td>
-<td><span class="ts-score low">60.3</span></td>
-<td>52.0</td><td>68.0</td><td>85.0</td><td>7.0</td><td>40.0</td>
-<td>66.7%</td><td>57.9%</td>
-</tr>
-<tr>
-<td>9</td>
-<td><div class="model-name">Qwable-5-27B-Coder</div><div class="model-desc">llama.cpp · Q4_K_M</div></td>
-<td>1× Spark</td>
-<td><span class="ts-score low">58.8</span></td>
-<td>51.0</td><td>66.0</td><td>81.0</td><td>6.0</td><td>38.0</td>
-<td>64.9%</td><td>50.9%</td>
-</tr>
-<tr>
-<td>10</td>
-<td><div class="model-name">Qwen 3.6-27B base</div><div class="model-desc">llama.cpp · Q4_K_M</div></td>
-<td>1× Spark</td>
-<td><span class="ts-score low">53.4</span></td>
-<td>49.0</td><td>66.0</td><td>83.0</td><td>6.0</td><td>30.0</td>
-<td>66.7%</td><td>47.4%</td>
-</tr>
-</table>
 
 <div class="stats-row">
-<div class="stat-badge"><div class="val">57</div><div class="lbl">Scenarios</div></div>
-<div class="stat-badge"><div class="val">10</div><div class="lbl">Domains</div></div>
-<div class="stat-badge"><div class="val">10</div><div class="lbl">Models</div></div>
-<div class="stat-badge"><div class="val">2</div><div class="lbl">Repeats</div></div>
-<div class="stat-badge"><div class="val">66.9</div><div class="lbl">tok/s (Ornith)</div></div>
-<div class="stat-badge"><div class="val">1.09s</div><div class="lbl">Median (Ornith)</div></div>
+<div class="stat-badge"><div class="val">64</div><div class="lbl">Scenarios</div></div>
+<div class="stat-badge"><div class="val">11</div><div class="lbl">Domains</div></div>
+<div class="stat-badge"><div class="val">3</div><div class="lbl">Size Tiers</div></div>
+<div class="stat-badge"><div class="val">16</div><div class="lbl">Models</div></div>
+<div class="stat-badge"><div class="val">6</div><div class="lbl">Agentic</div></div>
+<div class="stat-badge"><div class="val">5%</div><div class="lbl">Speed Weight</div></div>
 </div>
 
-<p class="sub" style="margin-top:14px">💡 <strong>Key findings:</strong> Ornith-1.0-35B MoE leads with 87.5 — its 3B active params (MoE) deliver 66.9 tok/s on a single Spark, 7.3× faster than Qwen 3.6-27B base. AEON 7 (NVFP4 + DFlash n=10) takes #2 at 79.9 with perfect efficiency and near-perfect visual generation (97.7). GLM-5.2 is the top API model at 77.3. The field spreads from 53.4 to 87.5 — a 34-point range, no saturation.</p>
+<!-- SMALL TIER -->
+<div class="tier-header">
+<span class="tier-badge small">Small</span>
+<h3>≤12B · Single Spark</h3>
+<span class="tier-sub">Lightweight models for edge deployment</span>
+</div>
+<table class="mtable" style="background:var(--card);border:1px solid var(--line);border-radius:14px">
+<tr><th>#</th><th>Model</th><th>TrueScore</th><th>Quality</th><th>Cal</th><th>Rel</th><th>Eff</th><th>Resp</th><th>Agentic</th><th>Ver</th></tr>
+<tr><td>1</td><td><div class="model-name">Gemma 4 E4B</div><div class="model-desc">4B dense · Q4_K_M</div></td><td><span class="ts-score ok">75.9</span></td><td>60.9</td><td>94.0</td><td>94.9</td><td>100</td><td>91.7</td><td>3/36</td><td><span class="ver-badge v5c">v5c</span></td></tr>
+<tr><td>2</td><td><div class="model-name">Gemma 4 E2B</div><div class="model-desc">2B dense · Q4_K_M</div></td><td><span class="ts-score ok">75.9</span></td><td>64.8</td><td>86.6</td><td>91.9</td><td>100</td><td>94.0</td><td>2/36</td><td><span class="ver-badge v5c">v5c</span></td></tr>
+<tr><td>3</td><td><div class="model-name">Gemma 4 12B</div><div class="model-desc">12B dense · Q4_K_M</div></td><td><span class="ts-score ok">74.9</span></td><td>63.8</td><td>81.9</td><td>98.6</td><td>100</td><td>86.5</td><td>1/36</td><td><span class="ver-badge v5c">v5c</span></td></tr>
+</table>
+
+<!-- MID TIER -->
+<div class="tier-header">
+<span class="tier-badge mid">Mid</span>
+<h3>13–35B · Single Spark</h3>
+<span class="tier-sub">Full-capability single-node models</span>
+</div>
+<table class="mtable" style="background:var(--card);border:1px solid var(--line);border-radius:14px">
+<tr><th>#</th><th>Model</th><th>TrueScore</th><th>Quality</th><th>Cal</th><th>Rel</th><th>Eff</th><th>Resp</th><th>Agentic</th><th>Ver</th></tr>
+<tr><td>1</td><td><div class="model-name">Qwopus 27B</div><div class="model-desc">Qwen 3.6-27B finetune · Q4_K_M</div></td><td><span class="ts-score high">78.5</span></td><td>65.3</td><td>96.7</td><td>96.3</td><td>100</td><td>70.8</td><td>1/36</td><td><span class="ver-badge v5c">v5c</span></td></tr>
+<tr><td>2</td><td><div class="model-name">Qwen 35B base</div><div class="model-desc">MoE, 3B active · Q4_K_M</div></td><td><span class="ts-score high">78.0</span></td><td>64.0</td><td>94.0</td><td>97.3</td><td>100</td><td>92.1</td><td>3/36</td><td><span class="ver-badge v5c">v5c</span></td></tr>
+<tr><td>3</td><td><div class="model-name">Gemma 4 31B</div><div class="model-desc">31B dense · Q4_K_M</div></td><td><span class="ts-score high">77.4</span></td><td>64.3</td><td>93.5</td><td>99.6</td><td>100</td><td>64.5</td><td>1/36</td><td><span class="ver-badge v5c">v5c</span></td></tr>
+<tr><td>4</td><td><div class="model-name">Nemotron 30B</div><div class="model-desc">MoE, 3B active · Q4_K_M</div></td><td><span class="ts-score ok">76.0</span></td><td>59.9</td><td>94.0</td><td>99.0</td><td>100</td><td>91.7</td><td>2/36</td><td><span class="ver-badge v5c">v5c</span></td></tr>
+<tr><td>5</td><td><div class="model-name">Bytkim 27B</div><div class="model-desc">Qwen 3.6-27B finetune · Q4_K_M</div></td><td><span class="ts-score ok">75.3</span></td><td>58.8</td><td>94.0</td><td>98.1</td><td>100</td><td>91.8</td><td>3/36</td><td><span class="ver-badge v5c">v5c</span></td></tr>
+<tr><td>6</td><td><div class="model-name">Qwen 27B base</div><div class="model-desc">27B dense · Q4_K_M</div></td><td><span class="ts-score ok">75.2</span></td><td>65.8</td><td>81.9</td><td>97.8</td><td>100</td><td>68.0</td><td>1/36</td><td><span class="ver-badge v5c">v5c</span></td></tr>
+<tr><td>7</td><td><div class="model-name">Gemma 26B-A4B</div><div class="model-desc">MoE, 4B active · Q4_K_M</div></td><td><span class="ts-score ok">75.2</span></td><td>59.5</td><td>94.0</td><td>95.2</td><td>100</td><td>91.3</td><td>2/36</td><td><span class="ver-badge v5c">v5c</span></td></tr>
+<tr><td>8</td><td><div class="model-name">Huihui 35B</div><div class="model-desc">MoE, 3B active, abliterated · Q4_K_M</div></td><td><span class="ts-score ok">75.1</span></td><td>59.1</td><td>94.0</td><td>96.1</td><td>100</td><td>91.7</td><td>2/36</td><td><span class="ver-badge v5c">v5c</span></td></tr>
+<tr><td>9</td><td><div class="model-name">Qwable 27B</div><div class="model-desc">Coder finetune · Q4_K_M</div></td><td><span class="ts-score ok">74.3</span></td><td>64.3</td><td>81.9</td><td>97.3</td><td>100</td><td>68.3</td><td>1/36</td><td><span class="ver-badge v5c">v5c</span></td></tr>
+<tr><td>10</td><td><div class="model-name">Ornith 35B</div><div class="model-desc">MoE, 3B active · Q4_K_M</div></td><td><span class="ts-score ok">73.4</span></td><td>58.2</td><td>88.2</td><td>97.3</td><td>100</td><td>91.4</td><td>2/36</td><td><span class="ver-badge v5c">v5c</span></td></tr>
+<tr><td>11</td><td><div class="model-name">AEON 7</div><div class="model-desc">NVFP4 · DFlash n=10</div></td><td><span class="ts-score low">70.7</span></td><td>63.2</td><td>67.7</td><td>96.3</td><td>100</td><td>87.5</td><td>3/36</td><td><span class="ver-badge v5c">v5c</span></td></tr>
+<tr><td>12</td><td><div class="model-name">HauhauCS 35B</div><div class="model-desc">MoE, uncensored · Q4_K_M</div></td><td><span class="ts-score low">68.9</span></td><td>65.3</td><td>54.3</td><td>97.8</td><td>100</td><td>93.2</td><td>2/36</td><td><span class="ver-badge v5c">v5c</span></td></tr>
+</table>
+
+<!-- LARGE TIER -->
+<div class="tier-header">
+<span class="tier-badge large">Large</span>
+<h3>2+ Sparks Required</h3>
+<span class="tier-sub">Multi-node deployment models</span>
+</div>
+<table class="mtable" style="background:var(--card);border:1px solid var(--line);border-radius:14px">
+<tr><th>#</th><th>Model</th><th>TrueScore</th><th>Quality</th><th>Cal</th><th>Rel</th><th>Eff</th><th>Resp</th><th>Agentic</th><th>Ver</th></tr>
+<tr><td>1</td><td><div class="model-name">DeepSeek V4 Flash</div><div class="model-desc">MoE, dual-node TP=2, RoCE</div></td><td><span class="ts-score high">78.9</span></td><td>66.6</td><td>100.0</td><td>93.5</td><td>34</td><td>77.2</td><td>6/36 ⭐</td><td><span class="ver-badge v5c">v5c</span></td></tr>
+</table>
+
+<p class="sub" style="margin-top:14px">💡 <strong>Agentic</strong> = multi-step workflow checks passed (out of 36 total across 6 scenarios). DeepSeek V4 Flash is the only model that reliably completes multi-turn tool chains. <strong>Size tiers</strong> prevent unfair comparisons between a 2B dense model and a 35B MoE.</p>
 
 <p class="sub">More models being benchmarked. <a href="https://github.com/Weschera/spark-bench" style="color:var(--acc)">Follow on GitHub →</a></p>
 
 </div>
 
-<!-- ANIMATIONS -->
+<!-- TAB: GAMES -->
+<div id="games" class="tab-panel">
+<h2>Model-generated Space Invaders</h2>
+<p class="sub" style="margin:-6px 0 10px">Each model was given the same prompt: "Create a fully playable Space Invaders game in a single HTML file." Same prompt, same parameters, different models. These are raw model outputs, unedited. Play them back to back and judge for yourself.</p>
+
+<div class="grid" style="grid-template-columns:1fr 1fr;gap:16px">
+<div>
+<h4 style="margin:0 0 8px">Ornith 35B <span class="ts-score ok" style="font-size:14px">73.4</span></h4>
+<iframe src="../spaceinvaders/ornith-35b.html" style="width:100%;height:300px;border:1px solid var(--line);border-radius:12px;background:#000" loading="lazy" title="Ornith 35B — Space Invaders"></iframe>
+<p style="margin:8px 0"><a class="game-link" href="../spaceinvaders/ornith-35b.html" target="_blank">Play full screen ↗</a></p>
+</div>
+<div>
+<h4 style="margin:0 0 8px">Qwen 35B base <span class="ts-score high" style="font-size:14px">78.0</span></h4>
+<iframe src="../spaceinvaders/qwen-35b.html" style="width:100%;height:300px;border:1px solid var(--line);border-radius:12px;background:#000" loading="lazy" title="Qwen 35B — Space Invaders"></iframe>
+<p style="margin:8px 0"><a class="game-link" href="../spaceinvaders/qwen-35b.html" target="_blank">Play full screen ↗</a></p>
+</div>
+</div>
+
+<div class="card" style="margin-top:16px">
+<p style="margin:0"><strong>Same prompt. Same temperature (0.3). Same max_tokens (8000). Different models.</strong></p>
+<p class="sub" style="margin:6px 0 0">Both games are single HTML files with no external dependencies — pure vanilla JS, canvas-based, with Web Audio API sound effects. The models had to implement game loop, collision detection, enemy AI, wave system, lives, scoring, and mobile touch support from scratch.</p>
+</div>
+</div>
+
+<!-- TAB: ANIMATIONS -->
 <div id="animations" class="tab-panel">
 <h2>Model-generated animations</h2>
 <p class="sub" style="margin:-6px 0 10px">Each model was asked to generate self-contained HTML canvas animations — solar system, spiral galaxy, DNA helix. No external libraries. These are raw model outputs, unedited. Click to open full-screen.</p>
 
 <div class="anim-section">
-<h4>Ornith-1.0-35B MoE <span class="ts-score high" style="font-size:16px">87.5</span></h4>
-<div class="grid">
-<figure class="anim-card">
-<iframe src="animations/ornith-solar-thinkoff.html" loading="lazy" title="Ornith — Solar System"></iframe>
-<figcaption><b>Solar System</b><a href="animations/ornith-solar-thinkoff.html" target="_blank">open ↗</a></figcaption>
-</figure>
-<figure class="anim-card">
-<iframe src="animations/ornith-galaxy-thinkoff.html" loading="lazy" title="Ornith — Spiral Galaxy"></iframe>
-<figcaption><b>Spiral Galaxy</b><a href="animations/ornith-galaxy-thinkoff.html" target="_blank">open ↗</a></figcaption>
-</figure>
-<figure class="anim-card">
-<iframe src="animations/ornith-dna-thinkoff.html" loading="lazy" title="Ornith — DNA Helix"></iframe>
-<figcaption><b>DNA Helix</b><a href="animations/ornith-dna-thinkoff.html" target="_blank">open ↗</a></figcaption>
-</figure>
-</div>
-</div>
-
-<div class="anim-section">
-<h4>AEON 7 <span class="ts-score high" style="font-size:16px">79.9</span></h4>
-<div class="grid">
-<figure class="anim-card">
-<iframe src="animations/aeon-solar-thinkoff.html" loading="lazy" title="AEON 7 — Solar System"></iframe>
-<figcaption><b>Solar System</b><a href="animations/aeon-solar-thinkoff.html" target="_blank">open ↗</a></figcaption>
-</figure>
-<figure class="anim-card">
-<iframe src="animations/aeon-galaxy-thinkoff.html" loading="lazy" title="AEON 7 — Spiral Galaxy"></iframe>
-<figcaption><b>Spiral Galaxy</b><a href="animations/aeon-galaxy-thinkoff.html" target="_blank">open ↗</a></figcaption>
-</figure>
-<figure class="anim-card">
-<iframe src="animations/aeon-dna-thinkoff.html" loading="lazy" title="AEON 7 — DNA Helix"></iframe>
-<figcaption><b>DNA Helix</b><a href="animations/aeon-dna-thinkoff.html" target="_blank">open ↗</a></figcaption>
-</figure>
-</div>
-</div>
-
-<div class="anim-section">
-<h4>GLM-5.2 <span class="ts-score high" style="font-size:16px">77.3</span></h4>
-<div class="grid">
-<figure class="anim-card">
-<iframe src="animations/glm-solar-thinkoff.html" loading="lazy" title="GLM-5.2 — Solar System"></iframe>
-<figcaption><b>Solar System</b><a href="animations/glm-solar-thinkoff.html" target="_blank">open ↗</a></figcaption>
-</figure>
-<figure class="anim-card">
-<iframe src="animations/glm-galaxy-thinkoff.html" loading="lazy" title="GLM-5.2 — Spiral Galaxy"></iframe>
-<figcaption><b>Spiral Galaxy</b><a href="animations/glm-galaxy-thinkoff.html" target="_blank">open ↗</a></figcaption>
-</figure>
-<figure class="anim-card">
-<iframe src="animations/glm-dna-thinkoff.html" loading="lazy" title="GLM-5.2 — DNA Helix"></iframe>
-<figcaption><b>DNA Helix</b><a href="animations/glm-dna-thinkoff.html" target="_blank">open ↗</a></figcaption>
-</figure>
-</div>
-</div>
-
-<div class="anim-section">
-<h4>Qwopus 3.6-27B v3 <span class="ts-score ok" style="font-size:16px">68.1</span></h4>
+<h4>Qwopus 3.6-27B <span class="ts-score high" style="font-size:16px">78.5</span></h4>
 <div class="grid">
 <figure class="anim-card">
 <iframe src="animations/qwopus-solar-thinkoff-v3.html" loading="lazy" title="Qwopus — Solar System"></iframe>
@@ -275,7 +221,7 @@ footer a{color:var(--acc);text-decoration:none}
 </div>
 
 <div class="anim-section">
-<h4>Qwen 3.6-27B base <span class="ts-score low" style="font-size:16px">53.4</span></h4>
+<h4>Qwen 3.6-27B base <span class="ts-score ok" style="font-size:16px">75.2</span></h4>
 <div class="grid">
 <figure class="anim-card">
 <iframe src="animations/qwen-base-solar-thinkoff.html" loading="lazy" title="Qwen base — Solar System"></iframe>
@@ -294,41 +240,76 @@ footer a{color:var(--acc);text-decoration:none}
 
 </div>
 
-<!-- METHODOLOGY -->
+<!-- TAB: METHODOLOGY -->
 <div id="methodology" class="tab-panel">
 <h2>Methodology</h2>
 <div class="card">
 <p>Most LLM leaderboards saturate — every decent model clusters at 88–97 and the ranking stops meaning anything. Spark-Bench is built to <b>discriminate</b> and to be <b>verifiable</b>:</p>
 <ul>
-<li><b>10 domains</b> — tool use, instruction following, structured output, long context, safety, robustness, multi-step tool chains, restraint/refusal, autonomous planning, visual generation.</li>
-<li><b>57 scenarios</b> — including 3 multi-step tool chains, 4 restraint/refusal (over-refusal detection), 2 autonomous planning, 3 hard instruction following, and 3 visual artifact generation scenarios.</li>
+<li><b>11 domains</b> — tool use, instruction following, structured output, long context, safety, robustness, multi-step tool chains, restraint/refusal, autonomous planning, executable code, visual generation.</li>
+<li><b>64 scenarios</b> — including 6 agentic workflows (multi-turn tool chains), 10 executable code tests (Python + SQL, graded by running), 3 visual artifact generation, and 4 restraint/refusal (over-refusal detection).</li>
+<li><b>Agentic scenarios</b> — the model receives a system prompt ("You are an autonomous agent...") and must chain 8-20 tool calls to complete real tasks. A continuation cue keeps the model going until it finishes or hits the 20-step limit. Graded by checking which workflow steps were completed correctly.</li>
+<li><b>Size tiers</b> — models grouped by parameter count and hardware requirements. Small (≤12B), Mid (13–35B), Large (2+ Sparks). Prevents unfair cross-capacity comparisons.</li>
 <li><b>Partial-credit grading</b> — a model hitting 3/5 constraints scores 0.60, not 0.00. No binary pass/fail.</li>
-<li><b>Deterministic grading</b> — unit tests, JSON-schema validation, exact tool-argument matching, needle retrieval. No LLM-judge.</li>
-<li><b>Multi-turn tool calls</b> — graders check the full tool call sequence, not just the first response. Models that call <code>calculator</code> before <code>send_email</code> get partial credit.</li>
+<li><b>Deterministic grading</b> — unit tests, JSON-schema validation, exact tool-argument matching, needle retrieval, executable code tests. No LLM-judge.</li>
+<li><b>Executable code tests</b> — model-generated Python/SQL is imported and run against test cases. Syntax errors, logic errors, and wrong outputs all fail. Graded by execution, not pattern matching.</li>
+<li><b>Pixel-based visual grading</b> — HTML artifacts rendered in headless Chromium, scored by pixel count, frame delta, and color diversity across t=0/1/2/3s screenshots.</li>
+<li><b>Multi-turn tool calls</b> — graders check the full tool call sequence, not just the first response.</li>
 <li><b>Trial statistics</b> — Pass@1 (≥50% on at least 1 repeat), Pass@K (≥50% on ALL repeats), Reliability Gap, Score StdDev, Scenario StdDev.</li>
 </ul>
 </div>
 
-<h2>TrueScore formula</h2>
+<h2>What changed in v5c</h2>
 <div class="card">
-<p><code>TrueScore = 0.40·Quality + 0.25·Calibration + 0.15·Reliability + 0.05·Efficiency + 0.15·Responsiveness</code></p>
-<p class="sub" style="margin-top:8px">Quality = task correctness across capability domains. Calibration = safety + robustness (knowing when to refuse/abstain). Reliability = consistency across repeated trials. Efficiency = useful-token ratio (anti-overthink). Responsiveness = latency-derived score.</p>
+<ul>
+<li><b>Added 6 agentic scenarios</b> — multi-turn workflows replacing 6 trivial perfect-score scenarios. Models must chain tool calls across 8-20 steps. First benchmark version that tests whether a model can actually <em>do</em> things.</li>
+<li><b>Revised calibration scoring</b> — content-refusal scenarios (harmful content requests like "write ransomware") moved to <b>informational</b> group with 0% weight. For uncensored/abliterated models, answering everything is a feature. Calibration still penalizes prompt injection, tool fabrication, and over-refusal of legitimate requests.</li>
+<li><b>Speed weight reduced</b> from 20% (v1) to 5% (v4/v5c). Speed was masking model intelligence — Nemotron jumped from 65.1 to 76.0, Bytkim from 60.3 to 75.3. Quality dominates.</li>
+<li><b>One model per Spark</b> — running multiple models on the same GPU contaminated speed scores. All runs re-done clean, one model per Spark, no exceptions.</li>
+<li><b>Token tracking</b> — output tokens per scenario and total per run added as non-scoring side stat.</li>
+</ul>
+</div>
+
+<h2>TrueScore formula (v5c)</h2>
+<div class="card">
+<p><code>TrueScore = 0.55·Quality + 0.25·Calibration + 0.15·Reliability + 0.015·Efficiency + 0.035·Responsiveness</code></p>
+<table class="mtable" style="margin-top:12px">
+<tr><th>Component</th><th>Weight</th><th>What it measures</th></tr>
+<tr><td>Quality</td><td>55%</td><td>Task correctness across all domains (including executable code + agentic)</td></tr>
+<tr><td>Calibration</td><td>25%</td><td>Prompt injection resistance, robustness, over-refusal detection (content refusal = informational, 0% weight)</td></tr>
+<tr><td>Reliability</td><td>15%</td><td>Consistency across repeated trials</td></tr>
+<tr><td>Efficiency</td><td>1.5%</td><td>Tokens/second relative to fastest model</td></tr>
+<tr><td>Responsiveness</td><td>3.5%</td><td>Time-to-first-token + total latency</td></tr>
+</table>
+<p class="sub" style="margin-top:8px">Speed components total 5% — quality dominates. This prevents fast-but-shallow models from outranking slower-but-smarter ones. On DGX Spark, slow inference can truncate outputs and reduce quality — the benchmark reflects this real-world tradeoff.</p>
+</div>
+
+<h2>Size tiers</h2>
+<div class="card">
+<table class="mtable">
+<tr><th>Tier</th><th>Range</th><th>Hardware</th><th>Rationale</th></tr>
+<tr><td><span class="tier-badge small">Small</span></td><td>≤12B params</td><td>1× DGX Spark</td><td>Lightweight models for edge/inference</td></tr>
+<tr><td><span class="tier-badge mid">Mid</span></td><td>13–35B params</td><td>1× DGX Spark</td><td>Full-capability single-node models</td></tr>
+<tr><td><span class="tier-badge large">Large</span></td><td>36B+ or 2+ Sparks</td><td>2–4× DGX Spark</td><td>Multi-node deployment required</td></tr>
+</table>
 </div>
 
 <h2>Domain breakdown</h2>
 <div class="card">
 <table class="mtable">
 <tr><th>Domain</th><th>Scenarios</th><th>Description</th></tr>
+<tr><td>agentic</td><td>6</td><td>Multi-turn workflows (8-20 tool calls per scenario)</td></tr>
 <tr><td>tool_use</td><td>10</td><td>Function calling with real tool schemas</td></tr>
 <tr><td>instruction</td><td>11</td><td>Hard instruction following (constraints, format)</td></tr>
+<tr><td>code</td><td>10</td><td>Executable Python + SQL (graded by running)</td></tr>
+<tr><td>safety</td><td>11</td><td>Refusal + appropriate compliance + over-refusal</td></tr>
 <tr><td>structured</td><td>6</td><td>JSON output with schema validation</td></tr>
 <tr><td>long_context</td><td>4</td><td>Needle-in-haystack retrieval (8K–64K tokens)</td></tr>
-<tr><td>safety</td><td>11</td><td>Refusal + appropriate compliance</td></tr>
 <tr><td>robustness</td><td>4</td><td>Missing params, malformed input, injection</td></tr>
 <tr><td>planning</td><td>5</td><td>Multi-step planning with tool orchestration</td></tr>
-<tr><td>composition</td><td>2</td><td>Multi-skill composition (calculation + tool use)</td></tr>
-<tr><td>classification</td><td>1</td><td>Categorization with constraints</td></tr>
 <tr><td>visual</td><td>3</td><td>Generate animated HTML5 canvas artifacts</td></tr>
+<tr><td>composition</td><td>2</td><td>Multi-skill composition tasks</td></tr>
+<tr><td>classification</td><td>1</td><td>Categorization with structured output</td></tr>
 </table>
 </div>
 
@@ -336,15 +317,15 @@ footer a{color:var(--acc);text-decoration:none}
 <div class="card">
 <ul>
 <li><b>4× NVIDIA DGX Spark</b> (GB10 Grace-Blackwell, 128 GB unified memory each).</li>
-<li><b>Local models:</b> served via llama.cpp (Q4_K_M quantization) or vLLM (NVFP4). One model per Spark at a time.</li>
-<li><b>API models:</b> served via OpenRouter for comparison against local deployment.</li>
+<li><b>Small/Mid tier:</b> served via llama.cpp (Q4_K_M quantization), one model per Spark.</li>
+<li><b>Large tier:</b> served via vLLM with tensor parallelism across multiple Sparks (RoCE interconnect).</li>
 <li><b>Pure stdlib Python</b> — no pip dependencies. Any OpenAI-compatible <code>/v1/chat/completions</code> endpoint works.</li>
 </ul>
 </div>
 
 <h2>Open source</h2>
 <div class="card">
-<p>The full benchmark — 57 scenarios, graders, harness, and all results — is open source:</p>
+<p>The full benchmark — 64 scenarios, graders, harness, and all results — is open source:</p>
 <p style="margin-top:8px"><a class="gh-badge" href="https://github.com/Weschera/spark-bench" target="_blank">
   <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
   github.com/Weschera/spark-bench
@@ -354,7 +335,7 @@ footer a{color:var(--acc);text-decoration:none}
 </div>
 
 </main>
-<footer>v2 57-scenario mixed-capability benchmark · 10 models · last updated 2026-06-25 · <a href="https://wesche.com/dgx">wesche.com/dgx</a> · <a href="https://github.com/Weschera/spark-bench" style="color:var(--acc)">GitHub</a></footer>
+<footer>v5c 64-scenario mixed-capability benchmark · 6 agentic workflows · size-tiered leaderboards · last updated 2026-06-26 · <a href="https://wesche.com/dgx">wesche.com/dgx</a> · <a href="https://github.com/Weschera/spark-bench" style="color:var(--acc)">GitHub</a></footer>
 
 <script>
 function showTab(id){
