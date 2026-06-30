@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DNA Helix Animation</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #0a0a0a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="dnaCanvas"></canvas>
+    <script>
+        const canvas = document.getElementById('dnaCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let width, height;
+        let angle = 0;
+
+        // Configuration
+        const numNodes = 40;      // Number of base pairs
+        const helixRadius = 100;  // Distance from center
+        const twistSpeed = 0.02;  // Rotation speed
+        const verticalSpacing = 15; // Space between nodes
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+
+        window.addEventListener('resize', resize);
+        resize();
+
+        function draw() {
+            // Clear canvas with a slight trail effect (optional, change to clearRect for sharp)
+            ctx.fillStyle = 'rgba(10, 10, 10, 1)';
+            ctx.fillRect(0, 0, width, height);
+
+            const centerX = width / 2;
+            const centerY = height / 2;
+
+            // Draw the DNA strands
+            for (let i = 0; i < numNodes; i++) {
+                // Calculate position for each node
+                // The two strands are 180 degrees (PI) apart
+                const z = i * verticalSpacing;
+                const currentAngle = angle + (i * 0.3);
+                
+                // Strand 1
+                const x1 = centerX + Math.cos(currentAngle) * helixRadius;
+                const y1 = centerY - z + (Math.sin(currentAngle) * helixRadius * 0.2); // Slight perspective tilt
+                
+                // Strand 2 (Opposite side)
+                const x2 = centerX + Math.cos(currentAngle + Math.PI) * helixRadius;
+                const y2 = centerY - z + (Math.sin(currentAngle + Math.PI) * helixRadius * 0.2);
+
+                // Draw connecting "rungs" (base pairs)
+                if (i > 0) {
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    // Color varies based on height
+                    const hue = (i / numNodes) * 60 + 180; // Shifts between blue and cyan
+                    ctx.strokeStyle = `hsla(${hue}, 70%, 60%, 0.6)`;
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+
+                // Draw nodes
+                // Strand 1
+                ctx.beginPath();
+                ctx.arc(x1, y1, 4, 0, Math.PI * 2);
+                ctx.fillStyle = `hsla(${180 + (i % 360)}, 80%, 70%, 0.9)`;
+                ctx.fill();
+
+                // Strand 2
+                ctx.beginPath();
+                ctx.arc(x2, y2, 4, 0, Math.PI * 2);
+                ctx.fillStyle = `hsla(${240 + (i % 360)}, 80%, 70%, 0.9)`;
+                ctx.fill();
+            }
+
+            angle += twistSpeed;
+            requestAnimationFrame(draw);
+        }
+
+        draw();
+    </script>
+</body>
+</html>

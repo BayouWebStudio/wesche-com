@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rotating DNA Helix</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #111;
+            overflow: hidden;
+        }
+        canvas {
+            border: 1px solid #333;
+            background-color: #000;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="dnaCanvas" width="600" height="600"></canvas>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const canvas = document.getElementById('dnaCanvas');
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+            const centerX = width / 2;
+            const centerY = height / 2;
+            const helixRadius = 150;
+            const numNodes = 20;
+            const rungHeight = 20;
+            const nodeSize = 8;
+
+            let rotationAngle = 0;
+
+            // Define colors for the two strands
+            const color1 = 'rgba(0, 255, 150, 0.8)'; // Cyan/Greenish
+            const color2 = 'rgba(255, 50, 150, 0.8)'; // Pink/Magenta
+
+            // Function to draw the DNA helix
+            function drawHelix() {
+                // Clear the canvas
+                ctx.fillStyle = '#000';
+                ctx.fillRect(0, 0, width, height);
+
+                // Calculate the angle for rotation
+                rotationAngle += 0.01; // Speed of rotation
+
+                // --- Draw Strand 1 (Cyan) ---
+                ctx.strokeStyle = color1;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                
+                for (let i = 0; i < numNodes; i++) {
+                    // Calculate the angle for the current node based on index and rotation
+                    const angle = (i * (2 * Math.PI / numNodes)) + rotationAngle;
+                    
+                    // Calculate the position of the node on the circle
+                    const x = centerX + helixRadius * Math.cos(angle);
+                    const y = centerY + helixRadius * Math.sin(angle);
+
+                    if (i === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                }
+                ctx.stroke();
+
+                // --- Draw Strand 2 (Magenta) ---
+                ctx.strokeStyle = color2;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+
+                for (let i = 0; i < numNodes; i++) {
+                    // Calculate the angle for the current node based on index and rotation
+                    const angle = (i * (2 * Math.PI / numNodes)) + rotationAngle;
+                    
+                    // Calculate the position of the node on the circle
+                    const x = centerX + helixRadius * Math.cos(angle);
+                    const y = centerY + helixRadius * Math.sin(angle);
+
+                    if (i === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                }
+                ctx.stroke();
+
+
+                // --- Draw Connecting Rungs (Simplified structure based on node positions) ---
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)'; // Faint connecting line
+                ctx.lineWidth = 1;
+
+                for (let i = 0; i < numNodes; i++) {
+                    const angle1 = (i * (2 * Math.PI / numNodes)) + rotationAngle;
+                    const x1 = centerX + helixRadius * Math.cos(angle1);
+                    const y1 = centerY + helixRadius * Math.sin(angle1);
+
+                    // Draw the rung connecting the two strands at this point
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    
+                    // Calculate the position for the rung on the 'other' strand's path (shifted vertically)
+                    // For simplicity, we draw the rung as a horizontal line segment between the two strands at the same angular position.
+                    // A more complex model would calculate the corresponding point on the second strand's path.
+                    
+                    // Draw the rung connecting the two strands at the same radius level (or slightly offset)
+                    const rungY1 = centerY - (rungHeight / 2);
+                    const rungY2 = centerY + (rungHeight / 2);
+
+                    // Draw the rung as a horizontal line across the center axis for visual effect
+                    ctx.moveTo(centerX - helixRadius, rungY1);
+                    ctx.lineTo(centerX + helixRadius, rungY1);
+                    
+                    // Draw a vertical line segment connecting the two strands at this angular position
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x1, y1 + rungHeight); // Draw a vertical connection segment
+                }
+            }
+
+            // Animation loop
+            function animate() {
+                drawHelix();
+                requestAnimationFrame(animate);
+            }
+
+            // Start the animation
+            animate();
+        });
+    </script>
+</body>
+</html>

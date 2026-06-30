@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rotating DNA Double Helix</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #0a0a12;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+<canvas id="dnaCanvas"></canvas>
+<script>
+    const canvas = document.getElementById('dnaCanvas');
+    const ctx = canvas.getContext('2d');
+
+    function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    const numNodes = 40;
+    const radius = 120;
+    const verticalSpacing = 28;
+    const twistAngle = 0.4;
+    let rotationOffset = 0;
+    const rotationSpeed = 0.015;
+
+    function drawNode(x, y, z, color, size, glow) {
+        const scale = 600 / (600 + z);
+        const screenX = canvas.width / 2 + x * scale;
+        const screenY = canvas.height / 2 + y * scale;
+        const screenR = size * scale;
+
+        if (glow) {
+            ctx.beginPath();
+            ctx.arc(screenX, screenY, screenR * 2.5, 0, Math.PI * 2);
+            const grad = ctx.createRadialGradient(screenX, screenY, 0, screenX, screenY, screenR * 2.5);
+            grad.addColorStop(0, color.replace(')', ', 0.4)').replace('rgb', 'rgba'));
+            grad.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = grad;
+            ctx.fill();
+        }
+
+        ctx.beginPath();
+        ctx.arc(screenX, screenY, screenR, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(screenX, screenY, screenR * 0.5, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255,255,255,0.25)';
+        ctx.fill();
+    }
+
+    function drawStrandLine(points, color) {
+        for (let i = 0; i < points.length - 1; i++) {
+            const p1 = points[i];
+            const p2 = points[i + 1];
+            const avgZ = (p1.z + p2.z) / 2;
+            const scale = 600 / (600 + avgZ);
+            const alpha = Math.max(0.3, Math.min(1, 0.5 + avgZ / 800));
+
+            ctx.beginPath();
+            ctx.moveTo(canvas.width / 2 + p1.x * scale, canvas.height / 2 + p1.y * scale);
+            ctx.lineTo(canvas.width / 2 + p2.x * scale, canvas.height / 2 + p2.y * scale);
+            ctx.strokeStyle = color.replace(')', `, ${alpha})`).replace('rgb', 'rgba');
+            ctx.lineWidth = 2.5 * scale;
+            ctx.stroke();
+        }
+    }
+
+    function animate() {
+        ctx.fillStyle = '#0a0a12';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const centerZ = 0;
+        const totalHeight = (numNodes - 1) * verticalSpacing;
+        const startY = -totalHeight / 2;
+
+        const strand1Nodes = [];
+        const strand2Nodes = [];
+
+        for (let i = 0; i < numNodes; i++) {
+            const y = startY + i * verticalSpacing;
+            const angle1 = i * twistAngle + rotationOffset;
+            const angle2 = i * twistAngle + rotationOffset + Math.PI;
+
+            const x1 = Math.cos(angle1) * radius;
+            const z1 = Math.sin(angle1) * radius;
+            strand1Nodes.push({ x: x1, y: y, z: z1 });
+
+            const x2 = Math.cos(angle2) * radius;
+            const z2 = Math.sin(angle2) * radius;
+            strand2Nodes.push({ x: x2, y: y, z: z2 });
+        }
+
+        const allPoints = [];
+        for (let i = 0; i < numNodes; i++) {
+            allPoints.push({ ...strand1Nodes[i], strand: 1 });
+            allPoints.push({ ...strand2Nodes[i], strand: 2 });
+        }
+        allPoints.sort((a, b) => a.z - b.z);
+
+        for (let i = 0; i < numNodes; i++) {
+            const p1 = strand1Nodes[i];
+            const p2 = strand2Nodes[i];
+            const avgZ = (p1.z + p2.z) / 2;
+
+            if (avgZ < -20) continue;
+
+            const scale = 600 / (600 + avgZ);
+            const screenX1 = canvas.width / 2 + p1.x * scale;
+            const screenY1 = canvas.height / 2 + p1.y * scale;
+            const screenX2 = canvas.width / 2 + p2.x * scale;
+            const screenY2 = canvas.height / 2 + p2.y * scale;
+
+            const brightness = Math.max(0.2, Math.min(1, 0.4 + avgZ / 600));
+
+            ctx.beginPath();
+            ctx.moveTo(screenX1, screenY1);
+            ctx.lineTo(screenX2, screenY2);
+            const hue1 = 200 + avgZ * 0.15;
+            const hue2 = 330 + avgZ * 0.15;
+            const c1 = `hsl(${hue1}, 80%, ${50 * brightness}%)`;
+            const c2 = `hsl(${hue2}, 80%, ${50 * brightness}%)`;
+
+            const grad = ctx.createLinearGradient(screenX1, screenY1, screenX2, screenY2);
+            grad.addColorStop(0, c1);
+            grad.addColorStop(1, c2);
+            ctx.strokeStyle = grad;
+            ctx.lineWidth = 2 * scale;
+            ctx.stroke();
+        }
+
+        drawStrandLine(strand1Nodes, 'rgb(60, 160, 255)');
+        drawStrandLine(strand2Nodes, 'rgb(255, 70, 140)');
+
+        for (let i = 0; i < numNodes; i++) {
+            const p1 = strand1Nodes[i];
+            const p2 = strand2Nodes[i];
+
+            if (p1.z < -100 && p2.z < -100) continue;
+
+            const s1 = Math.max(3, 6 * 600 / (600 + p1.z));
+            const s2 = Math.max(3, 6 * 600 / (600 + p2.z));
+
+            const b1 = Math.max(0.4, Math.min(1, 0.6 + p1.z / 500));
+            const b2 = Math.max(0.4, Math.min(1, 0.6 + p2.z / 500));
+
+            const c1 = `rgb(${Math.floor(60 * b1)}, ${Math.floor(180 * b1)}, ${Math.floor(255 * b1)})`;
+            const c2 = `rgb(${Math.floor(255 * b2)}, ${Math.floor(70 * b2)}, ${Math.floor(160 * b2)})`;
+
+            drawNode(p1.x, p1.y, p1.z, c1, s1, p1.z > 0);
+            drawNode(p2.x, p2.y, p2.z, c2, s2, p2.z > 0);
+        }
+
+        rotationOffset += rotationSpeed;
+        requestAnimationFrame(animate);
+    }
+
+    animate();
+</script>
+</body>
+</html>

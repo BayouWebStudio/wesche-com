@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spiral Galaxy</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="galaxyCanvas"></canvas>
+    <script>
+        const canvas = document.getElementById('galaxyCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let width, height, centerX, centerY;
+        let stars = [];
+        const STAR_COUNT = 1500;
+        const ARM_COUNT = 3;
+        const ARM_SPREAD = 0.6; // How spread out the arms are
+        const CORE_RADIUS = 40;
+
+        // Resize handling
+        function resize() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+            centerX = width / 2;
+            centerY = height / 2;
+            initStars();
+        }
+
+        window.addEventListener('resize', resize);
+
+        class Star {
+            constructor() {
+                this.reset();
+            }
+
+            reset() {
+                // Random distance from center (biased towards center for core density)
+                // Using power function to cluster more stars near center
+                const r = Math.pow(Math.random(), 2) * Math.max(width, height);
+                
+                // Determine which arm this star belongs to
+                const armIndex = Math.floor(Math.random() * ARM_COUNT);
+                const armAngle = (armIndex * Math.PI * 2) / ARM_COUNT;
+                
+                // Add randomness to the angle to create the "swirl" thickness
+                const randomAngleOffset = (Math.random() - 0.5) * ARM_SPREAD * (1 + r / 500);
+                
+                // Initial angle
+                this.angle = armAngle + randomAngleOffset;
+                
+                // Distance from center
+                this.distance = r;
+                
+                // Orbital speed (closer stars move faster - Kepler-ish approximation)
+                // Minimum speed to prevent stars from freezing
+                this.speed = (0.0005 + Math.random() * 0.0005) / (1 + this.distance / 500);
+                
+                // Star properties
+                this.size = Math.random() * 1.5 + 0.5;
+                
+                // Color palette: Blue-white (outer), Yellow/White (inner)
+                const colorChoice = Math.random();
+                if (colorChoice < 0.1) {
+                    // Blue stars
+                    this.color = `rgba(${150 + Math.random()*105}, ${150 + Math.random()*105}, 255,`;
+                } else if (colorChoice < 0.3) {
+                    // White stars
+                    this.color = `rgba(255, 255, ${200 + Math.random()*55},`;
+                } else {
+                    // Yellow/Orange stars
+                    this.color = `rgba(255, ${200 + Math.random()*55}, ${150 + Math.random()*50},`;
+                }
+
+                // Twinkle properties
+                this.twinkleSpeed = Math.random() * 0.05 + 0.01;
+                this.twinkleOffset = Math.random() * Math.PI * 2;
+                this.baseAlpha = 0.3 + Math.random() * 0.7;
+            }
+
+            update(time) {
+                this.angle += this.speed;
+                
+                // Calculate current position
+                this.x = centerX + Math.cos(this.angle) * this.distance;
+                this.y = centerY + Math.sin(this.angle) * this.distance;
+                
+                // Twinkle calculation
+                const twinkle = Math.sin(time * this.twinkleSpeed + this.twinkleOffset);
+                this.alpha = this.baseAlpha * (0.5 + 0.5 * twinkle);
+            }
+
+            draw(ctx) {
+                ctx.fillStyle = this.color + this.alpha + ')';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function initStars() {
+            stars = [];
+            for (let i = 0; i < STAR_COUNT; i++) {
+                stars.push(new Star());
+            }
+        }
+
+        function drawCore() {
+            const coreGradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, CORE_RADIUS * 2);
+            coreGradient.addColorStop(0, 'rgba(255, 255, 240, 1)');
+            coreGradient.addColorStop(0.1, 'rgba(255, 230, 180, 0.8)');
+            coreGradient.addColorStop(0.4, 'rgba(200, 150, 100, 0.3)');
+            coreGradient.addColorStop(1, 'rgba(100, 50, 50, 0)');
+            
+            ctx.fillStyle = coreGradient;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, CORE_RADIUS * 2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function animate(time) {
+            // Clear canvas with slight fade for trails (optional, using solid clear here for crispness)
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, width, height);
+
+            // Draw the bright core first (behind stars)
+            drawCore();
+
+            // Update and draw stars
+            for (let star of stars) {
+                star.update(time);
+                star.draw(ctx);
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        // Initialize
+        resize();
+        requestAnimationFrame(animate);
+
+    </script>
+</body>
+</html>

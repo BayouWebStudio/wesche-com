@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spiral Galaxy Animation</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+            overflow: hidden; /* Prevent scrollbars */
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="galaxyCanvas"></canvas>
+
+<script>
+    const canvas = document.getElementById('galaxyCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let width, height, centerX, centerY;
+    const starCount = 2000; // Number of stars
+    const arms = 3; // Number of spiral arms
+    const spread = 0.5; // How wide the arms are
+    const armSpread = 2; // How loose the spiral is
+
+    let stars = [];
+
+    // Resize handling
+    function resize() {
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = width;
+        canvas.height = height;
+        centerX = width / 2;
+        centerY = height / 2;
+        initStars();
+    }
+
+    class Star {
+        constructor() {
+            this.reset(true);
+        }
+
+        reset(initial = false) {
+            // Distance from center (Gaussian distribution for density in core)
+            // Using a mix of random and Math.sqrt to create a disk shape
+            this.distance = Math.random() * (Math.min(width, height) / 2);
+            
+            // Spiral angle calculation
+            // The further out, the more the angle shifts to create the spiral
+            const spiralAngle = (this.distance / (Math.min(width, height) / 2)) * armSpread * Math.PI;
+            
+            // Pick a random arm
+            const armAngle = (Math.PI * 2 / arms) * Math.floor(Math.random() * arms);
+            
+            // Add randomness to make the arm "thick"
+            const randomOffset = (Math.random() - 0.5) * spread * (this.distance / 100 + 1);
+
+            this.angle = armAngle + spiralAngle + randomOffset;
+            
+            // Rotation speed: closer stars move faster (Keplerian-ish)
+            this.speed = (Math.random() * 0.5 + 0.5) / (this.distance * 0.05 + 10);
+            
+            // Size: smaller stars are more common
+            this.size = Math.random() * 1.5 + 0.5;
+            
+            // Color variation
+            // Core stars are warmer (yellow/white), outer stars cooler (blue/purple)
+            const hueBase = 200 + (Math.random() * 40); // Blue to Purple range
+            const saturation = 50 + Math.random() * 50;
+            const lightness = 50 + Math.random() * 50;
+            
+            if (this.distance < 50) {
+                // Core stars: Yellow/White
+                this.color = `hsla(${40 + Math.random()*20}, ${100}%, ${80 + Math.random()*20}%, 1)`;
+            } else {
+                // Disk stars: Blue/White/Pink
+                this.color = `hsla(${hueBase}, ${saturation}%, ${lightness}%, ${0.6 + Math.random() * 0.4})`;
+            }
+
+            // Twinkle properties
+            this.twinkleSpeed = Math.random() * 0.05 + 0.01;
+            this.twinkleOffset = Math.random() * Math.PI * 2;
+            this.baseAlpha = parseFloat(this.color.match(/[\d.]+\)$/)[0].replace(')', ''));
+        }
+
+        update() {
+            this.angle += this.speed * 0.02; // Global rotation speed multiplier
+        }
+
+        draw() {
+            // Twinkle effect
+            const twinkle = Math.sin(Date.now() * this.twinkleSpeed + this.twinkleOffset) * 0.3 + 0.7;
+            
+            // Calculate Cartesian coordinates
+            const x = centerX + Math.cos(this.angle) * this.distance;
+            const y = centerY + Math.sin(this.angle) * this.distance;
+
+            ctx.beginPath();
+            ctx.arc(x, y, this.size, 0, Math.PI * 2);
+            
+            // Adjust opacity based on twinkle
+            // Parse the base opacity from the color string logic or just use the calculated one
+            // For simplicity in HSLA strings, we redraw with calculated alpha
+            // Note: In a production app, we might separate color and alpha for better performance
+            ctx.fillStyle = this.color; // The color string already has opacity logic in constructor, 
+                                       // but let's override the alpha for twinkle if we wanted, 
+                                       // but for simplicity, we will just use the pre-set color 
+                                       // and maybe scale size or rely on the random alpha set in constructor.
+            
+            // To make twinkle visible without complex string parsing, we can draw a semi-transparent overlay
+            // or simply rely on the fact that stars are small. 
+            // Let's modify the alpha of the context temporarily? No, that's slow.
+            // We will just draw. The "twinkle" in this simple version is simulated by 
+            // varying the size slightly or just relying on the random generation.
+            
+            // Let's implement a simple size twinkle:
+            const currentSize = this.size * (0.8 + Math.sin(Date.now() * this.twinkleSpeed) * 0.2);
+            
+            ctx.arc(x, y, currentSize, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    function initStars() {
+        stars = [];
+        for (let i = 0; i < starCount; i++) {
+            stars.push(new Star());
+        }
+    }
+
+    function drawCore() {
+        // Create a glowing center
+        const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, 60);
+        gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+        gradient.addColorStop(0.2, 'rgba(255, 255, 200, 0.8)');
+        gradient.addColorStop(0.5, 'rgba(200, 150, 255, 0.2)');
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, 60, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    function animate() {
+        // Clear with a very slight fade for trails? 
+        // No, clean clear looks sharper for stars.
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, width, height);
+
+        // Draw the core glow
+        drawCore();
+
+        // Update and draw stars
+        for (let star of stars) {
+            star.update();
+            star.draw();
+        }
+
+        requestAnimationFrame(animate);
+    }
+
+    // Initialize
+    window.addEventListener('resize', resize);
+    resize();
+    animate();
+
+</script>
+</body>
+</html>

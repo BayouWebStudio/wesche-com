@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rotating DNA Double Helix</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #0f172a; /* Dark slate background */
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="dnaCanvas"></canvas>
+
+<script>
+    const canvas = document.getElementById('dnaCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let width, height;
+    let rotationAngle = 0;
+
+    // Configuration
+    const config = {
+        nodeCount: 60,       // Number of rungs/nodes along the strand
+        helixRadius: 150,    // Width of the helix
+        helixHeight: 600,    // Vertical height of the helix
+        twistPerNode: 0.15,  // How much it twists per node (controls pitch)
+        nodeSize: 6,         // Size of the spheres
+        rungWidth: 2,        // Thickness of connecting lines
+        rotationSpeed: 0.02, // Speed of rotation
+        strand1Color: '#06b6d4', // Cyan (Cyan/Blue)
+        strand2Color: '#f43f5e', // Rose (Red/Pink)
+        rungColor: '#94a3b8'  // Slate (Greyish)
+    };
+
+    // Resize handler
+    function resize() {
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = width;
+        canvas.height = height;
+    }
+
+    window.addEventListener('resize', resize);
+    resize();
+
+    function draw() {
+        // Clear canvas with a slight fade for a subtle trail effect (optional, currently solid clear)
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, width, height);
+
+        const centerX = width / 2;
+        const centerY = height / 2;
+
+        // Arrays to store calculated positions for this frame
+        const points = [];
+
+        // Calculate positions for all nodes
+        for (let i = 0; i < config.nodeCount; i++) {
+            // Calculate base Y position
+            const y = (i / (config.nodeCount - 1)) * config.helixHeight - (config.helixHeight / 2);
+            
+            // Calculate angle based on index and current rotation
+            const angle = i * config.twistPerNode + rotationAngle;
+
+            // Calculate X and Z (depth) using sine and cosine
+            // Strand 1
+            const x1 = Math.cos(angle) * config.helixRadius;
+            const z1 = Math.sin(angle) * config.helixRadius;
+
+            // Strand 2 (offset by PI/180 degrees to be opposite)
+            const x2 = Math.cos(angle + Math.PI) * config.helixRadius;
+            const z2 = Math.sin(angle + Math.PI) * config.helixRadius;
+
+            points.push({
+                y: y,
+                x1: x1,
+                z1: z1,
+                x2: x2,
+                z2: z2
+            });
+        }
+
+        // Sort points by Z-depth (Painter's Algorithm)
+        // We average the Z of the two strands to determine the depth of the "rung"
+        points.sort((a, b) => (a.z1 + a.z2) - (b.z1 + b.z2));
+
+        // Draw the DNA
+        points.forEach(point => {
+            // Calculate depth scaling for pseudo-3D effect
+            // Map Z from [-radius, radius] to [0.6, 1.0] scale factor
+            const depthFactor1 = (point.z1 + config.helixRadius) / (2 * config.helixRadius);
+            const depthFactor2 = (point.z2 + config.helixRadius) / (2 * config.helixRadius);
+            
+            // Calculate opacity based on depth (further back = more transparent)
+            const opacity1 = 0.3 + (depthFactor1 * 0.7);
+            const opacity2 = 0.3 + (depthFactor2 * 0.7);
+
+            const screenX1 = centerX + point.x1;
+            const screenX2 = centerX + point.x2;
+            const screenY = centerY + point.y;
+
+            // 1. Draw the Rung (Connection)
+            // Draw rung first so it sits behind the nodes
+            const rungOpacity = 0.3 + ((depthFactor1 + depthFactor2) / 2) * 0.5;
+            ctx.beginPath();
+            ctx.moveTo(screenX1, screenY);
+            ctx.lineTo(screenX2, screenY);
+            ctx.strokeStyle = `rgba(148, 163, 184, ${rungOpacity})`; // rungColor with opacity
+            ctx.lineWidth = config.rungWidth;
+            ctx.stroke();
+
+            // 2. Draw Node Strand 1
+            const size1 = config.nodeSize * (0.8 + depthFactor1 * 0.4);
+            ctx.beginPath();
+            ctx.arc(screenX1, screenY, size1, 0, Math.PI * 2);
+            ctx.fillStyle = config.strand1Color;
+            ctx.globalAlpha = opacity1;
+            ctx.fill();
+            ctx.globalAlpha = 1.0; // Reset alpha
+
+            // 3. Draw Node Strand 2
+            const size2 = config.nodeSize * (0.8 + depthFactor2 * 0.4);
+            ctx.beginPath();
+            ctx.arc(screenX2, screenY, size2, 0, Math.PI * 2);
+            ctx.fillStyle = config.strand2Color;
+            ctx.globalAlpha = opacity2;
+            ctx.fill();
+            ctx.globalAlpha = 1.0; // Reset alpha
+        });
+
+        // Update rotation
+        rotationAngle += config.rotationSpeed;
+
+        requestAnimationFrame(draw);
+    }
+
+    // Start animation
+    requestAnimationFrame(draw);
+
+</script>
+</body>
+</html>

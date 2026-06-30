@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rotating DNA Double Helix</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #050505; /* Very dark background */
+            overflow: hidden; /* Prevent scrollbars */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        canvas {
+            display: block;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="dnaCanvas"></canvas>
+
+<script>
+    /**
+     * Configuration for the DNA Helix
+     */
+    const config = {
+        particleCount: 40,       // Number of base pairs
+        amplitude: 120,          // Width of the helix
+        verticalSpacing: 15,     // Distance between rungs
+        rotationSpeed: 0.02,     // Speed of rotation
+        helixTwist: 0.15,        // How tightly it spirals vertically
+        colors: {
+            strand1: '#00d2ff', // Cyan
+            strand2: '#ff0055', // Pink/Red
+            rung: 'rgba(255, 255, 255, 0.15)', // Faint white
+            background: '#050505'
+        }
+    };
+
+    const canvas = document.getElementById('dnaCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let width, height;
+    let rotationAngle = 0;
+
+    // Resize canvas to fill window
+    function resize() {
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = width;
+        canvas.height = height;
+    }
+
+    window.addEventListener('resize', resize);
+    resize();
+
+    /**
+     * Main Animation Loop
+     */
+    function animate() {
+        // Clear canvas with slight fade for motion blur effect (optional, strictly clearing here for crispness)
+        ctx.fillStyle = config.colors.background;
+        ctx.fillRect(0, 0, width, height);
+
+        // Center the helix
+        const centerX = width / 2;
+        const centerY = height / 2;
+        
+        // Calculate total height of the helix to center it vertically
+        const totalHeight = config.particleCount * config.verticalSpacing;
+        const startY = centerY - (totalHeight / 2);
+
+        // Store points to draw rungs and strands later
+        const points = [];
+
+        // Calculate positions for all nodes
+        for (let i = 0; i < config.particleCount; i++) {
+            // Calculate the Y position
+            const y = startY + i * config.verticalSpacing;
+
+            // Calculate the phase based on vertical position to create the spiral
+            const phase = i * config.helixTwist;
+
+            // Calculate X positions for Strand 1 and Strand 2 (180 degrees / PI apart)
+            // We add the global rotationAngle to make it spin
+            const angle1 = phase + rotationAngle;
+            const angle2 = phase + rotationAngle + Math.PI;
+
+            // 3D Projection Logic:
+            // x = radius * cos(angle)
+            // z = radius * sin(angle) (This represents depth)
+            
+            // Strand 1
+            const x1 = Math.cos(angle1) * config.amplitude;
+            const z1 = Math.sin(angle1); // z is used for depth scaling
+
+            // Strand 2
+            const x2 = Math.cos(angle2) * config.amplitude;
+            const z2 = Math.sin(angle2);
+
+            points.push({
+                x1: centerX + x1,
+                y1: y,
+                z1: z1,
+                x2: centerX + x2,
+                y2: y,
+                z2: z2
+            });
+        }
+
+        // Draw Rungs (Connecting bars)
+        // We draw these first so they appear behind the nodes/strands if we wanted strict 3D, 
+        // but standard 2D layering puts them behind the thick lines.
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = config.colors.rung;
+        ctx.beginPath();
+        points.forEach(p => {
+            // Simple fade out based on depth for a subtle 3D feel
+            // If the rung is "far back", make it thinner/fainter
+            const avgZ = (p.z1 + p.z2) / 2;
+            ctx.globalAlpha = 0.1 + (avgZ * 0.1); // Vary opacity based on depth
+            
+            ctx.moveTo(p.x1, p.y1);
+            ctx.lineTo(p.x2, p.y2);
+        });
+        ctx.stroke();
+        ctx.globalAlpha = 1.0; // Reset alpha
+
+        // Draw Strands
+        // We use a quadratic curve to make the strands smooth
+        ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        // Draw Strand 1
+        ctx.beginPath();
+        ctx.strokeStyle = config.colors.strand1;
+        points.forEach((p, index) => {
+            if (index === 0) {
+                ctx.moveTo(p.x1, p.y1);
+            } else {
+                // Smooth curve to next point
+                const prev = points[index - 1];
+                const midY = (prev.y1 + p.y1) / 2;
+                const midX = (prev.x1 + p.x1) / 2;
+                ctx.quadraticCurveTo(prev.x1, prev.y1, midX, midY);
+            }
+        });
+        // Finish the last segment
+        const lastP = points[points.length - 1];
+        ctx.lineTo(lastP.x1, lastP.y1);
+        ctx.stroke();
+
+        // Draw Strand 2
+        ctx.beginPath();
+        ctx.strokeStyle = config.colors.strand2;
+        points.forEach((p, index) => {
+            if (index === 0) {
+                ctx.moveTo(p.x2, p.y2);
+            } else {
+                const prev = points[index - 1];
+                const midY = (prev.y2 + p.y2) / 2;
+                const midX = (prev.x2 + p.x2) / 2;
+                ctx.quadraticCurveTo(prev.x2, prev.y2, midX, midY);
+            }
+        });
+        ctx.lineTo(lastP.x2, lastP.y2);
+        ctx.stroke();
+
+        // Draw Nodes (The dots at intersections)
+        // We iterate again to draw dots on top of the lines
+        points.forEach(p => {
+            // Node 1
+            ctx.beginPath();
+            ctx.fillStyle = config.colors.strand1;
+            // Scale size based on depth (z) for pseudo-3D effect
+            const size1 = 4 + (p.z1 * 1.5); 
+            ctx.arc(p.x1, p.y1, Math.max(1, size1), 0, Math.PI * 2);
+            ctx.fill();
+
+            // Node 2
+            ctx.beginPath();
+            ctx.fillStyle = config.colors.strand2;
+            const size2 = 4 + (p.z2 * 1.5);
+            ctx.arc(p.x2, p.y2, Math.max(1, size2), 0, Math.PI * 2);
+            ctx.fill();
+        });
+
+        // Update rotation
+        rotationAngle += config.rotationSpeed;
+
+        requestAnimationFrame(animate);
+    }
+
+    // Start the animation
+    animate();
+
+</script>
+
+</body>
+</html>

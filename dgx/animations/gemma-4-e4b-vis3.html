@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DNA Double Helix Animation</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+background: #0a0a1a;
+display: flex;
+justify-content: center;
+align-items: center;
+min-height: 100vh;
+overflow: hidden;
+}
+canvas {
+display: block;
+}
+</style>
+</head>
+<body>
+<canvas id="dnaCanvas"></canvas>
+<script>
+const canvas = document.getElementById('dnaCanvas');
+const ctx = canvas.getContext('2d');
+
+function resize() {
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+const config = {
+nodeCount: 60,
+helixRadius: 120,
+verticalSpacing: 12,
+rotationSpeed: 0.02,
+perspective: 600,
+nodeRadius: 4,
+rungOpacity: 0.6,
+glowIntensity: 0.3
+};
+
+let time = 0;
+
+function getStrandColor(phase, alpha) {
+const r = Math.floor(30 + 50 * Math.sin(phase));
+const g = Math.floor(100 + 80 * Math.sin(phase + 1));
+const b = Math.floor(200 + 55 * Math.cos(phase));
+return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function getStrandColor2(phase, alpha) {
+const r = Math.floor(200 + 55 * Math.cos(phase));
+const g = Math.floor(100 + 80 * Math.sin(phase + 1));
+const b = Math.floor(30 + 50 * Math.sin(phase));
+return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function getRungColor(phase, alpha) {
+const mix = 0.5 + 0.5 * Math.sin(phase * 0.5);
+const r = Math.floor(30 * mix + 200 * (1 - mix));
+const g = Math.floor(100 * mix + 100 * (1 - mix));
+const b = Math.floor(200 * mix + 30 * (1 - mix));
+return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function project(x3d, y3d, z3d) {
+const scale = config.perspective / (config.perspective + z3d);
+return {
+x: canvas.width / 2 + x3d * scale,
+y: canvas.height / 2 + y3d * scale,
+scale: scale
+};
+}
+
+function drawGlow(x, y, radius, color) {
+const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
+gradient.addColorStop(0, color);
+gradient.addColorStop(1, 'rgba(0,0,0,0)');
+ctx.fillStyle = gradient;
+ctx.beginPath();
+ctx.arc(x, y, radius, 0, Math.PI * 2);
+ctx.fill();
+}
+
+function animate() {
+ctx.fillStyle = 'rgba(10, 10, 26, 0.25)';
+ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+const centerY = canvas.height / 2;
+const totalHeight = config.nodeCount * config.verticalSpacing;
+const startY = centerY - totalHeight / 2;
+
+const nodes = [];
+
+for (let i = 0; i < config.nodeCount; i++) {
+const y = startY + i * config.verticalSpacing;
+const phase = i * 0.3 + time;
+
+const x1 = Math.sin(phase) * config.helixRadius;
+const z1 = Math.cos(phase) * config.helixRadius;
+const p1 = project(x1, y, z1);
+
+const x2 = Math.sin(phase + Math.PI) * config.helixRadius;
+const z2 = Math.cos(phase + Math.PI) * config.helixRadius;
+const p2 = project(x2, y, z2);
+
+nodes.push({ p1, p2, phase, z1, z2, y, i });
+}
+
+const sorted = [...nodes].sort((a, b) => b.z1 - a.z1);
+
+for (const node of sorted) {
+const { p1, p2, phase, z1, z2, y, i } = node;
+const depth1 = (z1 + config.helixRadius) / (2 * config.helixRadius);
+const depth2 = (z2 + config.helixRadius) / (2 * config.helixRadius);
+
+const alpha1 = 0.3 + 0.7 * depth1;
+const alpha2 = 0.3 + 0.7 * depth2;
+
+const glowR1 = config.nodeRadius * 3 * p1.scale;
+const glowR2 = config.nodeRadius * 3 * p2.scale;
+
+drawGlow(p1.x, p1.y, glowR1, getStrandColor(phase, config.glowIntensity * alpha1));
+drawGlow(p2.x, p2.y, glowR2, getStrandColor2(phase, config.glowIntensity * alpha2));
+
+ctx.beginPath();
+ctx.arc(p1.x, p1.y, config.nodeRadius * p1.scale, 0, Math.PI * 2);
+ctx.fillStyle = getStrandColor(phase, alpha1);
+ctx.fill();
+
+ctx.beginPath();
+ctx.arc(p2.x, p2.y, config.nodeRadius * p2.scale, 0, Math.PI * 2);
+ctx.fillStyle = getStrandColor2(phase, alpha2);
+ctx.fill();
+
+const rungAlpha = config.rungOpacity * (alpha1 + alpha2) / 2;
+ctx.beginPath();
+ctx.moveTo(p1.x, p1.y);
+ctx.lineTo(p2.x, p2.y);
+ctx.strokeStyle = getRungColor(phase, rungAlpha);
+ctx.lineWidth = 1.5 * p1.scale;
+ctx.stroke();
+}
+
+time += config.rotationSpeed;
+requestAnimationFrame(animate);
+}
+
+requestAnimationFrame(animate);
+</script>
+</body>
+</html>

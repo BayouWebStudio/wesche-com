@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spiral Galaxy</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            background: #000; 
+            overflow: hidden; 
+            height: 100vh; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            font-family: monospace;
+        }
+        canvas { display: block; }
+        .info {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255,255,255,0.4);
+            font-size: 12px;
+            pointer-events: none;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="galaxy"></canvas>
+    <div class="info">Spiral Galaxy Simulation — Click to add star burst</div>
+    <script>
+        const canvas = document.getElementById('galaxy');
+        const ctx = canvas.getContext('2d');
+        
+        let width, height, centerX, centerY;
+        const stars = [];
+        const STAR_COUNT = 2000;
+        const ARMS = 4;
+        const MAX_RADIUS = 0.42;
+        const CORE_RADIUS = 0.08;
+        let time = 0;
+        let mouseX = 0, mouseY = 0;
+        let mouseActive = false;
+        
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            centerX = width / 2;
+            centerY = height / 2;
+        }
+        
+        function initStars() {
+            stars.length = 0;
+            for (let i = 0; i < STAR_COUNT; i++) {
+                const arm = i % ARMS;
+                const armProgress = (i / STAR_COUNT) * ARMS;
+                const t = armProgress - arm;
+                
+                // Logarithmic spiral: r = a * e^(b*theta)
+                const a = CORE_RADIUS;
+                const b = 0.35;
+                const thetaBase = (t * Math.PI * 2) + (arm / ARMS) * Math.PI * 2;
+                const r = a * Math.exp(b * thetaBase * 3);
+                
+                if (r > MAX_RADIUS) continue;
+                
+                // Add noise to position
+                const noiseR = (Math.random() - 0.5) * 0.03 * (1 + r * 2);
+                const noiseTheta = (Math.random() - 0.5) * 0.15 * (1 - r * 0.5);
+                
+                const finalR = Math.max(CORE_RADIUS * 0.5, Math.min(MAX_RADIUS, r + noiseR));
+                const finalTheta = thetaBase + noiseTheta;
+                
+                // Orbital velocity - differential rotation
+                const vFactor = finalR < CORE_RADIUS * 2 ? finalR / (CORE_RADIUS * 2) : 1;
+                const orbitalSpeed = (0.00015 + 0.00035 * Math.pow(finalR, 1.2)) * vFactor;
+                
+                // Star properties
+                const isCore = finalR < CORE_RADIUS * 1.5;
+                const baseSize = isCore ? 
+                    1.5 + Math.random() * 2.5 : 
+                    0.4 + Math.random() * 1.8;
+                
+                // Color temperature based on radius and arm
+                let hue, saturation, brightness;
+                if (isCore) {
+                    hue = 30 + Math.random() * 40; // Yellow-white core
+                    saturation = 10 + Math.random() * 20;
+                    brightness = 85 + Math.random() * 15;
+                } else {
+                    const armHue = (arm / ARMS) * 60 + 180; // Blue to purple arms
+                    hue = armHue + (Math.random() - 0.5) * 40;
+                    saturation = 40 + Math.random() * 40;
+                    brightness = 50 + Math.random() * 40;
+                }
+                
+                stars.push({
+                    r: finalR,
+                    theta: finalTheta,
+                    orbitalSpeed: orbitalSpeed * (Math.random() * 0.3 + 0.85),
+                    baseSize: baseSize,
+                    size: baseSize,
+                    hue: hue,
+                    saturation: saturation,
+                    brightness: brightness,
+                    twinklePhase: Math.random() * Math.PI * 2,
+                    twinkleSpeed: 0.005 + Math.random() * 0.02,
+                    twinkleAmount: 0.15 + Math.random() * 0.25,
+                    alpha: 0.6 + Math.random() * 0.4,
+                    arm: arm,
+                    isCore: isCore,
+                    driftX: (Math.random() - 0.5) * 0.0002,
+                    driftY: (Math.random() - 0.5) * 0.0002
+                });
+            }
+        }
+        
+        function addStarBurst(x, y) {
+            const dx = (x - centerX) / Math.max(width, height);
+            const dy = (y - centerY) / Math.max(width, height);
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const angle = Math.atan2(dy, dx);
+            
+            for (let i = 0; i < 50; i++) {
+                const burstR = dist + (Math.random() - 0.5) * 0.1;
+                const burstTheta = angle + (Math.random() - 0.5) * 0.5;
+                if (burstR < CORE_RADIUS || burstR > MAX_RADIUS) continue;
+                
+                stars.push({
+                    r: burstR,
+                    theta: burstTheta,
+                    orbitalSpeed: (0.0002 + 0.0004 * Math.pow(burstR, 1.2)) * (Math.random() * 0.3 + 0.85),
+                    baseSize: 0.5 + Math.random() * 1.5,
+                    size: 0.5 + Math.random() * 1.5,
+                    hue: 180 + Math.random() * 80,
+                    saturation: 50 + Math.random() * 40,
+                    brightness: 60 + Math.random() * 35,
+                    twinklePhase: Math.random() * Math.PI * 2,
+                    twinkleSpeed: 0.01 + Math.random() * 0.03,
+                    twinkleAmount: 0.2 + Math.random() * 0.3,
+                    alpha: 0.7 + Math.random() * 0.3,
+                    arm: Math.floor(Math.random() * ARMS),
+                    isCore: false,
+                    driftX: (Math.random() - 0.5) * 0.0003,
+                    driftY: (Math.random() - 0.5) * 0.0003
+                });
+            }
+            
+            // Limit total stars
+            if (stars.length > STAR_COUNT * 1.5) {
+                stars.splice(0, stars.length - STAR_COUNT);
+            }
+        }
+        
+        function updateStars(dt) {
+            const scale = Math.max(width, height);
+            
+            for (const star of stars) {
+                // Orbital motion
+                star.theta += star.orbitalSpeed * dt;
+                
+                // Subtle radial drift
+                star.r += star.driftX * dt;
+                star.r = Math.max(CORE_RADIUS * 0.3, Math.min(MAX_RADIUS * 1.1, star.r));
+                
+                // Twinkle
+                star.twinklePhase += star.twinkleSpeed * dt;
+                const twinkle = Math.sin(star.twinklePhase) * star.twinkleAmount + 1;
+                star.size = star.baseSize * twinkle;
+                star.alpha = Math.min(1, (0.6 + Math.random() * 0.4) * twinkle);
+            }
+        }
+        
+        function drawCore() {
+            const scale = Math.max(width, height);
+            const coreRadiusPx = CORE_RADIUS * scale * 1.2;
+            
+            // Outer glow
+            const glowGradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, coreRadiusPx * 2.5);
+            glowGradient.addColorStop(0, 'rgba(255, 245, 220, 0.15)');
+            glowGradient.addColorStop(0.3, 'rgba(255, 230, 180, 0.08)');
+            glowGradient.addColorStop(0.6, 'rgba(200, 180, 140, 0.03)');
+            glowGradient.addColorStop(1, 'rgba(100, 80, 60, 0)');
+            ctx.fillStyle = glowGradient;
+            ctx.fillRect(0, 0, width, height);
+            
+            // Core body
+            const coreGradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, coreRadiusPx);
+            coreGradient.addColorStop(0, 'rgba(255, 250, 240, 1)');
+            coreGradient.addColorStop(0.15, 'rgba(255, 245, 220, 0.95)');
+            coreGradient.addColorStop(0.35, 'rgba(255, 235, 200, 0.8)');
+            coreGradient.addColorStop(0.6, 'rgba(255, 220, 170, 0.5)');
+            coreGradient.addColorStop(1, 'rgba(255, 200, 140, 0.1)');
+            ctx.fillStyle = coreGradient;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, coreRadiusPx, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Bright center
+            const centerGradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, coreRadiusPx * 0.3);
+            centerGradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+            centerGradient.addColorStop(0.5, 'rgba(255, 250, 240, 0.9)');
+            centerGradient.addColorStop(1, 'rgba(255, 240, 220, 0.6)');
+            ctx.fillStyle = centerGradient;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, coreRadiusPx * 0.3, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        function drawStars() {
+            const scale = Math.max(width, height);
+            
+            // Sort by radius for proper layering (farther first)
+            stars.sort((a, b) => a.r - b.r);
+            
+            for (const star of stars) {
+                const x = centerX + Math.cos(star.theta) * star.r * scale;
+                const y = centerY + Math.sin(star.theta) * star.r * scale;
+                
+                // Skip if off screen (with margin)
+                const margin = star.size * 2 + 10;
+                if (x < -margin || x > width + margin || y < -margin || y > height + margin) continue;
+                
+                const size = Math.max(0.5, star.size);
+                const alpha = Math.min(1, Math.max(0.1, star.alpha));
+                
+                // Create star gradient
+                const starGradient = ctx.createRadialGradient(x, y, 0, x, y, size * 2.5);
+                const h = star.hue;
+                const s = star.saturation;
+                const b = star.brightness;
+                
+                starGradient.addColorStop(0, `hsla(${h}, ${s}%, ${Math.min(100, b + 20)}%, ${alpha})`);
+                starGradient.addColorStop(0.3, `hsla(${h}, ${s}%, ${b}%, ${alpha * 0.8})`);
+                starGradient.addColorStop(0.7, `hsla(${h}, ${Math.max(0, s - 10)}%, ${Math.max(0, b - 15)}%, ${alpha * 0.4})`);
+                starGradient.addColorStop(1, `hsla(${h}, ${Math.max(0, s - 20)}%, ${Math.max(0, b - 30)}%, 0)`);
+                
+                ctx.fillStyle = starGradient;
+                ctx.beginPath();
+                ctx.arc(x, y, size * 2.5, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Bright center point for larger stars
+                if (size > 1.5) {
+                    ctx.fillStyle = `hsla(${h}, ${Math.max(0, s - 30)}%, 100%, ${alpha * 0.9})`;
+                    ctx.beginPath();
+                    ctx.arc(x, y, size * 0.4, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
+        
+        function drawDustLanes() {
+            const scale = Math.max(width, height);
+            
+            // Subtle dust lanes between arms
+            for (let arm = 0; arm < ARMS; arm++) {
+                const offset = (arm / ARMS) * Math.PI * 2 + Math.PI / ARMS;
+                
+                ctx.strokeStyle = 'rgba(40, 30, 25, 0.025)';
+                ctx.lineWidth = scale * 0.008;
+                ctx.lineCap = 'round';
+                
+                ctx.beginPath();
+                for (let i = 0; i <= 50; i++) {
+                    const t = i / 50;
+                    const theta = offset + t * Math.PI * 2 * 2.5;
+                    const r = CORE_RADIUS * 1.5 + t * (MAX_RADIUS - CORE_RADIUS * 1.5);
+                    const noise = Math.sin(theta * 3 + time * 0.0001) * 0.015;
+                    const x = centerX + Math.cos(theta) * (r + noise) * scale;
+                    const y = centerY + Math.sin(theta) * (r + noise) * scale;
+                    
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+            }
+        }
+        
+        function animate(currentTime) {
+            const dt = currentTime - time;
+            time = currentTime;
+            
+            // Clear with slight trail for motion blur effect
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+            ctx.fillRect(0, 0, width, height);
+            
+            // Also draw a full clear every few frames to prevent buildup
+            if (Math.random() < 0.02) {
+                ctx.fillStyle = '#000';
+                ctx.fillRect(0, 0, width, height);
+            }
+            
+            updateStars(dt);
+            drawDustLanes();
+            drawStars();
+            drawCore();
+            
+            requestAnimationFrame(animate);
+        }
+        
+        // Event listeners
+        window.addEventListener('resize', resize);
+        canvas.addEventListener('click', (e) => {
+            addStarBurst(e.clientX, e.clientY);
+        });
+        canvas.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+            mouseActive = true;
+        });
+        
+        // Initialize
+        resize();
+        initStars();
+        requestAnimationFrame(animate);
+    </script>
+</body>
+</html>

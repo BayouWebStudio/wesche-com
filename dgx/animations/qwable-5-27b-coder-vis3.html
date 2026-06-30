@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rotating DNA Double Helix</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #050508; /* Very dark background */
+            overflow: hidden; /* Prevent scrollbars */
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="dnaCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('dnaCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Configuration
+        let width, height;
+        const nodeCount = 60;          // Number of rungs/nodes
+        const helixRadius = 150;       // Width of the helix
+        const helixPitch = 15;         // Vertical distance between nodes
+        const rotationSpeed = 0.02;    // Speed of rotation
+        const focus = 400;             // Perspective focal length
+        const strandColor1 = '100, 200, 255'; // Cyan-ish
+        const strandColor2 = '255, 100, 150'; // Pink-ish
+        const rungColor = '200, 200, 200';    // White-ish
+
+        let angle = 0;
+
+        // Resize canvas to fit window
+        function resize() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // 3D Point projection
+        // Converts 3D coordinates (x, y, z) to 2D screen coordinates
+        function project(x, y, z) {
+            // Simple perspective projection
+            // We shift z by 'focus' to ensure we don't divide by zero or project behind camera
+            const scale = focus / (focus + z);
+            return {
+                x: x * scale + width / 2,
+                y: y * scale + height / 2,
+                scale: scale
+            };
+        }
+
+        function draw() {
+            // Clear screen
+            ctx.fillStyle = '#050508';
+            ctx.fillRect(0, 0, width, height);
+
+            // Update rotation
+            angle += rotationSpeed;
+
+            // Arrays to store calculated 2D points and their depth (z) for sorting
+            const strand1Points = [];
+            const strand2Points = [];
+            const rungs = [];
+
+            // Calculate geometry
+            // We iterate through the helix from top to bottom
+            // Center the helix vertically
+            const startY = -(nodeCount * helixPitch) / 2;
+
+            for (let i = 0; i < nodeCount; i++) {
+                const y = startY + (i * helixPitch);
+                
+                // Calculate sine/cosine for rotation
+                const theta = angle + (i * 0.3); // 0.3 controls the "tightness" of the twist
+                
+                // Strand 1 position (3D)
+                const x1 = Math.cos(theta) * helixRadius;
+                const z1 = Math.sin(theta) * helixRadius;
+                
+                // Strand 2 position (3D) - opposite side (theta + PI)
+                const x2 = Math.cos(theta + Math.PI) * helixRadius;
+                const z2 = Math.sin(theta + Math.PI) * helixRadius;
+
+                // Project to 2D
+                const p1 = project(x1, y, z1);
+                const p2 = project(x2, y, z2);
+
+                // Store points with Z-depth for painter's algorithm (sorting)
+                strand1Points.push({ x: p1.x, y: p1.y, z: z1, scale: p1.scale, index: i });
+                strand2Points.push({ x: p2.x, y: p2.y, z: z2, scale: p2.scale, index: i });
+                
+                // Store rungs as objects with average Z depth
+                rungs.push({
+                    p1: { x: p1.x, y: p1.y },
+                    p2: { x: p2.x, y: p2.y },
+                    z: (z1 + z2) / 2,
+                    scale: (p1.scale + p2.scale) / 2
+                });
+            }
+
+            // --- DRAWING PHASE ---
+            
+            // To handle depth correctly (elements in back drawn before elements in front),
+            // we ideally sort everything by Z. However, for a helix, simply drawing the rungs 
+            // from back to front, then the strands, usually looks sufficient and is performant.
+            
+            // 1. Draw Rungs
+            // Sort rungs by Z depth (furthest first)
+            rungs.sort((a, b) => a.z - b.z);
+
+            for (let rung of rungs) {
+                // Opacity based on depth (fog effect)
+                // Z ranges roughly from -radius to +radius. 
+                // Normalize to 0..1 where 1 is closest.
+                const depthAlpha = (rung.z + helixRadius) / (2 * helixRadius); 
+                const alpha = 0.2 + (0.8 * Math.max(0, Math.min(1, depthAlpha)));
+                
+                // Line width based on perspective scale
+                const lineWidth = Math.max(1, 2 * rung.scale);
+
+                ctx.beginPath();
+                ctx.moveTo(rung.p1.x, rung.p1.y);
+                ctx.lineTo(rung.p2.x, rung.p2.y);
+                ctx.strokeStyle = `rgba(${rungColor}, ${alpha})`;
+                ctx.lineWidth = lineWidth;
+                ctx.stroke();
+            }
+
+            // 2. Draw Strands
+            // We draw the lines connecting the nodes. 
+            // To make it look like a continuous ribbon, we draw lines between consecutive nodes.
+            
+            // Helper to draw a strand
+            function drawStrand(points, colorStr) {
+                ctx.beginPath();
+                // Move to the first point
+                // We start from the one with lowest Z to ensure correct overlap at the very top
+                // But for a continuous line, just iterating is usually fine for a closed loop or simple helix
+                // Let's just iterate.
+                
+                // We need to draw segments individually to handle Z-sorting of the line segments themselves?
+                // Actually, for a simple helix, drawing the whole line usually works okay, 
+                // but strictly speaking, the back part of the line should be behind the rungs.
+                // Since we drew rungs first (sorted), we just need to make sure the strands don't 
+                // occlude the rungs incorrectly. 
+                // A simple trick: Draw rungs first. Then draw strands. 
+                // If a strand part is "behind" a rung, it might look wrong.
+                // To fix this perfectly, we should treat every segment of the strand as an object and sort them with rungs.
+                
+                // Let's do the robust approach: Collect all segments (rungs + strand segments) and sort them all.
+            }
+
+            // --- ROBUST SORTING APPROACH ---
+            // Let's clear the previous drawing logic and do a full Z-sort of all visual primitives.
+            
+            const primitives = [];
+
+            // Add Rungs
+            for (let i = 0; i < nodeCount; i++) {
+                primitives.push({
+                    type: 'rung',
+                    z: rungs[i].z,
+                    p1: rungs[i].p1,
+                    p2: rungs[i].p2,
+                    scale: rungs[i].scale
+                });
+            }
+
+            // Add Strand 1 Segments
+            for (let i = 0; i < nodeCount - 1; i++) {
+                primitives.push({
+                    type: 'line',
+                    color: strandColor1,
+                    z: (strand1Points[i].z + strand1Points[i+1].z) / 2,
+                    p1: { x: strand1Points[i].x, y: strand1Points[i].y },
+                    p2: { x: strand1Points[i+1].x, y: strand1Points[i+1].y },
+                    scale: (strand1Points[i].scale + strand1Points[i+1].scale) / 2
+                });
+            }
+
+            // Add Strand 2 Segments
+            for (let i = 0; i < nodeCount - 1; i++) {
+                primitives.push({
+                    type: 'line',
+                    color: strandColor2,
+                    z: (strand2Points[i].z + strand2Points[i+1].z) / 2,
+                    p1: { x: strand2Points[i].x, y: strand2Points[i].y },
+                    p2: { x: strand2Points[i+1].x, y: strand2Points[i+1].y },
+                    scale: (strand2Points[i].scale + strand2Points[i+1].scale) / 2
+                });
+            }
+
+            // Add Nodes (Circles) - draw these last or sort them too?
+            // Let's sort them too for perfect depth.
+            for (let i = 0; i < nodeCount; i++) {
+                primitives.push({
+                    type: 'node',
+                    color: strandColor1,
+                    z: strand1Points[i].z,
+                    x: strand1Points[i].x,
+                    y: strand1Points[i].y,
+                    scale: strand1Points[i].scale
+                });
+                primitives.push({
+                    type: 'node',
+                    color: strandColor2,
+                    z: strand2Points[i].z,
+                    x: strand2Points[i].x,
+                    y: strand2Points[i].y,
+                    scale: strand2Points[i].scale
+                });
+            }
+
+            // Sort all primitives by Z (furthest to closest)
+            primitives.sort((a, b) => a.z - b.z);
+
+            // Draw all primitives
+            for (let prim of primitives) {
+                // Calculate alpha based on depth for 3D feel
+                // z ranges from -helixRadius to +helixRadius
+                // Map to 0.3 (back) to 1.0 (front)
+                let alpha = (prim.z + helixRadius) / (2 * helixRadius);
+                alpha = 0.3 + 0.7 * Math.max(0, Math.min(1, alpha));
+
+                if (prim.type === 'line') {
+                    ctx.beginPath();
+                    ctx.moveTo(prim.p1.x, prim.p1.y);
+                    ctx.lineTo(prim.p2.x, prim.p2.y);
+                    ctx.strokeStyle = `rgba(${prim.color}, ${alpha})`;
+                    ctx.lineWidth = Math.max(1, 4 * prim.scale); // Thicker lines
+                    ctx.lineCap = 'round';
+                    ctx.stroke();
+                } else if (prim.type === 'rung') {
+                    ctx.beginPath();
+                    ctx.moveTo(prim.p1.x, prim.p1.y);
+                    ctx.lineTo(prim.p2.x, prim.p2.y);
+                    ctx.strokeStyle = `rgba(${rungColor}, ${alpha * 0.6})`; // Rungs slightly dimmer
+                    ctx.lineWidth = Math.max(1, 2 * prim.scale);
+                    ctx.stroke();
+                } else if (prim.type === 'node') {
+                    ctx.beginPath();
+                    const radius = Math.max(2, 5 * prim.scale);
+                    ctx.arc(prim.x, prim.y, radius, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(${prim.color}, ${alpha})`;
+                    ctx.fill();
+                }
+            }
+
+            requestAnimationFrame(draw);
+        }
+
+        // Start animation
+        requestAnimationFrame(draw);
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DNA Double Helix</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #050510; /* Dark background */
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="dnaCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('dnaCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let width, height;
+
+        // Configuration
+        const config = {
+            nodeCount: 60,
+            radius: 120,
+            verticalSpacing: 18,
+            rotationSpeed: 0.02,
+            perspective: 800, // Focal length for 3D projection
+            depthZ: 0, // Base Z offset
+            strand1Color: { r: 255, g: 100, b: 100 }, // Reddish/Pink
+            strand2Color: { r: 50, g: 200, b: 255 },  // Cyan/Blue
+            rungColor: { r: 150, g: 150, b: 255 },    // Light Blue/Purple
+            nodeSize: 6
+        };
+
+        let time = 0;
+
+        function resize() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+        }
+
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Helper to create a 3D point structure
+        function createNode(z) {
+            return { z: z };
+        }
+
+        // Main Animation Loop
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Clear canvas with slight trail effect or solid clear
+            ctx.fillStyle = '#050510';
+            ctx.fillRect(0, 0, width, height);
+
+            const centerX = width / 2;
+            const centerY = height / 2;
+            
+            // Calculate total height of the helix structure
+            const totalHeight = config.nodeCount * config.verticalSpacing;
+            const startY = centerY - totalHeight / 2;
+
+            // Array to store all renderable items (rungs and nodes) with their Z-depth for sorting
+            const renderList = [];
+
+            for (let i = 0; i < config.nodeCount; i++) {
+                // Calculate base angle for this node
+                const baseAngle = i * 0.25; // 0.25 radians spacing between nodes
+                const angle = baseAngle + time;
+
+                // Calculate 3D coordinates
+                // Strand 1: cos, sin
+                const x1 = Math.cos(angle) * config.radius;
+                const y1 = Math.sin(angle) * config.radius;
+                const z1 = Math.sin(angle) * config.radius; // Depth based on sine
+
+                // Strand 2: cos + PI, sin + PI (opposite side)
+                const x2 = Math.cos(angle + Math.PI) * config.radius;
+                const y2 = Math.sin(angle + Math.PI) * config.radius;
+                const z2 = Math.sin(angle + Math.PI) * config.radius;
+
+                // 3D to 2D Projection
+                // Scale factor based on depth (perspective projection)
+                // We shift z so that the helix center is at z=0, and we project from -z to +z
+                const scale1 = config.perspective / (config.perspective + z1);
+                const scale2 = config.perspective / (config.perspective + z2);
+
+                const screenX1 = centerX + x1 * scale1;
+                const screenY1 = startY + i * config.verticalSpacing; // Y doesn't scale in this simple projection
+                const screenZ1 = z1;
+
+                const screenX2 = centerX + x2 * scale2;
+                const screenY2 = startY + i * config.verticalSpacing;
+                const screenZ2 = z2;
+
+                // Store rung
+                // Rung depth can be approximated as average of the two nodes' Z
+                const rungZ = (z1 + z2) / 2;
+                renderList.push({
+                    type: 'rung',
+                    x1: screenX1, y1: screenY1,
+                    x2: screenX2, y2: screenY2,
+                    z: rungZ,
+                    scale: (scale1 + scale2) / 2
+                });
+
+                // Store Node 1
+                renderList.push({
+                    type: 'node',
+                    x: screenX1, y: screenY1,
+                    z: z1,
+                    scale: scale1,
+                    color: config.strand1Color
+                });
+
+                // Store Node 2
+                renderList.push({
+                    type: 'node',
+                    x: screenX2, y: screenY2,
+                    z: z2,
+                    scale: scale2,
+                    color: config.strand2Color
+                });
+            }
+
+            // Sort render list by Z-depth (painter's algorithm: draw furthest first)
+            // Since Z is relative to camera, larger Z (closer to camera) should be drawn last.
+            // Our projection: z > 0 is closer to camera? 
+            // Standard perspective: camera at (0,0,-perspective), object at z. 
+            // Scale = f / (f - z). If z is positive (in front of camera), scale > 1.
+            // Here we used scale = f / (f + z). So if z is positive, scale < 1 (further away).
+            // So we sort descending by Z (draw largest Z first? No, largest Z is closest to camera in this formula? 
+            // Let's check: z=0 -> scale=1. z=100 -> scale=800/900 < 1. z=-100 -> scale=800/700 > 1.
+            // So negative Z is closer (larger scale). Positive Z is further (smaller scale).
+            // We want to draw furthest (smallest scale, largest Z) first.
+            renderList.sort((a, b) => b.z - a.z);
+
+            // Draw all items
+            for (const item of renderList) {
+                if (item.type === 'rung') {
+                    drawRung(item);
+                } else if (item.type === 'node') {
+                    drawNode(item);
+                }
+            }
+
+            time += config.rotationSpeed;
+        }
+
+        function drawRung(item) {
+            ctx.beginPath();
+            ctx.moveTo(item.x1, item.y1);
+            ctx.lineTo(item.x2, item.y2);
+            
+            // Opacity based on depth for subtle effect
+            // Map z from roughly -radius to +radius to opacity
+            const opacity = 0.3 + 0.4 * ((item.z + config.radius) / (2 * config.radius));
+            
+            ctx.strokeStyle = `rgba(${item.color.r}, ${item.color.g}, ${item.color.b}, ${opacity})`;
+            ctx.lineWidth = 2 * item.scale; // Thinner when further away
+            ctx.stroke();
+        }
+
+        function drawNode(item) {
+            const size = config.nodeSize * item.scale;
+            
+            // Create gradient for node to give 3D sphere look
+            const gradient = ctx.createRadialGradient(
+                item.x - size * 0.3, item.y - size * 0.3, size * 0.1,
+                item.x, item.y, size
+            );
+            
+            // Lighten the color for the highlight
+            const r = Math.min(255, item.color.r + 50);
+            const g = Math.min(255, item.color.g + 50);
+            const b = Math.min(255, item.color.b + 50);
+            
+            gradient.addColorStop(0, `rgb(${r}, ${g}, ${b})`);
+            gradient.addColorStop(1, `rgb(${item.color.r}, ${item.color.g}, ${item.color.b})`);
+
+            ctx.beginPath();
+            ctx.arc(item.x, item.y, size, 0, Math.PI * 2);
+            ctx.fillStyle = gradient;
+            ctx.fill();
+            
+            // Optional: Glow effect for nodes
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = `rgba(${item.color.r}, ${item.color.g}, ${item.color.b}, 0.5)`;
+            ctx.fill();
+            ctx.shadowBlur = 0; // Reset shadow
+        }
+
+        // Start animation
+        animate();
+
+    </script>
+</body>
+</html>

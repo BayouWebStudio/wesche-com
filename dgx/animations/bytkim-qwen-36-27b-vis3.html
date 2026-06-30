@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DNA Double Helix Animation</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #050510;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="dnaCanvas"></canvas>
+    <script>
+        const canvas = document.getElementById('dnaCanvas');
+        const ctx = canvas.getContext('2d');
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resize();
+        window.addEventListener('resize', resize);
+
+        const config = {
+            nodeCount: 40,
+            radius: 150,
+            verticalSpacing: 25,
+            rotationSpeed: 0.02,
+            perspective: 600,
+            baseZ: 0
+        };
+
+        let phase = 0;
+
+        function get3DPoint(i, offset) {
+            const y = (i - config.nodeCount / 2) * config.verticalSpacing;
+            const angle = (i * 0.3) + phase + offset;
+            const x = Math.cos(angle) * config.radius;
+            const z = Math.sin(angle) * config.radius + config.baseZ;
+            return { x, y, z };
+        }
+
+        function project(x, y, z) {
+            const scale = config.perspective / (config.perspective + z);
+            return {
+                x: canvas.width / 2 + x * scale,
+                y: canvas.height / 2 + y * scale,
+                scale: scale
+            };
+        }
+
+        function drawNode(proj, color, glowColor, isFront) {
+            const radius = 4 * proj.scale;
+            
+            if (isFront) {
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = glowColor;
+            } else {
+                ctx.shadowBlur = 5;
+                ctx.shadowColor = glowColor;
+            }
+
+            ctx.beginPath();
+            ctx.arc(proj.x, proj.y, radius, 0, Math.PI * 2);
+            ctx.fillStyle = color;
+            ctx.fill();
+
+            ctx.shadowBlur = 0;
+        }
+
+        function drawRung(proj1, proj2, isFront) {
+            const alpha = isFront ? 0.8 : 0.3;
+            const width = isFront ? 2 : 1;
+            
+            ctx.beginPath();
+            ctx.moveTo(proj1.x, proj1.y);
+            ctx.lineTo(proj2.x, proj2.y);
+            ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+            ctx.lineWidth = width;
+            ctx.stroke();
+        }
+
+        function drawStrand(nodes, color1, color2, glowColor) {
+            for (let i = 0; i < nodes.length - 1; i++) {
+                const p1 = nodes[i];
+                const p2 = nodes[i + 1];
+                
+                const alpha = p1.isFront ? 0.9 : 0.4;
+                const width = p1.isFront ? 3 : 1.5;
+                
+                ctx.beginPath();
+                ctx.moveTo(p1.proj.x, p1.proj.y);
+                ctx.lineTo(p2.proj.x, p2.proj.y);
+                ctx.strokeStyle = `rgba(${color1}, ${alpha})`;
+                ctx.lineWidth = width;
+                ctx.stroke();
+            }
+        }
+
+        function animate() {
+            ctx.fillStyle = '#050510';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const nodes1 = [];
+            const nodes2 = [];
+
+            for (let i = 0; i < config.nodeCount; i++) {
+                const p1 = get3DPoint(i, 0);
+                const p2 = get3DPoint(i, Math.PI);
+                
+                const proj1 = project(p1.x, p1.y, p1.z);
+                const proj2 = project(p2.x, p2.y, p2.z);
+                
+                nodes1.push({ proj: proj1, isFront: p1.z > config.baseZ });
+                nodes2.push({ proj: proj2, isFront: p2.z > config.baseZ });
+            }
+
+            const allNodes = [...nodes1, ...nodes2].sort((a, b) => a.proj.scale - b.proj.scale);
+
+            for (let i = 0; i < config.nodeCount; i++) {
+                const n1 = nodes1[i];
+                const n2 = nodes2[i];
+                drawRung(n1.proj, n2.proj, n1.isFront && n2.isFront);
+            }
+
+            drawStrand(nodes1, '100, 200, 255', '80, 180, 240', '#64b5f6');
+            drawStrand(nodes2, '255, 100, 150', '240, 80, 130', '#f06292');
+
+            for (const node of allNodes) {
+                const isFront = node.isFront;
+                const color = nodes1.includes(node) 
+                    ? (isFront ? '#64b5f6' : '#1565c0')
+                    : (isFront ? '#f06292' : '#c2185b');
+                const glow = nodes1.includes(node) ? '#64b5f6' : '#f06292';
+                drawNode(node.proj, color, glow, isFront);
+            }
+
+            phase += config.rotationSpeed;
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+    </script>
+</body>
+</html>

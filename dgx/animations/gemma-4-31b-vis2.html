@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spiral Galaxy Animation</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="galaxyCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('galaxyCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let width, height;
+        const stars = [];
+        const STAR_COUNT = 800;
+        const ARMS = 3;
+        const ARM_TIGHTNESS = 0.15;
+        const ROTATION_SPEED = 0.002;
+
+        function init() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+            stars.length = 0;
+
+            for (let i = 0; i < STAR_COUNT; i++) {
+                // Random distance from center
+                const distance = Math.random() * (Math.min(width, height) * 0.45);
+                
+                // Assign to one of the spiral arms
+                const armAngle = (Math.floor(Math.random() * ARMS) / ARMS) * Math.PI * 2;
+                
+                // The spiral formula: angle = distance * tightness
+                const spiralOffset = distance * ARM_TIGHTNESS;
+                
+                // Add some random spread (jitter) to make the arms look natural
+                const spread = (Math.random() - 0.5) * (distance * 0.3);
+                
+                // Color variation: blend between white, light blue, and pale yellow
+                const hue = Math.random() > 0.8 ? 60 : (Math.random() > 0.4 ? 200 : 0);
+                const saturation = Math.random() * 50;
+                const lightness = 70 + Math.random() * 30;
+
+                stars.push({
+                    distance: distance,
+                    angle: armAngle + spiralOffset,
+                    spread: spread,
+                    size: Math.random() * 1.5 + 0.5,
+                    color: `hsl(${hue}, ${saturation}%, ${lightness}%)`,
+                    twinkleSpeed: 0.02 + Math.random() * 0.05,
+                    twinklePhase: Math.random() * Math.PI * 2
+                });
+            }
+        }
+
+        function draw() {
+            // Clear screen with a slight fade for motion blur effect
+            ctx.fillStyle = 'black';
+            ctx.fillRect(0, 0, width, height);
+
+            const centerX = width / 2;
+            const centerY = height / 2;
+
+            // Draw Core Glow
+            const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, 50);
+            gradient.addColorStop(0, 'rgba(255, 255, 240, 1)');
+            gradient.addColorStop(0.2, 'rgba(255, 255, 200, 0.5)');
+            gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 50, 0, Math.PI * 2);
+            ctx.fill();
+
+            stars.forEach(star => {
+                // Rotate the star around the center
+                star.angle += ROTATION_SPEED * (1 - star.distance / (Math.min(width, height) * 0.5));
+                
+                // Calculate position
+                const x = centerX + Math.cos(star.angle) * star.distance + Math.cos(star.angle + Math.PI/2) * star.spread;
+                const y = centerY + Math.sin(star.angle) * star.distance + Math.sin(star.angle + Math.PI/2) * star.spread;
+
+                // Twinkle effect
+                star.twinklePhase += star.twinkleSpeed;
+                const opacity = 0.5 + Math.abs(Math.sin(star.twinklePhase)) * 0.5;
+
+                ctx.globalAlpha = opacity;
+                ctx.fillStyle = star.color;
+                ctx.beginPath();
+                ctx.arc(x, y, star.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            ctx.globalAlpha = 1.0;
+            requestAnimationFrame(draw);
+        }
+
+        window.addEventListener('resize', init);
+
+        init();
+        draw();
+    </script>
+</body>
+</html>

@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DNA Double Helix Animation</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #050505;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="dnaCanvas"></canvas>
+    <script>
+        const canvas = document.getElementById('dnaCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let width, height;
+
+        // Configuration
+        const config = {
+            nodeCount: 40,
+            radius: 120,
+            verticalSpacing: 15,
+            rotationSpeed: 0.03,
+            color1: '#00ffff', // Cyan
+            color2: '#ff00ff', // Magenta
+            glowAmount: 15
+        };
+
+        // Resize handling
+        function resize() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // State
+        let rotationOffset = 0;
+
+        // Helper to map angle to color intensity
+        function getZDepthColor(angle, baseColor, zDepth) {
+            // zDepth is roughly sin(angle)
+            // Brightness varies based on depth (0.4 to 1.0)
+            const brightness = 0.4 + (zDepth * 0.6); 
+            return `rgba(${baseColor[0]}, ${baseColor[1]}, ${baseColor[2]}, ${brightness})`;
+        }
+
+        // Parse hex colors to RGB
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : { r: 255, g: 255, b: 255 };
+        }
+
+        const rgb1 = hexToRgb(config.color1);
+        const rgb2 = hexToRgb(config.color2);
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Clear canvas with a very slight fade for trail effect (optional, but here we do clean clear)
+            ctx.fillStyle = '#050505';
+            ctx.fillRect(0, 0, width, height);
+
+            // Calculate total height of the helix
+            const totalHeight = config.nodeCount * config.verticalSpacing;
+            const startY = (height - totalHeight) / 2;
+            const centerX = width / 2;
+
+            // Update rotation
+            rotationOffset += config.rotationSpeed;
+
+            // Store points for z-sorting
+            const points = [];
+
+            for (let i = 0; i < config.nodeCount; i++) {
+                // Calculate base angle for this node
+                const angleBase = (i / config.nodeCount) * Math.PI * 4; // 2 full turns
+                
+                // Add rotation offset
+                const angle1 = angleBase + rotationOffset;
+                const angle2 = angleBase + rotationOffset + Math.PI; // 180 degrees out of phase
+
+                // Calculate 3D coordinates projected to 2D
+                const x1 = centerX + Math.cos(angle1) * config.radius;
+                const y1 = startY + i * config.verticalSpacing;
+                const z1 = Math.sin(angle1); // Depth factor (-1 to 1)
+
+                const x2 = centerX + Math.cos(angle2) * config.radius;
+                const y2 = startY + i * config.verticalSpacing;
+                const z2 = Math.sin(angle2);
+
+                points.push({
+                    type: 'node',
+                    index: i,
+                    x: x1,
+                    y: y1,
+                    z: z1,
+                    strand: 1,
+                    angle: angle1
+                });
+
+                points.push({
+                    type: 'node',
+                    index: i,
+                    x: x2,
+                    y: y2,
+                    z: z2,
+                    strand: 2,
+                    angle: angle2
+                });
+
+                points.push({
+                    type: 'rung',
+                    index: i,
+                    x1: x1,
+                    y1: y1,
+                    x2: x2,
+                    y2: y2,
+                    z: (z1 + z2) / 2, // Average depth for the rung
+                    z1: z1,
+                    z2: z2
+                });
+            }
+
+            // Sort by Z depth: farthest items first (smallest z, most negative)
+            // In our coordinate system, sin(angle) = -1 is far back, sin(angle) = 1 is front.
+            // So we sort ascending.
+            points.sort((a, b) => a.z - b.z);
+
+            // Draw all points
+            points.forEach(point => {
+                if (point.type === 'node') {
+                    drawNode(point);
+                } else if (point.type === 'rung') {
+                    drawRung(point);
+                }
+            });
+        }
+
+        function drawNode(point) {
+            const isStrand1 = point.strand === 1;
+            const baseColor = isStrand1 ? rgb1 : rgb2;
+            
+            // Depth affects size and opacity
+            const depthScale = 0.6 + (point.z * 0.4); // 0.2 to 1.0
+            const radius = 6 * depthScale;
+            const alpha = 0.5 + (point.z * 0.5); // 0 to 1
+
+            ctx.beginPath();
+            ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
+            
+            // Glow effect
+            ctx.shadowBlur = config.glowAmount * depthScale;
+            ctx.shadowColor = `rgba(${baseColor.r}, ${baseColor.g}, ${baseColor.b}, 0.8)`;
+            
+            ctx.fillStyle = `rgba(${baseColor.r}, ${baseColor.g}, ${baseColor.b}, ${alpha})`;
+            ctx.fill();
+            
+            // Reset shadow for performance
+            ctx.shadowBlur = 0;
+        }
+
+        function drawRung(point) {
+            const { x1, y1, x2, y2, z1, z2 } = point;
+            
+            // Calculate average depth for styling
+            const avgZ = (z1 + z2) / 2;
+            const alpha = 0.3 + (avgZ * 0.3); // Fainter than nodes
+            const lineWidth = 1 + (avgZ * 1); // Thicker when closer
+
+            // Create a gradient for the rung
+            const gradient = ctx.createLinearGradient(x1, y1, x2, y2);
+            
+            // Strand 1 color at one end, Strand 2 color at the other
+            // Adjust alpha based on depth of each end
+            const alpha1 = 0.2 + (z1 * 0.4);
+            const alpha2 = 0.2 + (z2 * 0.4);
+
+            gradient.addColorStop(0, `rgba(${rgb1.r}, ${rgb1.g}, ${rgb1.b}, ${alpha1})`);
+            gradient.addColorStop(1, `rgba(${rgb2.r}, ${rgb2.g}, ${rgb2.b}, ${alpha2})`);
+
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.strokeStyle = gradient;
+            ctx.lineWidth = lineWidth;
+            ctx.stroke();
+        }
+
+        // Start animation
+        animate();
+    </script>
+</body>
+</html>

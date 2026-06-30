@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canvas Solar System</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #050508;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="solarCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('solarCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let width, height, centerX, centerY;
+        const stars = [];
+        const planets = [];
+
+        const planetData = [
+            { name: "Mercury", color: "#A5A5A5", radius: 4, orbit: 60, speed: 0.04 },
+            { name: "Venus", color: "#E3BB76", radius: 7, orbit: 90, speed: 0.015 },
+            { name: "Earth", color: "#2271B3", radius: 8, orbit: 130, speed: 0.01 },
+            { name: "Mars", color: "#E27B58", radius: 6, orbit: 170, speed: 0.008 },
+            { name: "Jupiter", color: "#D39C7E", radius: 18, orbit: 240, speed: 0.004 },
+            { name: "Saturn", color: "#C5AB6E", radius: 15, orbit: 310, speed: 0.002 }
+        ];
+
+        function init() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+            centerX = width / 2;
+            centerY = height / 2;
+
+            // Create static starfield
+            stars.length = 0;
+            for (let i = 0; i < 400; i++) {
+                stars.push({
+                    x: Math.random() * width,
+                    y: Math.random() * height,
+                    size: Math.random() * 1.5,
+                    opacity: Math.random()
+                });
+            }
+
+            // Initialize planets with a random starting angle
+            planets.length = 0;
+            planetData.forEach(data => {
+                planets.push({
+                    ...data,
+                    angle: Math.random() * Math.PI * 2
+                });
+            });
+        }
+
+        function drawStars() {
+            ctx.fillStyle = "white";
+            stars.forEach(star => {
+                ctx.globalAlpha = star.opacity;
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            ctx.globalAlpha = 1.0;
+        }
+
+        function drawSun() {
+            ctx.save();
+            ctx.shadowBlur = 30;
+            ctx.shadowColor = "#FFCC00";
+            ctx.fillStyle = "#FFCC00";
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 25, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function drawPlanets() {
+            planets.forEach(planet => {
+                // Draw Orbit Path
+                ctx.strokeStyle = "rgba(255, 255, 255, 0.1)";
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, planet.orbit, 0, Math.PI * 2);
+                ctx.stroke();
+
+                // Calculate Position
+                const x = centerX + Math.cos(planet.angle) * planet.orbit;
+                const y = centerY + Math.sin(planet.angle) * planet.orbit;
+
+                // Draw Planet
+                ctx.fillStyle = planet.color;
+                ctx.beginPath();
+                ctx.arc(x, y, planet.radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Update Angle
+                planet.angle += planet.speed;
+            });
+        }
+
+        function animate() {
+            // Clear canvas with a slight fade for motion trail effect (optional)
+            ctx.fillStyle = "#050508";
+            ctx.fillRect(0, 0, width, height);
+
+            drawStars();
+            drawSun();
+            drawPlanets();
+
+            requestAnimationFrame(animate);
+        }
+
+        window.addEventListener('resize', init);
+
+        init();
+        animate();
+    </script>
+</body>
+</html>

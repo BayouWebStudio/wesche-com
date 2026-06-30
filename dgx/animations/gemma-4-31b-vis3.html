@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DNA Double Helix Animation</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #0a0a0c;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="dnaCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('dnaCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let width, height;
+        let angle = 0;
+
+        // Configuration
+        const pointsCount = 40; // Number of rungs
+        const radius = 80;      // Radius of the helix
+        const spacing = 20;     // Vertical distance between points
+        const rotationSpeed = 0.02;
+
+        function resize() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+        }
+
+        window.addEventListener('resize', resize);
+        resize();
+
+        function draw() {
+            ctx.clearRect(0, 0, width, height);
+            
+            const centerX = width / 2;
+            const centerY = height / 2 - (pointsCount * spacing) / 2;
+
+            const strand1Color = '#4da6ff'; // Light Blue
+            const strand2Color = '#ff4d88'; // Soft Pink
+
+            for (let i = 0; i < pointsCount; i++) {
+                // Calculate the phase offset for the rotation
+                // Each point is shifted slightly to create the spiral effect
+                const phase = i * 0.3;
+                
+                // Calculate 3D coordinates projected to 2D
+                // x = radius * sin(angle + phase)
+                // z = radius * cos(angle + phase) -> used for layering/scaling
+                const xOffset1 = Math.sin(angle + phase) * radius;
+                const z1 = Math.cos(angle + phase);
+
+                const xOffset2 = Math.sin(angle + phase + Math.PI) * radius;
+                const z2 = Math.cos(angle + phase + Math.PI);
+
+                const y = centerY + i * spacing;
+
+                const p1 = { x: centerX + xOffset1, y: y, z: z1 };
+                const p2 = { x: centerX + xOffset2, y: y, z: z2 };
+
+                // Draw the connecting rung
+                // We use the Z value to determine the opacity/color of the rung
+                const opacity = (z1 + 1) / 2; // Normalize -1..1 to 0..1
+                ctx.beginPath();
+                ctx.strokeStyle = `rgba(200, 200, 200, ${0.2 + opacity * 0.3})`;
+                ctx.lineWidth = 1;
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.stroke();
+
+                // Draw the nodes (spheres)
+                // Size and brightness based on Z depth
+                const size1 = 3 + z1 * 2;
+                const size2 = 3 + z2 * 2;
+
+                // Strand 1 Node
+                ctx.beginPath();
+                ctx.arc(p1.x, p1.y, size1, 0, Math.PI * 2);
+                ctx.fillStyle = z1 > 0 ? strand1Color : '#2a5a8a';
+                ctx.fill();
+
+                // Strand 2 Node
+                ctx.beginPath();
+                ctx.arc(p2.x, p2.y, size2, 0, Math.PI * 2);
+                ctx.fillStyle = z2 > 0 ? strand2Color : '#8a2a5a';
+                ctx.fill();
+            }
+
+            angle += rotationSpeed;
+            requestAnimationFrame(draw);
+        }
+
+        draw();
+    </script>
+</body>
+</html>

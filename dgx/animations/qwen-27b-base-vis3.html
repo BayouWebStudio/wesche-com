@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rotating DNA Double Helix</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #050505; /* Deep dark background */
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="dnaCanvas"></canvas>
+
+<script>
+    const canvas = document.getElementById('dnaCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let width, height;
+    let centerX, centerY;
+
+    // Configuration
+    const config = {
+        numPoints: 60,          // Number of nodes along the helix
+        amplitude: 100,         // Radius of the helix
+        wavelength: 400,        // Length of one full turn
+        rotationSpeed: 0.02,    // Speed of rotation
+        strandWidth: 3,         // Width of the backbone lines
+        rungWidth: 2,           // Width of the connecting rungs
+        nodeRadius: 4,          // Size of the dots
+        colorStrand1: 'hsl(180, 100%, 50%)', // Cyan
+        colorStrand2: 'hsl(300, 100%, 50%)', // Magenta
+        colorRung: '#ffffff'    // White
+    };
+
+    let rotationAngle = 0;
+
+    // Resize canvas to fit window
+    function resize() {
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = width;
+        canvas.height = height;
+        centerX = width / 2;
+        centerY = height / 2;
+    }
+
+    window.addEventListener('resize', resize);
+    resize();
+
+    // 3D Projection Helper
+    // Converts 3D coordinates (x, y, z) to 2D screen coordinates (x, y) and depth (z)
+    // We assume the camera is looking down the Z-axis, but we rotate the object around Y.
+    function project(x, y, z, angle) {
+        // Rotation around Y-axis
+        const cos = Math.cos(angle);
+        const sin = Math.sin(angle);
+        
+        const rx = x * cos - z * sin;
+        const rz = x * sin + z * cos;
+        
+        // Simple perspective projection
+        // The further away (positive Z), the smaller the scale
+        // We add a large offset to Z so objects are always "in front" of the camera
+        const perspective = 1000;
+        const scale = perspective / (perspective + rz);
+        
+        return {
+            x: centerX + rx * scale,
+            y: centerY + y * scale,
+            z: rz, // Return depth for sorting
+            scale: scale
+        };
+    }
+
+    function draw() {
+        // Clear background
+        ctx.fillStyle = '#050505';
+        ctx.fillRect(0, 0, width, height);
+
+        // Generate points for the helix
+        // We store them in an array of objects to sort by depth later
+        const points = [];
+
+        // Calculate vertical spacing to center the helix vertically
+        const totalHeight = (config.numPoints / (Math.PI * 2)) * config.wavelength;
+        const startY = -totalHeight / 2;
+
+        for (let i = 0; i < config.numPoints; i++) {
+            // Angle along the helix (theta)
+            const theta = i * (Math.PI * 2) / (config.wavelength / 2); // Adjust density
+            
+            // Y position (vertical)
+            const y = startY + i * (config.wavelength / (Math.PI * 2));
+
+            // Base 3D coordinates (Strand 1)
+            // x = cos(theta) * radius, z = sin(theta) * radius
+            const x1 = Math.cos(theta) * config.amplitude;
+            const z1 = Math.sin(theta) * config.amplitude;
+
+            // Base 3D coordinates (Strand 2) - opposite phase
+            const x2 = Math.cos(theta + Math.PI) * config.amplitude;
+            const z2 = Math.sin(theta + Math.PI) * config.amplitude;
+
+            // Project to 2D
+            const p1 = project(x1, y, z1, rotationAngle);
+            const p2 = project(x2, y, z2, rotationAngle);
+
+            points.push({
+                index: i,
+                p1: p1,
+                p2: p2
+            });
+        }
+
+        // Sort points by Z-depth (Painter's Algorithm)
+        // Sort from back (highest z) to front (lowest z)
+        // Note: Our projection logic puts +Z as "further away"
+        points.sort((a, b) => b.p1.z - a.p1.z);
+
+        // Draw elements
+        // We iterate through the sorted points.
+        // To draw lines connecting nodes, we need to be careful. 
+        // Ideally, we draw all rungs first, then all lines, then all nodes?
+        // Or draw everything for a "slice" to ensure depth sorting works perfectly.
+        // Since this is a simple helix, drawing sorted slices (node + connections to previous node) works well.
+        
+        // However, for perfect depth sorting of lines, we should draw the rungs and segments 
+        // associated with the current node as we iterate.
+
+        for (let i = 0; i < points.length; i++) {
+            const current = points[i];
+            
+            // 1. Draw Rung (Connection between strand 1 and 2)
+            ctx.beginPath();
+            ctx.moveTo(current.p1.x, current.p1.y);
+            ctx.lineTo(current.p2.x, current.p2.y);
+            ctx.strokeStyle = config.colorRung;
+            ctx.lineWidth = config.rungWidth * current.p1.scale;
+            ctx.globalAlpha = 0.6; // Slight transparency
+            ctx.stroke();
+            ctx.globalAlpha = 1.0;
+
+            // 2. Draw Backbone Segments (Connect to previous node)
+            // We need to find the previous node in the index sequence, not the sorted array
+            if (i > 0) {
+                const prevIndex = current.index - 1;
+                if (prevIndex >= 0) {
+                    // Find the previous point object in our points array (unsorted logic)
+                    // Since we sorted the array, we can't just look at points[i-1]
+                    // We need to look up the previous index.
+                    // Optimization: We can just search the array or keep a map. 
+                    // Given small N, simple search or just drawing lines between sorted points is okay 
+                    // if we accept minor visual artifacts at intersections. 
+                    // Better: Find the point object for index-1.
+                    
+                    const prevPoint = points.find(p => p.index === prevIndex);
+                    
+                    if (prevPoint) {
+                        // Draw Strand 1 Segment
+                        ctx.beginPath();
+                        ctx.moveTo(current.p1.x, current.p1.y);
+                        ctx.lineTo(prevPoint.p1.x, prevPoint.p1.y);
+                        ctx.strokeStyle = config.colorStrand1;
+                        ctx.lineWidth = config.strandWidth * current.p1.scale;
+                        ctx.stroke();
+
+                        // Draw Strand 2 Segment
+                        ctx.beginPath();
+                        ctx.moveTo(current.p2.x, current.p2.y);
+                        ctx.lineTo(prevPoint.p2.x, prevPoint.p2.y);
+                        ctx.strokeStyle = config.colorStrand2;
+                        ctx.lineWidth = config.strandWidth * current.p2.scale;
+                        ctx.stroke();
+                    }
+                }
+            }
+
+            // 3. Draw Nodes (Dots)
+            // Draw Strand 1 Node
+            ctx.beginPath();
+            ctx.arc(current.p1.x, current.p1.y, config.nodeRadius * current.p1.scale, 0, Math.PI * 2);
+            ctx.fillStyle = config.colorStrand1;
+            ctx.fill();
+
+            // Draw Strand 2 Node
+            ctx.beginPath();
+            ctx.arc(current.p2.x, current.p2.y, config.nodeRadius * current.p2.scale, 0, Math.PI * 2);
+            ctx.fillStyle = config.colorStrand2;
+            ctx.fill();
+        }
+
+        // Update rotation
+        rotationAngle += config.rotationSpeed;
+
+        requestAnimationFrame(draw);
+    }
+
+    // Start animation
+    draw();
+
+</script>
+
+</body>
+</html>
