@@ -119,8 +119,8 @@ footer a{color:var(--acc);text-decoration:none}
 <div class="stat-badge"><div class="val">64</div><div class="lbl">Scenarios</div></div>
 <div class="stat-badge"><div class="val">11</div><div class="lbl">Domains</div></div>
 <div class="stat-badge"><div class="val">3</div><div class="lbl">Size Tiers</div></div>
-<div class="stat-badge"><div class="val">22</div><div class="lbl">Models</div></div>
-<div class="stat-badge"><div class="val">597K</div><div class="lbl">Known Out Tok</div></div>
+<div class="stat-badge"><div class="val">23</div><div class="lbl">Models</div></div>
+<div class="stat-badge"><div class="val">685K</div><div class="lbl">Known Out Tok</div></div>
 <div class="stat-badge"><div class="val">10</div><div class="lbl">Code Tests</div></div>
 <div class="stat-badge"><div class="val">5%</div><div class="lbl">Speed Weight</div></div>
 </div>
@@ -329,10 +329,18 @@ footer a{color:var(--acc);text-decoration:none}
 <td class="tokens">77,315</td>
 <td><span class="ver-badge v5c">v5c</span></td>
 </tr>
+<tr>
+<td>5</td>
+<td><div class="model-name">Step 3.7 Flash</div><div class="model-desc">NVFP4 · 2× DGX Spark · vLLM TP2/MTP3 · 262K ctx · <a href="step37-flash-mtp-v5c-report.html" target="_blank" style="color:var(--acc)">report ↗</a></div></td>
+<td><span class="ts-score low">66.8</span></td>
+<td>47.1</td><td>97.2</td><td>93.3</td><td>19.8</td><td>64.6</td><td class="tps">48.1</td>
+<td class="tokens">88,332</td>
+<td><span class="ver-badge v5c">v5c</span></td>
+</tr>
 </table>
 
 <p class="sub" style="margin-top:14px">💡 <strong>Size tiers</strong> prevent unfair comparisons between a 2B dense model and a 35B MoE. Within each tier, TrueScore ranking applies. All runs use <strong>v5c</strong> weights (Quality 55%, Cal 25%, Rel 15%, Eff 1.5%, Resp 3.5%). 64 scenarios, K=2 repeats.</p>
-<p class="sub">Tok/s is eval output throughput: total generated output tokens divided by summed wall latency across the 64 v5c scenarios. Out tok is total generated output tokens for the benchmark run. <code>n/a</code> means that early v5c run did not persist token-count rows; the 597K aggregate is the known total across 19/22 visible rows.</p>
+<p class="sub">Tok/s is eval output throughput: total generated output tokens divided by summed wall latency across the 64 v5c scenarios. Out tok is total generated output tokens for the benchmark run. <code>n/a</code> means that early v5c run did not persist token-count rows; the 685K aggregate is the known total across 20/23 visible rows.</p>
 
 <p class="sub">More models being benchmarked. <a href="https://github.com/Weschera/spark-bench" style="color:var(--acc)">Follow on GitHub →</a></p>
 
@@ -398,6 +406,20 @@ footer a{color:var(--acc);text-decoration:none}
 <iframe src="../spaceinvaders/qwen36-27b-nvidia-dflash-k10.html" style="width:100%;height:360px;border:1px solid var(--line);border-radius:12px;background:#000" loading="lazy" title="Qwen 3.6-27B NVIDIA DFlash - Space Invaders"></iframe>
 <p style="margin:8px 0"><a class="game-link" href="../spaceinvaders/qwen36-27b-nvidia-dflash-k10.html" target="_blank">Play full screen ↗</a></p>
 <p class="sub" style="margin:6px 0 0">Prompt: <code>Create a fully playable Space Invaders game in a single HTML file.</code> Temperature 0.3, max_tokens 8000, thinking disabled. Raw Qwen DFlash output; no manual game fixes.</p>
+</div>
+
+<div class="card" style="margin-top:0;margin-bottom:16px">
+<h4 style="margin:0 0 8px">Step 3.7 Flash Frogger <span class="ts-score low" style="font-size:14px">66.8</span></h4>
+<iframe src="animations/step37-flash-mtp-frogger-v5c.html" style="width:100%;height:420px;border:1px solid var(--line);border-radius:12px;background:#000" loading="lazy" title="Step 3.7 Flash - Frogger"></iframe>
+<p style="margin:8px 0"><a class="game-link" href="animations/step37-flash-mtp-frogger-v5c.html" target="_blank">Open raw output ↗</a></p>
+<p class="sub" style="margin:6px 0 0">Generated after the benchmark from the same Frogger prompt used for the comparison. Temperature 0.3, max_tokens 12000, thinking disabled. Raw Step 3.7 output; no manual game fixes. The run ended with <code>finish=length</code>, so this is a truncated model artifact.</p>
+</div>
+
+<div class="card" style="margin-top:0;margin-bottom:16px">
+<h4 style="margin:0 0 8px">Step 3.7 Flash Space Invaders <span class="ts-score low" style="font-size:14px">66.8</span></h4>
+<iframe src="../spaceinvaders/step37-flash-mtp.html" style="width:100%;height:360px;border:1px solid var(--line);border-radius:12px;background:#000" loading="lazy" title="Step 3.7 Flash - Space Invaders"></iframe>
+<p style="margin:8px 0"><a class="game-link" href="../spaceinvaders/step37-flash-mtp.html" target="_blank">Open raw output ↗</a></p>
+<p class="sub" style="margin:6px 0 0">Prompt: <code>Create a fully playable Space Invaders game in a single HTML file.</code> Temperature 0.3, max_tokens 8000, thinking disabled. Raw Step 3.7 output; no manual game fixes. The API reported 8000 completion tokens but returned no parseable content, so the saved HTML artifact is blank.</p>
 </div>
 
 <div class="card" style="margin-top:16px">
@@ -521,6 +543,25 @@ footer a{color:var(--acc);text-decoration:none}
 <figure class="anim-card">
 <iframe src="animations/deepseek-v4-flash-vis3.html" loading="lazy" title="DeepSeek V4 Flash — DNA Helix"></iframe>
 <figcaption><b>DNA Helix</b><a href="animations/deepseek-v4-flash-vis3.html" target="_blank">open ↗</a></figcaption>
+</figure>
+</div>
+</div>
+
+<div class="anim-section">
+<h4>Step 3.7 Flash <span class="ts-score low" style="font-size:16px">66.8</span></h4>
+<p class="sub" style="margin:-4px 0 10px">2× DGX Spark · vLLM TP2/MTP3 · NVFP4 · 262K ctx · 48.1 tok/s eval throughput · <a href="step37-flash-mtp-v5c-report.html" target="_blank" style="color:var(--acc)">report ↗</a></p>
+<div class="grid">
+<figure class="anim-card">
+<iframe src="animations/step37-flash-mtp-vis1.html" loading="lazy" title="Step 3.7 Flash - Visual 1"></iframe>
+<figcaption><b>Visual 1</b><a href="animations/step37-flash-mtp-vis1.html" target="_blank">open ↗</a></figcaption>
+</figure>
+<figure class="anim-card">
+<iframe src="animations/step37-flash-mtp-vis2.html" loading="lazy" title="Step 3.7 Flash - Visual 2"></iframe>
+<figcaption><b>Visual 2</b><a href="animations/step37-flash-mtp-vis2.html" target="_blank">open ↗</a></figcaption>
+</figure>
+<figure class="anim-card">
+<iframe src="animations/step37-flash-mtp-vis3.html" loading="lazy" title="Step 3.7 Flash - Visual 3"></iframe>
+<figcaption><b>Visual 3</b><a href="animations/step37-flash-mtp-vis3.html" target="_blank">open ↗</a></figcaption>
 </figure>
 </div>
 </div>
