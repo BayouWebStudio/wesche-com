@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Step 3.7 Flash MTP v5c Spark-Bench Report</title>
+<style>
+:root{--bg:#0a0b14;--card:#13141f;--line:#23263a;--fg:#e7e9f3;--mut:#8b90a8;--acc:#6ea8ff;--red:#ff4757;--grn:#4cd964}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.6 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}.wrap{max-width:980px;margin:0 auto;padding:32px 20px}a{color:var(--acc);text-decoration:none}.tag{color:var(--acc);font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:12px}h1{font-size:34px;line-height:1.12;margin:8px 0 10px}.lede{color:var(--mut);font-size:16px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:20px 0}.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}.metric{font-size:28px;font-weight:850}.low{color:var(--red)}.ok{color:var(--grn)}.lbl{color:var(--mut);font-size:12px;text-transform:uppercase;letter-spacing:.04em}.artifacts{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}.artifact iframe{width:100%;height:260px;border:1px solid var(--line);border-radius:12px;background:#000}.artifact h3{margin:0 0 8px;font-size:16px}.note{color:var(--mut);font-size:13px}.back{display:inline-block;margin-top:18px;background:rgba(110,168,255,.1);border:1px solid rgba(110,168,255,.25);border-radius:10px;padding:8px 14px;font-weight:700}
+</style>
+</head>
+<body>
+<main class="wrap">
+<div class="tag">Spark-Bench v5c · DGX Spark · 2026-06-30</div>
+<h1>Step 3.7 Flash NVFP4 MTP</h1>
+<p class="lede">2× DGX Spark, vLLM no-Ray TP2/MTP3, 262K context. Raw post-benchmark game and visual artifacts are preserved without manual fixes.</p>
+<div class="grid">
+<div class="card"><div class="metric low">66.8</div><div class="lbl">TrueScore</div></div>
+<div class="card"><div class="metric">48.1</div><div class="lbl">Eval tok/s</div></div>
+<div class="card"><div class="metric">88,332</div><div class="lbl">Output tokens</div></div>
+<div class="card"><div class="metric">10.97s</div><div class="lbl">Median latency</div></div>
+<div class="card"><div class="metric">262K</div><div class="lbl">Context</div></div>
+<div class="card"><div class="metric">2</div><div class="lbl">DGX Sparks</div></div>
+</div>
+<div class="card">
+<p><strong>Final config:</strong> `stepfun-ai/Step-3.7-Flash-NVFP4`, served as `Step-3.7-Flash-NVFP4-MTP`, tensor parallel size 2, `num_speculative_tokens=3`, `kv-cache-dtype fp8`, `gpu_memory_utilization=0.85`, `max_model_len=262144`.</p>
+<p class="note">MTP=3 means three speculative draft tokens per decode step, not three Spark nodes. A fixed probe showed MTP=3 at 27.56 tok/s versus MTP=2 at 25.58 tok/s, so MTP=3 stayed as the final recipe.</p>
+</div>
+<h2>Raw Artifacts</h2>
+<div class="artifacts">
+<div class="artifact card"><h3>Frogger</h3><iframe src="animations/step37-flash-mtp-frogger-v5c.html"></iframe><p class="note">Raw truncated output, finish_reason=length at 12,000 completion tokens.</p><p><a href="animations/step37-flash-mtp-frogger-v5c.html" target="_blank">Open raw file ↗</a></p></div>
+<div class="artifact card"><h3>Space Invaders</h3><iframe src="../spaceinvaders/step37-flash-mtp.html"></iframe><p class="note">Raw blank artifact; API reported 8,000 completion tokens but returned no parseable HTML content.</p><p><a href="../spaceinvaders/step37-flash-mtp.html" target="_blank">Open raw file ↗</a></p></div>
+<div class="artifact card"><h3>Visual 1</h3><iframe src="animations/step37-flash-mtp-vis1.html"></iframe><p><a href="animations/step37-flash-mtp-vis1.html" target="_blank">Open full screen ↗</a></p></div>
+<div class="artifact card"><h3>Visual 2</h3><iframe src="animations/step37-flash-mtp-vis2.html"></iframe><p><a href="animations/step37-flash-mtp-vis2.html" target="_blank">Open full screen ↗</a></p></div>
+<div class="artifact card"><h3>Visual 3</h3><iframe src="animations/step37-flash-mtp-vis3.html"></iframe><p><a href="animations/step37-flash-mtp-vis3.html" target="_blank">Open full screen ↗</a></p></div>
+</div>
+<a class="back" href="./">Back to Spark-Bench</a>
+</main>
+</body>
+</html>
