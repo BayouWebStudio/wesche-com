@@ -1,0 +1,1687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Frogger - Classic Arcade</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            background: #1a1a2e;
+            color: #e8e8e8;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px;
+            overflow: hidden;
+        }
+        
+        .game-container {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        h1 {
+            font-size: clamp(1.5rem, 5vw, 2.5rem);
+            color: #00ff88;
+            text-shadow: 2px 2px 0 #004422, 4px 4px 0 #000;
+            letter-spacing: 4px;
+            margin-bottom: 4px;
+        }
+        
+        .hud {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 480px;
+            padding: 8px 16px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 3px solid #00ff88;
+            border-radius: 8px;
+            font-size: clamp(0.8rem, 2.5vw, 1rem);
+            font-weight: bold;
+        }
+        
+        .hud-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .lives-display {
+            display: flex;
+            gap: 4px;
+        }
+        
+        .life-icon {
+            width: 20px;
+            height: 20px;
+        }
+        
+        canvas {
+            display: block;
+            border: 3px solid #00ff88;
+            border-radius: 4px;
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.3),
+                        inset 0 0 20px rgba(0, 0, 0, 0.5);
+            background: #001122;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+        
+        .controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            padding: 12px;
+            max-width: 480px;
+            width: 100%;
+        }
+        
+        .dpad-row {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .btn {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(145deg, #2a2a4a, #1a1a3a);
+            border: 3px solid #00ff88;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+            transition: all 0.1s ease;
+            box-shadow: 0 4px 0 #004422, 0 6px 10px rgba(0, 0, 0, 0.5);
+        }
+        
+        .btn:active, .btn.pressed {
+            transform: translateY(3px);
+            box-shadow: 0 1px 0 #004422, 0 2px 5px rgba(0, 0, 0, 0.5);
+            background: linear-gradient(145deg, #1a1a3a, #2a2a4a);
+        }
+        
+        .btn svg {
+            width: 28px;
+            height: 28px;
+            stroke: #00ff88;
+            stroke-width: 3;
+            fill: none;
+        }
+        
+        .btn-center {
+            width: 60px;
+        }
+        
+        .restart-btn {
+            margin-top: 8px;
+            padding: 12px 32px;
+            background: linear-gradient(145deg, #004422, #003311);
+            border: 3px solid #00ff88;
+            border-radius: 8px;
+            color: #00ff88;
+            font-family: inherit;
+            font-size: 1rem;
+            font-weight: bold;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 0 #002211, 0 6px 15px rgba(0, 255, 136, 0.2);
+        }
+        
+        .restart-btn:hover {
+            background: linear-gradient(145deg, #005533, #004422);
+            box-shadow: 0 4px 0 #002211, 0 6px 20px rgba(0, 255, 136, 0.4);
+            transform: translateY(-2px);
+        }
+        
+        .restart-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 1px 0 #002211, 0 2px 5px rgba(0, 0, 0, 0.5);
+        }
+        
+        .instructions {
+            font-size: 0.75rem;
+            color: #88aa88;
+            text-align: center;
+            max-width: 480px;
+            line-height: 1.5;
+        }
+        
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            border-radius: 4px;
+            z-index: 10;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        
+        .overlay.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        
+        .overlay h2 {
+            font-size: clamp(2rem, 8vw, 3rem);
+            color: #00ff88;
+            text-shadow: 2px 2px 0 #004422;
+        }
+        
+        .overlay p {
+            font-size: clamp(1rem, 3vw, 1.2rem);
+            color: #ccc;
+        }
+        
+        .overlay .final-score {
+            color: #ffdd00;
+            font-size: clamp(1.5rem, 5vw, 2rem);
+        }
+        
+        @media (max-width: 500px) {
+            .btn {
+                width: 55px;
+                height: 55px;
+            }
+            .btn svg {
+                width: 24px;
+                height: 24px;
+            }
+        }
+        
+        @media (orientation: landscape) and (max-height: 600px) {
+            h1 { font-size: 1.5rem; margin-bottom: 2px; }
+            .hud { padding: 4px 12px; font-size: 0.75rem; }
+            .controls { padding: 8px; gap: 4px; }
+            .btn { width: 48px; height: 48px; }
+            .btn svg { width: 22px; height: 22px; }
+            .restart-btn { padding: 8px 24px; font-size: 0.85rem; }
+            .instructions { font-size: 0.65rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>FROGGER</h1>
+        
+        <div class="hud">
+            <div class="hud-item">
+                <span>SCORE</span>
+                <span id="score">0</span>
+            </div>
+            <div class="hud-item lives-display" id="livesDisplay"></div>
+            <div class="hud-item">
+                <span>LEVEL</span>
+                <span id="level">1</span>
+            </div>
+        </div>
+        
+        <div class="game-wrapper" style="position: relative;">
+            <canvas id="gameCanvas" width="480" height="640"></canvas>
+            <div class="overlay" id="startOverlay">
+                <h2>FROGGER</h2>
+                <p>Guide the frog home safely!</p>
+                <button class="restart-btn" id="startBtn">START GAME</button>
+            </div>
+            <div class="overlay" id="gameOverOverlay">
+                <h2>GAME OVER</h2>
+                <p class="final-score">Final Score: <span id="finalScore">0</span></p>
+                <button class="restart-btn" id="restartBtn">PLAY AGAIN</button>
+            </div>
+            <div class="overlay" id="winOverlay">
+                <h2>LEVEL COMPLETE!</h2>
+                <p class="final-score">Score: <span id="winScore">0</span></p>
+                <button class="restart-btn" id="nextLevelBtn">NEXT LEVEL</button>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <div class="dpad-row">
+                <div class="btn-center"></div>
+                <button class="btn" id="btnUp" aria-label="Move Up">
+                    <svg viewBox="0 0 24 24"><path d="M18 15l-6-6-6 6"/></svg>
+                </button>
+                <div class="btn-center"></div>
+            </div>
+            <div class="dpad-row">
+                <button class="btn" id="btnLeft" aria-label="Move Left">
+                    <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+                </button>
+                <button class="btn" id="btnDown" aria-label="Move Down">
+                    <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <button class="btn" id="btnRight" aria-label="Move Right">
+                    <svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+                </button>
+            </div>
+        </div>
+        
+        <button class="restart-btn" id="restartBtnBottom">RESTART GAME</button>
+        
+        <p class="instructions">
+            Arrow keys or WASD to move • Reach all 5 homes to win • Avoid cars and water • Ride logs and turtles
+        </p>
+    </div>
+
+<script>
+// ============================================
+// GAME CONSTANTS & CONFIGURATION
+// ============================================
+const CANVAS_WIDTH = 480;
+const CANVAS_HEIGHT = 640;
+const GRID_SIZE = 40; // Base grid unit
+const FROG_SIZE = 32;
+
+// Lane definitions (y positions from top)
+const LANES = {
+    // Top safe zone
+    HOME_ROW: 1 * GRID_SIZE,
+    // River lanes (5 lanes)
+    RIVER_START: 2 * GRID_SIZE,
+    RIVER_LANES: 5,
+    // Safe middle zone
+    MIDDLE_SAFE: 7 * GRID_SIZE,
+    // Road lanes (5 lanes)
+    ROAD_START: 8 * GRID_SIZE,
+    ROAD_LANES: 5,
+    // Bottom safe zone (start)
+    START_ROW: 13 * GRID_SIZE,
+    // Canvas bottom
+    BOTTOM: 16 * GRID_SIZE
+};
+
+// Colors (retro arcade palette)
+const COLORS = {
+    bg: '#001122',
+    road: '#2a2a2a',
+    roadLine: '#ffff00',
+    water: '#003366',
+    waterDark: '#002244',
+    grass: '#004400',
+    grassDark: '#003300',
+    frog: '#00ff44',
+    frogDark: '#00aa33',
+    frogEye: '#ffffff',
+    frogPupil: '#000000',
+    car1: '#ff3333',    // Red car
+    car2: '#ffcc00',    // Yellow taxi
+    car3: '#ff6600',    // Orange truck
+    car4: '#ffffff',    // White car
+    car5: '#ff00ff',    // Pink car
+    carDark: '#333333',
+    log: '#8b5a2b',
+    logDark: '#5d3a1a',
+    turtle: '#00aa44',
+    turtleDark: '#006622',
+    turtleShell: '#008833',
+    home: '#00ff88',
+    homeActive: '#ffff00',
+    text: '#00ff88',
+    textDark: '#004422',
+    white: '#ffffff',
+    black: '#000000'
+};
+
+// Game state
+const GAME_STATE = {
+    START: 'start',
+    PLAYING: 'playing',
+    GAME_OVER: 'game_over',
+    LEVEL_COMPLETE: 'level_complete',
+    PAUSED: 'paused'
+};
+
+// ============================================
+// AUDIO SYSTEM (Web Audio API)
+// ============================================
+class AudioSystem {
+    constructor() {
+        this.ctx = null;
+        this.enabled = true;
+        this.init();
+    }
+    
+    init() {
+        try {
+            this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        } catch (e) {
+            this.enabled = false;
+        }
+    }
+    
+    resume() {
+        if (this.ctx && this.ctx.state === 'suspended') {
+            this.ctx.resume();
+        }
+    }
+    
+    playTone(freq, duration, type = 'square', volume = 0.1, startTime = 0) {
+        if (!this.enabled || !this.ctx) return;
+        const now = this.ctx.currentTime + startTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = type;
+        osc.frequency.value = freq;
+        gain.gain.value = volume;
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + duration);
+    }
+    
+    playMove() {
+        this.playTone(440, 0.05, 'square', 0.05);
+    }
+    
+    playHop() {
+        this.playTone(330, 0.08, 'triangle', 0.08);
+    }
+    
+    playSquash() {
+        this.playTone(150, 0.3, 'sawtooth', 0.15);
+        this.playTone(100, 0.4, 'sawtooth', 0.1);
+    }
+    
+    playSplash() {
+        this.playTone(200, 0.1, 'noise', 0.1);
+        this.playTone(150, 0.2, 'sawtooth', 0.08);
+    }
+    
+    playScore() {
+        this.playTone(523, 0.1, 'square', 0.08);
+        this.playTone(659, 0.1, 'square', 0.08, 0.1);
+        this.playTone(784, 0.1, 'square', 0.08, 0.2);
+        this.playTone(1047, 0.2, 'square', 0.08, 0.3);
+    }
+    
+    playWin() {
+        const notes = [523, 659, 784, 1047, 1319, 1568];
+        notes.forEach((f, i) => this.playTone(f, 0.15, 'square', 0.08, i * 0.1));
+    }
+    
+    playGameOver() {
+        this.playTone(330, 0.3, 'sawtooth', 0.1);
+        this.playTone(247, 0.3, 'sawtooth', 0.1, 0.3);
+        this.playTone(196, 0.5, 'sawtooth', 0.1, 0.6);
+    }
+}
+
+// ============================================
+// INPUT HANDLER
+// ============================================
+class InputHandler {
+    constructor() {
+        this.keys = {};
+        this.keyMap = {
+            'ArrowUp': 'up', 'KeyW': 'up',
+            'ArrowDown': 'down', 'KeyS': 'down',
+            'ArrowLeft': 'left', 'KeyA': 'left',
+            'ArrowRight': 'right', 'KeyD': 'right',
+            'Space': 'start', 'Enter': 'start'
+        };
+        this.touchButtons = {};
+        this.initKeyboard();
+        this.initTouchButtons();
+    }
+    
+    initKeyboard() {
+        window.addEventListener('keydown', (e) => {
+            const action = this.keyMap[e.code];
+            if (action) {
+                e.preventDefault();
+                this.keys[action] = true;
+            }
+        });
+        window.addEventListener('keyup', (e) => {
+            const action = this.keyMap[e.code];
+            if (action) {
+                this.keys[action] = false;
+            }
+        });
+    }
+    
+    initTouchButtons() {
+        const buttonIds = ['btnUp', 'btnDown', 'btnLeft', 'btnRight'];
+        const actions = ['up', 'down', 'left', 'right'];
+        
+        buttonIds.forEach((id, i) => {
+            const btn = document.getElementById(id);
+            const action = actions[i];
+            
+            const setPressed = (pressed) => {
+                this.keys[action] = pressed;
+                btn.classList.toggle('pressed', pressed);
+            };
+            
+            // Mouse events
+            btn.addEventListener('mousedown', (e) => { e.preventDefault(); setPressed(true); });
+            btn.addEventListener('mouseup', () => setPressed(false));
+            btn.addEventListener('mouseleave', () => setPressed(false));
+            
+            // Touch events
+            btn.addEventListener('touchstart', (e) => { e.preventDefault(); setPressed(true); }, { passive: false });
+            btn.addEventListener('touchend', (e) => { e.preventDefault(); setPressed(false); });
+            btn.addEventListener('touchcancel', (e) => { e.preventDefault(); setPressed(false); });
+        });
+    }
+    
+    isPressed(action) {
+        return this.keys[action] === true;
+    }
+    
+    consume(action) {
+        const pressed = this.keys[action];
+        this.keys[action] = false;
+        return pressed;
+    }
+    
+    clear() {
+        this.keys = {};
+    }
+}
+
+// ============================================
+// ENTITY CLASSES
+// ============================================
+
+// Base Entity
+class Entity {
+    constructor(x, y, width, height) {
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.height = height;
+        this.active = true;
+    }
+    
+    getBounds() {
+        return {
+            left: this.x,
+            right: this.x + this.width,
+            top: this.y,
+            bottom: this.y + this.height
+        };
+    }
+    
+    collidesWith(other) {
+        const a = this.getBounds();
+        const b = other.getBounds();
+        return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+    }
+    
+    update(dt) {}
+    render(ctx) {}
+}
+
+// Frog Player
+class Frog extends Entity {
+    constructor(x, y) {
+        super(x, y, FROG_SIZE, FROG_SIZE);
+        this.startX = x;
+        this.startY = y;
+        this.targetX = x;
+        this.targetY = y;
+        this.moving = false;
+        this.moveSpeed = 8; // Grid cells per second
+        this.moveTimer = 0;
+        this.moveDuration = 0.15; // Seconds per hop
+        this.deathTimer = 0;
+        this.dead = false;
+        this.onLog = null;
+        this.facing = 'up';
+        this.hopOffset = 0;
+        this.invulnerable = false;
+        this.invulnTimer = 0;
+    }
+    
+    reset() {
+        this.x = this.startX;
+        this.y = this.startY;
+        this.targetX = this.startX;
+        this.targetY = this.startY;
+        this.moving = false;
+        this.dead = false;
+        this.deathTimer = 0;
+        this.onLog = null;
+        this.facing = 'up';
+        this.invulnerable = true;
+        this.invulnTimer = 2.0;
+    }
+    
+    tryMove(dir, gridSize) {
+        if (this.moving || this.dead) return false;
+        
+        let nx = this.x;
+        let ny = this.y;
+        
+        switch(dir) {
+            case 'up': ny -= gridSize; this.facing = 'up'; break;
+            case 'down': ny += gridSize; this.facing = 'down'; break;
+            case 'left': nx -= gridSize; this.facing = 'left'; break;
+            case 'right': nx += gridSize; this.facing = 'right'; break;
+        }
+        
+        // Boundary check
+        if (nx < 0 || nx > CANVAS_WIDTH - this.width || 
+            ny < 0 || ny > CANVAS_HEIGHT - this.height) {
+            return false;
+        }
+        
+        this.targetX = nx;
+        this.targetY = ny;
+        this.moving = true;
+        this.moveTimer = 0;
+        return true;
+    }
+    
+    update(dt, game) {
+        if (this.invulnerable) {
+            this.invulnTimer -= dt;
+            if (this.invulnTimer <= 0) this.invulnerable = false;
+        }
+        
+        if (this.dead) {
+            this.deathTimer += dt;
+            return;
+        }
+        
+        // Move with log/turtle
+        if (this.onLog && this.onLog.active) {
+            this.x += this.onLog.speed * dt;
+            this.targetX = this.x;
+        } else {
+            this.onLog = null;
+        }
+        
+        // Handle hop animation
+        if (this.moving) {
+            this.moveTimer += dt;
+            const progress = Math.min(this.moveTimer / this.moveDuration, 1);
+            this.hopOffset = Math.sin(progress * Math.PI) * 8;
+            
+            this.x = this.x + (this.targetX - this.x) * progress * 2;
+            this.y = this.y + (this.targetY - this.y) * progress * 2;
+            
+            if (progress >= 1) {
+                this.x = this.targetX;
+                this.y = this.targetY;
+                this.moving = false;
+                this.hopOffset = 0;
+            }
+        }
+        
+        // Check boundaries - die if off screen
+        if (this.x < -this.width || this.x > CANVAS_WIDTH || 
+            this.y < -this.height || this.y > CANVAS_HEIGHT) {
+            this.die(game);
+        }
+    }
+    
+    die(game) {
+        if (this.dead || this.invulnerable) return;
+        this.dead = true;
+        this.deathTimer = 0;
+        game.onFrogDeath();
+    }
+    
+    render(ctx) {
+        if (this.dead) {
+            this.renderDeath(ctx);
+            return;
+        }
+        
+        // Flashing when invulnerable
+        if (this.invulnerable && Math.floor(Date.now() / 100) % 2 === 0) {
+            return;
+        }
+        
+        const cx = this.x + this.width / 2;
+        const cy = this.y + this.height / 2 - this.hopOffset;
+        const s = this.width / 2;
+        
+        ctx.save();
+        ctx.translate(cx, cy);
+        
+        // Rotate based on facing
+        switch(this.facing) {
+            case 'up': break;
+            case 'down': ctx.rotate(Math.PI); break;
+            case 'left': ctx.rotate(-Math.PI/2); break;
+            case 'right': ctx.rotate(Math.PI/2); break;
+        }
+        
+        // Body
+        ctx.fillStyle = COLORS.frog;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, s * 0.9, s * 0.7, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Darker back pattern
+        ctx.fillStyle = COLORS.frogDark;
+        ctx.beginPath();
+        ctx.ellipse(0, -2, s * 0.6, s * 0.4, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Eyes
+        const eyeY = -s * 0.3;
+        const eyeX = s * 0.35;
+        ctx.fillStyle = COLORS.frogEye;
+        ctx.beginPath();
+        ctx.arc(-eyeX, eyeY, 6, 0, Math.PI * 2);
+        ctx.arc(eyeX, eyeY, 6, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Pupils
+        ctx.fillStyle = COLORS.frogPupil;
+        ctx.beginPath();
+        ctx.arc(-eyeX + 1, eyeY, 3, 0, Math.PI * 2);
+        ctx.arc(eyeX + 1, eyeY, 3, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Front legs
+        ctx.strokeStyle = COLORS.frog;
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(-s * 0.5, s * 0.2);
+        ctx.lineTo(-s * 0.9, s * 0.5);
+        ctx.moveTo(s * 0.5, s * 0.2);
+        ctx.lineTo(s * 0.9, s * 0.5);
+        ctx.stroke();
+        
+        // Back legs
+        ctx.beginPath();
+        ctx.moveTo(-s * 0.4, s * 0.6);
+        ctx.lineTo(-s * 0.9, s * 1.0);
+        ctx.moveTo(s * 0.4, s * 0.6);
+        ctx.lineTo(s * 0.9, s * 1.0);
+        ctx.stroke();
+        
+        ctx.restore();
+    }
+    
+    renderDeath(ctx) {
+        const cx = this.x + this.width / 2;
+        const cy = this.y + this.height / 2;
+        const progress = Math.min(this.deathTimer / 1.0, 1);
+        
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(progress * Math.PI * 2);
+        
+        // Squashed frog
+        const squash = 1 - progress * 0.7;
+        ctx.fillStyle = COLORS.frog;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 20 * squash, 10, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // X eyes
+        ctx.strokeStyle = COLORS.white;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(-8, -5);
+        ctx.lineTo(-4, -1);
+        ctx.moveTo(-4, -5);
+        ctx.lineTo(-8, -1);
+        ctx.moveTo(4, -5);
+        ctx.lineTo(8, -1);
+        ctx.moveTo(8, -5);
+        ctx.lineTo(4, -1);
+        ctx.stroke();
+        
+        ctx.restore();
+    }
+}
+
+// Vehicle (Cars/Trucks)
+class Vehicle extends Entity {
+    constructor(x, y, width, height, speed, color, type = 'car') {
+        super(x, y, width, height);
+        this.speed = speed;
+        this.color = color;
+        this.type = type;
+        this.wrap = speed > 0 ? -width : CANVAS_WIDTH + width;
+    }
+    
+    update(dt) {
+        this.x += this.speed * dt;
+        
+        // Wrap around
+        if (this.speed > 0 && this.x > CANVAS_WIDTH) {
+            this.x = -this.width;
+        } else if (this.speed < 0 && this.x + this.width < 0) {
+            this.x = CANVAS_WIDTH;
+        }
+    }
+    
+    render(ctx) {
+        ctx.save();
+        
+        if (this.type === 'truck') {
+            this.renderTruck(ctx);
+        } else {
+            this.renderCar(ctx);
+        }
+        
+        ctx.restore();
+    }
+    
+    renderCar(ctx) {
+        const w = this.width;
+        const h = this.height;
+        const x = this.x;
+        const y = this.y;
+        
+        // Body
+        ctx.fillStyle = this.color;
+        ctx.fillRect(x + 2, y + 4, w - 4, h - 8);
+        
+        // Roof
+        ctx.fillStyle = this.darken(this.color);
+        ctx.fillRect(x + 6, y + 6, w - 12, h - 16);
+        
+        // Windows
+        ctx.fillStyle = '#88ccff';
+        ctx.fillRect(x + 8, y + 8, w - 16, h - 20);
+        
+        // Wheels
+        ctx.fillStyle = '#111';
+        const wheelY = y + h - 4;
+        ctx.beginPath();
+        ctx.arc(x + 6, wheelY, 4, 0, Math.PI * 2);
+        ctx.arc(x + w - 6, wheelY, 4, 0, Math.PI * 2);
+        ctx.arc(x + 6, y + 4, 4, 0, Math.PI * 2);
+        ctx.arc(x + w - 6, y + 4, 4, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Headlights
+        if (this.speed > 0) {
+            ctx.fillStyle = '#ffff88';
+            ctx.fillRect(x + w - 2, y + 8, 2, 4);
+            ctx.fillRect(x + w - 2, y + h - 12, 2, 4);
+        } else {
+            ctx.fillStyle = '#ffff88';
+            ctx.fillRect(x, y + 8, 2, 4);
+            ctx.fillRect(x, y + h - 12, 2, 4);
+        }
+    }
+    
+    renderTruck(ctx) {
+        const w = this.width;
+        const h = this.height;
+        const x = this.x;
+        const y = this.y;
+        
+        // Cab
+        ctx.fillStyle = this.color;
+        if (this.speed > 0) {
+            ctx.fillRect(x, y + 2, w * 0.4, h - 4);
+            // Trailer
+            ctx.fillStyle = this.darken(this.color);
+            ctx.fillRect(x + w * 0.4, y, w * 0.6, h);
+        } else {
+            ctx.fillRect(x + w * 0.6, y + 2, w * 0.4, h - 4);
+            ctx.fillStyle = this.darken(this.color);
+            ctx.fillRect(x, y, w * 0.6, h);
+        }
+        
+        // Windows
+        ctx.fillStyle = '#88ccff';
+        if (this.speed > 0) {
+            ctx.fillRect(x + 4, y + 6, w * 0.3, h - 12);
+        } else {
+            ctx.fillRect(x + w * 0.6 + 4, y + 6, w * 0.3, h - 12);
+        }
+        
+        // Wheels
+        ctx.fillStyle = '#111';
+        const positions = this.speed > 0 ? 
+            [x + 6, x + w * 0.4, x + w * 0.7, x + w - 6] :
+            [x + 6, x + w * 0.3, x + w * 0.6, x + w - 6];
+        
+        positions.forEach(px => {
+            ctx.beginPath();
+            ctx.arc(px, y + 4, 5, 0, Math.PI * 2);
+            ctx.arc(px, y + h - 4, 5, 0, Math.PI * 2);
+            ctx.fill();
+        });
+        
+        // Lights
+        ctx.fillStyle = '#ffff88';
+        if (this.speed > 0) {
+            ctx.fillRect(x + w - 2, y + 6, 2, 6);
+        } else {
+            ctx.fillRect(x, y + 6, 2, 6);
+        }
+    }
+    
+    darken(color) {
+        // Simple darken for roof/trailer
+        const c = color.replace('#', '');
+        const r = Math.max(0, parseInt(c.substr(0,2), 16) - 60);
+        const g = Math.max(0, parseInt(c.substr(2,2), 16) - 60);
+        const b = Math.max(0, parseInt(c.substr(4,2), 16) - 60);
+        return `rgb(${r},${g},${b})`;
+    }
+}
+
+// Log
+class Log extends Entity {
+    constructor(x, y, width, height, speed) {
+        super(x, y, width, height);
+        this.speed = speed;
+        this.wrap = speed > 0 ? -width : CANVAS_WIDTH + width;
+        this.segments = Math.floor(width / 40);
+    }
+    
+    update(dt) {
+        this.x += this.speed * dt;
+        
+        if (this.speed > 0 && this.x > CANVAS_WIDTH) {
+            this.x = -this.width;
+        } else if (this.speed < 0 && this.x + this.width < 0) {
+            this.x = CANVAS_WIDTH;
+        }
+    }
+    
+    render(ctx) {
+        const x = this.x;
+        const y = this.y;
+        const w = this.width;
+        const h = this.height;
+        
+        // Main log body
+        ctx.fillStyle = COLORS.log;
+        ctx.fillRect(x, y + 4, w, h - 8);
+        
+        // Bark texture
+        ctx.fillStyle = COLORS.logDark;
+        for (let i = 0; i < this.segments; i++) {
+            const segX = x + i * 40 + (Date.now() / 500 % 40);
+            ctx.fillRect(segX % w + x, y + 6, 2, h - 12);
+            ctx.fillRect((segX + 15) % w + x, y + 10, 1, h - 20);
+        }
+        
+        // Ends
+        ctx.fillStyle = COLORS.logDark;
+        ctx.beginPath();
+        ctx.arc(x, y + h/2, h/2 - 2, Math.PI/2, -Math.PI/2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(x + w, y + h/2, h/2 - 2, -Math.PI/2, Math.PI/2);
+        ctx.fill();
+        
+        // Highlight
+        ctx.strokeStyle = '#a67c52';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x, y + 6);
+        ctx.lineTo(x + w, y + 6);
+        ctx.stroke();
+    }
+}
+
+// Turtle
+class Turtle extends Entity {
+    constructor(x, y, width, height, speed, submerge = false) {
+        super(x, y, width, height);
+        this.speed = speed;
+        this.submerge = submerge;
+        this.submergeTimer = 0;
+        this.submerged = false;
+        this.wrap = speed > 0 ? -width : CANVAS_WIDTH + width;
+        this.phase = Math.random() * Math.PI * 2;
+    }
+    
+    update(dt) {
+        this.x += this.speed * dt;
+        
+        if (this.speed > 0 && this.x > CANVAS_WIDTH) {
+            this.x = -this.width;
+        } else if (this.speed < 0 && this.x + this.width < 0) {
+            this.x = CANVAS_WIDTH;
+        }
+        
+        if (this.submerge) {
+            this.submergeTimer += dt;
+            const cycle = 4.0; // 4 second cycle
+            this.submerged = (this.submergeTimer % cycle) > (cycle * 0.6);
+        }
+    }
+    
+    render(ctx) {
+        if (this.submerged) {
+            // Just show bubbles/ripple
+            ctx.fillStyle = 'rgba(255,255,255,0.2)';
+            for (let i = 0; i < 3; i++) {
+                const bx = this.x + (i + 0.5) * (this.width / 3);
+                const by = this.y + this.height / 2 + Math.sin(Date.now() / 200 + i) * 4;
+                ctx.beginPath();
+                ctx.arc(bx, by, 4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            return;
+        }
+        
+        const x = this.x;
+        const y = this.y;
+        const w = this.width;
+        const h = this.height;
+        
+        // Shell
+        ctx.fillStyle = COLORS.turtleShell;
+        ctx.beginPath();
+        ctx.roundRect(x + 2, y + 2, w - 4, h - 4, 8);
+        ctx.fill();
+        
+        // Shell pattern
+        ctx.strokeStyle = COLORS.turtleDark;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x + w/2, y + 4);
+        ctx.lineTo(x + w/2, y + h - 4);
+        ctx.moveTo(x + 4, y + h/2);
+        ctx.lineTo(x + w - 4, y + h/2);
+        ctx.stroke();
+        
+        // Head
+        const headX = this.speed > 0 ? x + w - 4 : x + 4;
+        const headY = y + h/2 - 4;
+        ctx.fillStyle = COLORS.turtle;
+        ctx.beginPath();
+        ctx.arc(headX, headY, 8, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Eyes
+        ctx.fillStyle = COLORS.white;
+        const eyeOffset = this.speed > 0 ? 3 : -3;
+        ctx.beginPath();
+        ctx.arc(headX + eyeOffset, headY - 2, 2, 0, Math.PI * 2);
+        ctx.arc(headX + eyeOffset, headY + 3, 2, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Legs
+        ctx.strokeStyle = COLORS.turtle;
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        // Front legs
+        ctx.moveTo(x + 8, y + 6);
+        ctx.lineTo(x + 2, y + 2);
+        ctx.moveTo(x + w - 8, y + 6);
+        ctx.lineTo(x + w - 2, y + 2);
+        // Back legs
+        ctx.moveTo(x + 8, y + h - 6);
+        ctx.lineTo(x + 2, y + h - 2);
+        ctx.moveTo(x + w - 8, y + h - 6);
+        ctx.lineTo(x + w - 2, y + h - 2);
+        ctx.stroke();
+    }
+}
+
+// Home slot
+class HomeSlot extends Entity {
+    constructor(x, y, width, height, index) {
+        super(x, y, width, height);
+        this.index = index;
+        this.filled = false;
+        this.fillTimer = 0;
+        this.bonus = 0;
+    }
+    
+    update(dt) {
+        if (this.filled) {
+            this.fillTimer += dt;
+        }
+    }
+    
+    render(ctx) {
+        const x = this.x;
+        const y = this.y;
+        const w = this.width;
+        const h = this.height;
+        
+        // Home base
+        ctx.fillStyle = this.filled ? COLORS.homeActive : COLORS.home;
+        ctx.globalAlpha = this.filled ? (0.7 + Math.sin(this.fillTimer * 10) * 0.3) : 0.5;
+        ctx.fillRect(x, y, w, h);
+        ctx.globalAlpha = 1;
+        
+        // Border
+        ctx.strokeStyle = COLORS.home;
+        ctx.lineWidth = 3;
+        ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
+        
+        if (this.filled) {
+            // Frog in home
+            const cx = x + w/2;
+            const cy = y + h/2;
+            ctx.fillStyle = COLORS.frog;
+            ctx.beginPath();
+            ctx.arc(cx, cy, 12, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Eyes
+            ctx.fillStyle = COLORS.white;
+            ctx.beginPath();
+            ctx.arc(cx - 5, cy - 3, 4, 0, Math.PI * 2);
+            ctx.arc(cx + 5, cy - 3, 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = COLORS.black;
+            ctx.beginPath();
+            ctx.arc(cx - 4, cy - 3, 2, 0, Math.PI * 2);
+            ctx.arc(cx + 6, cy - 3, 2, 0, Math.PI * 2);
+            ctx.fill();
+        } else {
+            // Fly bonus indicator
+            const flyX = x + w/2 + Math.sin(Date.now() / 300) * 8;
+            const flyY = y + h/2 + Math.cos(Date.now() / 400) * 6;
+            ctx.fillStyle = '#88ff88';
+            ctx.beginPath();
+            ctx.arc(flyX, flyY, 3, 0, Math.PI * 2);
+            ctx.fill();
+            // Wings
+            ctx.strokeStyle = '#aaffaa';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(flyX - 4, flyY);
+            ctx.lineTo(flyX - 1, flyY - 4);
+            ctx.moveTo(flyX + 4, flyY);
+            ctx.lineTo(flyX + 1, flyY - 4);
+            ctx.stroke();
+        }
+    }
+}
+
+// Particle system for effects
+class ParticleSystem {
+    constructor() {
+        this.particles = [];
+    }
+    
+    addExplosion(x, y, color, count = 12) {
+        for (let i = 0; i < count; i++) {
+            const angle = (Math.PI * 2 * i) / count + Math.random() * 0.5;
+            const speed = 50 + Math.random() * 100;
+            this.particles.push({
+                x, y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                life: 0.5 + Math.random() * 0.5,
+                maxLife: 0.5 + Math.random() * 0.5,
+                size: 3 + Math.random() * 4,
+                color
+            });
+        }
+    }
+    
+    addSplash(x, y) {
+        for (let i = 0; i < 8; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 30 + Math.random() * 60;
+            this.particles.push({
+                x, y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed - 50,
+                life: 0.3 + Math.random() * 0.4,
+                maxLife: 0.3 + Math.random() * 0.4,
+                size: 2 + Math.random() * 3,
+                color: '#4488ff'
+            });
+        }
+    }
+    
+    update(dt) {
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+            const p = this.particles[i];
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
+            p.vy += 200 * dt; // gravity
+            p.life -= dt;
+            if (p.life <= 0) {
+                this.particles.splice(i, 1);
+            }
+        }
+    }
+    
+    render(ctx) {
+        for (const p of this.particles) {
+            const alpha = p.life / p.maxLife;
+            ctx.globalAlpha = alpha;
+            ctx.fillStyle = p.color;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size * alpha, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+    }
+}
+
+// ============================================
+// MAIN GAME CLASS
+// ============================================
+class FroggerGame {
+    constructor() {
+        this.canvas = document.getElementById('gameCanvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.ctx.imageSmoothingEnabled = false;
+        
+        this.input = new InputHandler();
+        this.audio = new AudioSystem();
+        this.particles = new ParticleSystem();
+        
+        this.state = GAME_STATE.START;
+        this.score = 0;
+        this.lives = 3;
+        this.level = 1;
+        this.highScore = parseInt(localStorage.getItem('froggerHighScore')) || 0;
+        
+        this.frog = new Frog(
+            CANVAS_WIDTH / 2 - FROG_SIZE / 2,
+            LANES.START_ROW
+        );
+        
+        this.vehicles = [];
+        this.logs = [];
+        this.turtles = [];
+        this.homes = [];
+        
+        this.time = 0;
+        this.levelTimer = 0;
+        this.bonusTimer = 0;
+        
+        this.initHomes();
+        this.bindUI();
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+        
+        this.lastTime = 0;
+        requestAnimationFrame((t) => this.gameLoop(t));
+    }
+    
+    initHomes() {
+        this.homes = [];
+        const homeWidth = 60;
+        const homeHeight = 40;
+        const spacing = (CANVAS_WIDTH - 5 * homeWidth) / 6;
+        for (let i = 0; i < 5; i++) {
+            const x = spacing + i * (homeWidth + spacing);
+            this.homes.push(new HomeSlot(x, LANES.HOME_ROW, homeWidth, homeHeight, i));
+        }
+    }
+    
+    bindUI() {
+        document.getElementById('startBtn').addEventListener('click', () => this.startGame());
+        document.getElementById('restartBtn').addEventListener('click', () => this.startGame());
+        document.getElementById('restartBtnBottom').addEventListener('click', () => this.startGame());
+        document.getElementById('nextLevelBtn').addEventListener('click', () => this.nextLevel());
+        
+        // Prevent context menu on long press
+        this.canvas.addEventListener('contextmenu', e => e.preventDefault());
+    }
+    
+    resize() {
+        const container = document.querySelector('.game-container');
+        const maxWidth = Math.min(480, window.innerWidth - 20);
+        const maxHeight = window.innerHeight - 200; // Reserve space for UI
+        
+        const scale = Math.min(maxWidth / CANVAS_WIDTH, maxHeight / CANVAS_HEIGHT, 1);
+        
+        this.canvas.style.width = (CANVAS_WIDTH * scale) + 'px';
+        this.canvas.style.height = (CANVAS_HEIGHT * scale) + 'px';
+    }
+    
+    startGame() {
+        this.audio.resume();
+        this.score = 0;
+        this.lives = 3;
+        this.level = 1;
+        this.frog.reset();
+        this.spawnLevel();
+        this.updateHUD();
+        this.setState(GAME_STATE.PLAYING);
+    }
+    
+    nextLevel() {
+        this.audio.resume();
+        this.level++;
+        this.frog.reset();
+        this.spawnLevel();
+        this.updateHUD();
+        this.setState(GAME_STATE.PLAYING);
+    }
+    
+    spawnLevel() {
+        this.vehicles = [];
+        this.logs = [];
+        this.turtles = [];
+        
+        // Reset homes
+        this.homes.forEach(h => { h.filled = false; h.fillTimer = 0; });
+        
+        const speedMult = 1 + (this.level - 1) * 0.15;
+        
+        // Road lanes (5 lanes)
+        const roadData = [
+            { y: LANES.ROAD_START + 0 * GRID_SIZE, speed: -100 * speedMult, type: 'car', color: COLORS.car1, width: 50, count: 3, gap: 180 },
+            { y: LANES.ROAD_START + 1 * GRID_SIZE, speed: 130 * speedMult, type: 'car', color: COLORS.car2, width: 45, count: 4, gap: 150 },
+            { y: LANES.ROAD_START + 2 * GRID_SIZE, speed: -160 * speedMult, type: 'truck', color: COLORS.car3, width: 80, count: 2, gap: 300 },
+            { y: LANES.ROAD_START + 3 * GRID_SIZE, speed: 110 * speedMult, type: 'car', color: COLORS.car4, width: 50, count: 3, gap: 200 },
+            { y: LANES.ROAD_START + 4 * GRID_SIZE, speed: -140 * speedMult, type: 'car', color: COLORS.car5, width: 45, count: 4, gap: 160 }
+        ];
+        
+        roadData.forEach(lane => {
+            for (let i = 0; i < lane.count; i++) {
+                const x = (i * lane.gap + Math.random() * 40) % CANVAS_WIDTH - lane.width;
+                this.vehicles.push(new Vehicle(x, lane.y, lane.width, GRID_SIZE - 4, lane.speed, lane.color, lane.type));
+            }
+        });
+        
+        // River lanes (5 lanes)
+        const riverData = [
+            { y: LANES.RIVER_START + 0 * GRID_SIZE, speed: 80 * speedMult, type: 'log', width: 160, count: 2, gap: 300 },
+            { y: LANES.RIVER_START + 1 * GRID_SIZE, speed: -100 * speedMult, type: 'turtle', width: 60, count: 3, gap: 200, submerge: false },
+            { y: LANES.RIVER_START + 2 * GRID_SIZE, speed: 120 * speedMult, type: 'log', width: 120, count: 3, gap: 220 },
+            { y: LANES.RIVER_START + 3 * GRID_SIZE, speed: -90 * speedMult, type: 'turtle', width: 60, count: 4, gap: 180, submerge: true },
+            { y: LANES.RIVER_START + 4 * GRID_SIZE, speed: 70 * speedMult, type: 'log', width: 200, count: 2, gap: 350 }
+        ];
+        
+        riverData.forEach(lane => {
+            for (let i = 0; i < lane.count; i++) {
+                const x = (i * lane.gap + Math.random() * 40) % CANVAS_WIDTH - lane.width;
+                if (lane.type === 'log') {
+                    this.logs.push(new Log(x, lane.y, lane.width, GRID_SIZE - 4, lane.speed));
+                } else {
+                    this.turtles.push(new Turtle(x, lane.y, lane.width, GRID_SIZE - 4, lane.speed, lane.submerge));
+                }
+            }
+        });
+    }
+    
+    setState(newState) {
+        this.state = newState;
+        document.getElementById('startOverlay').classList.toggle('visible', newState === GAME_STATE.START);
+document.getElementById('gameOverOverlay').classList.toggle('visible', newState === GAME_STATE.GAME_OVER);
+        document.getElementById('levelCompleteOverlay').classList.toggle('visible', newState === GAME_STATE.LEVEL_COMPLETE);
+        
+        if (newState === GAME_STATE.PLAYING) {
+            this.audio.playMusic();
+        } else {
+            this.audio.stopMusic();
+        }
+    }
+    
+    updateHUD() {
+        document.getElementById('score').textContent = this.score;
+        document.getElementById('lives').textContent = this.lives;
+        document.getElementById('level').textContent = this.level;
+        document.getElementById('finalScore').textContent = this.score;
+        document.getElementById('finalLevel').textContent = this.level;
+    }
+    
+    gameLoop(timestamp) {
+        const dt = Math.min((timestamp - this.lastTime) / 1000, 0.1);
+        this.lastTime = timestamp;
+        
+        if (this.state === GAME_STATE.PLAYING) {
+            this.update(dt);
+        }
+        this.render();
+        
+        requestAnimationFrame((t) => this.gameLoop(t));
+    }
+    
+    update(dt) {
+        this.time += dt;
+        this.levelTimer += dt;
+        this.frog.update(dt, this);
+        
+        // Update vehicles
+        this.vehicles.forEach(v => v.update(dt));
+        
+        // Update logs
+        this.logs.forEach(l => l.update(dt));
+        
+        // Update turtles
+        this.turtles.forEach(t => t.update(dt));
+        
+        // Check collisions
+        this.checkCollisions();
+        
+        // Check win condition
+        if (this.homes.every(h => h.filled)) {
+            this.levelComplete();
+        }
+        
+        // Bonus timer countdown
+        if (this.levelTimer > 30) {
+            this.bonusTimer = Math.max(0, 200 - Math.floor(this.levelTimer) * 10);
+        }
+    }
+    
+    checkCollisions() {
+        const frog = this.frog;
+        const frogBox = frog.getBounds();
+        
+        // Road collision
+        if (frog.y >= LANES.ROAD_START && frog.y < LANES.ROAD_START + 5 * GRID_SIZE) {
+            for (const vehicle of this.vehicles) {
+                if (this.aabb(frogBox, vehicle.getBounds())) {
+                    this.frogDeath();
+                    return;
+                }
+            }
+        }
+        
+        // River collision
+        if (frog.y >= LANES.RIVER_START && frog.y < LANES.RIVER_START + 5 * GRID_SIZE) {
+            let onLog = false;
+            let logSpeed = 0;
+            
+            // Check logs
+            for (const log of this.logs) {
+                if (this.aabb(frogBox, log.getBounds())) {
+                    onLog = true;
+                    logSpeed = log.speed;
+                    break;
+                }
+            }
+            
+            // Check turtles
+            if (!onLog) {
+                for (const turtle of this.turtles) {
+                    if (!turtle.submerged && this.aabb(frogBox, turtle.getBounds())) {
+                        onLog = true;
+                        logSpeed = turtle.speed;
+                        break;
+                    }
+                }
+            }
+            
+            if (!onLog) {
+                this.frogDeath();
+                return;
+            } else {
+                // Move frog with log/turtle
+                frog.x += logSpeed * (1/60); // Approximate, will be corrected in frog.update
+                frog.onLog = true;
+                frog.logSpeed = logSpeed;
+            }
+        } else {
+            frog.onLog = false;
+            frog.logSpeed = 0;
+        }
+        
+        // Home collision
+        if (frog.y <= LANES.HOME_ROW + GRID_SIZE && frog.y > LANES.HOME_ROW - GRID_SIZE) {
+            for (const home of this.homes) {
+                if (!home.filled && this.aabb(frogBox, home.getBounds())) {
+                    this.frogHome(home);
+                    return;
+                }
+            }
+            // Hit wall between homes
+            this.frogDeath();
+        }
+        
+        // Screen boundaries
+        if (frog.x < 0) frog.x = 0;
+        if (frog.x > CANVAS_WIDTH - frog.width) frog.x = CANVAS_WIDTH - frog.width;
+        if (frog.y < LANES.HOME_ROW - GRID_SIZE) frog.y = LANES.HOME_ROW - GRID_SIZE;
+        if (frog.y > CANVAS_WIDTH - frog.height) frog.y = CANVAS_WIDTH - frog.height;
+    }
+    
+    aabb(box1, box2) {
+        return box1.x < box2.x + box2.width &&
+               box1.x + box1.width > box2.x &&
+               box1.y < box2.y + box2.height &&
+               box1.y + box1.height > box2.y;
+    }
+    
+    frogDeath() {
+        this.audio.play('death');
+        this.lives--;
+        this.updateHUD();
+        this.frog.die();
+        
+        if (this.lives <= 0) {
+            this.setState(GAME_STATE.GAME_OVER);
+        } else {
+            // Brief invincibility / reset position
+            setTimeout(() => {
+                if (this.state === GAME_STATE.PLAYING) {
+                    this.frog.reset();
+                }
+            }, 1000);
+        }
+    }
+    
+    frogHome(home) {
+        this.audio.play('home');
+        home.filled = true;
+        home.fillTimer = 1.0;
+        this.frog.reset();
+        
+        // Score: base + time bonus + level bonus
+        const timeBonus = Math.max(0, 200 - Math.floor(this.levelTimer) * 10);
+        const levelBonus = this.level * 50;
+        this.score += 50 + timeBonus + levelBonus;
+        this.updateHUD();
+        
+        // Check if all homes filled
+        if (this.homes.every(h => h.filled)) {
+            this.levelComplete();
+        }
+    }
+    
+    levelComplete() {
+        this.audio.play('levelup');
+        this.setState(GAME_STATE.LEVEL_COMPLETE);
+        const bonus = Math.max(0, 1000 - Math.floor(this.levelTimer) * 50);
+        this.score += bonus;
+        this.updateHUD();
+    }
+    
+    render() {
+        const ctx = this.ctx;
+        ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        
+        // Background
+        this.drawBackground();
+        
+        // Draw homes
+        this.homes.forEach(h => h.draw(ctx));
+        
+        // Draw river objects
+        this.logs.forEach(l => l.draw(ctx));
+        this.turtles.forEach(t => t.draw(ctx));
+        
+        // Draw vehicles
+        this.vehicles.forEach(v => v.draw(ctx));
+        
+        // Draw frog
+        this.frog.draw(ctx);
+        
+        // Draw UI overlays (lives indicators)
+        this.drawLives();
+    }
+    
+    drawBackground() {
+        const ctx = this.ctx;
+        
+        // Top safe zone (grass)
+        ctx.fillStyle = COLORS.grass;
+        ctx.fillRect(0, 0, CANVAS_WIDTH, LANES.HOME_ROW + GRID_SIZE);
+        
+        // Home row decorative
+        ctx.fillStyle = COLORS.grassDark;
+        ctx.fillRect(0, LANES.HOME_ROW, CANVAS_WIDTH, GRID_SIZE);
+        
+        // Road
+        ctx.fillStyle = COLORS.road;
+        ctx.fillRect(0, LANES.ROAD_START, CANVAS_WIDTH, 5 * GRID_SIZE);
+        
+        // Road lines
+        ctx.strokeStyle = COLORS.roadLine;
+        ctx.lineWidth = 2;
+        ctx.setLineDash([20, 20]);
+        for (let i = 1; i < 5; i++) {
+            const y = LANES.ROAD_START + i * GRID_SIZE;
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(CANVAS_WIDTH, y);
+            ctx.stroke();
+        }
+        ctx.setLineDash([]);
+        
+        // River
+        ctx.fillStyle = COLORS.water;
+        ctx.fillRect(0, LANES.RIVER_START, CANVAS_WIDTH, 5 * GRID_SIZE);
+        
+        // Water animation lines
+        ctx.strokeStyle = COLORS.waterLight;
+        ctx.lineWidth = 1;
+        for (let i = 0; i < 5; i++) {
+            const y = LANES.RIVER_START + i * GRID_SIZE + GRID_SIZE / 2;
+            const offset = (this.time * 50) % 40;
+            ctx.beginPath();
+            for (let x = -offset; x < CANVAS_WIDTH + 40; x += 40) {
+                ctx.moveTo(x, y);
+                ctx.quadraticCurveTo(x + 10, y - 3, x + 20, y);
+                ctx.quadraticCurveTo(x + 30, y + 3, x + 40, y);
+            }
+            ctx.stroke();
+        }
+        
+        // Bottom safe zone
+        ctx.fillStyle = COLORS.grass;
+        ctx.fillRect(0, LANES.RIVER_START + 5 * GRID_SIZE, CANVAS_WIDTH, CANVAS_HEIGHT - (LANES.RIVER_START + 5 * GRID_SIZE));
+        
+        // Start platform
+        ctx.fillStyle = COLORS.grassDark;
+        ctx.fillRect(0, CANVAS_HEIGHT - GRID_SIZE, CANVAS_WIDTH, GRID_SIZE);
+    }
+    
+    drawLives() {
+        const ctx = this.ctx;
+        const startX = 10;
+        const y = CANVAS_HEIGHT - 30;
+        
+        for (let i = 0; i < this.lives; i++) {
+            const x = startX + i * 25;
+            // Mini frog
+            ctx.fillStyle = COLORS.frog;
+            ctx.beginPath();
+            ctx.ellipse(x + 10, y + 8, 10, 8, 0, 0, Math.PI * 2);
+            ctx.fill();
+            // Eyes
+            ctx.fillStyle = COLORS.frogEye;
+            ctx.beginPath();
+            ctx.arc(x + 6, y + 5, 3, 0, Math.PI * 2);
+            ctx.arc(x + 14, y + 5, 3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.arc(x + 6, y + 5, 1.5, 0, Math.PI * 2);
+            ctx.arc(x + 14, y + 5, 1.5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+    
+    // Input handling
+    handleKeyDown(e) {
+        if (this.state !== GAME_STATE.PLAYING) return;
+        
+        const key = e.key.toLowerCase();
+        const dir = KEY_MAP[key];
+        if (dir) {
+            e.preventDefault();
+            this.frog.jump(dir);
+            this.audio.play('hop');
+        }
+    }
+    
+    handleTouchStart(e) {
+        if (this.state !== GAME_STATE.PLAYING) return;
+        e.preventDefault();
+        this.touchStartX = e.touches[0].clientX;
+        this.touchStartY = e.touches[0].clientY;
+    }
+    
+    handleTouchEnd(e) {
+        if (this.state !== GAME_STATE.PLAYING) return;
+        if (!this.touchStartX) return;
+        
+        e.preventDefault();
+        const endX = e.changedTouches[0].clientX;
+        const endY = e.changedTouches[0].clientY;
+        const dx = endX - this.touchStartX;
+        const dy = endY - this.touchStartY;
+        
+        if (Math.abs(dx) > Math.abs(dy)) {
+            if (Math.abs(dx) > 30) {
+                this.frog.jump(dx > 0 ? 'right' : 'left');
+                this.audio.play('hop');
+            }
+        } else {
+            if (Math.abs(dy) > 30) {
+                this.frog.jump(dy > 0 ? 'down' : 'up');
+                this.audio.play('hop');
+            }
+        }
+        
+        this.touchStartX = null;
+        this.touchStartY = null;
+    }
+    
+    // D-pad handlers
+    handleDPad(dir) {
+        if (this.state !== GAME_STATE.PLAYING) return;
+        this.frog.jump(dir);
+        this.audio.play('hop');
+    }
+}
+
+// Initialize game when DOM ready
+document.addEventListener('DOMContentLoaded', () => {
+    new Game();
+});
+
+// Prevent pull-to-refresh on mobile
+document.body.addEventListener('touchmove', e => {
+    if (e.target.closest('.game-container')) {
+        e.preventDefault();
+    }
+}, { passive: false });
+</script>
+</body>
+</html>

@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>DNA Double Helix Animation</title>
+<style>
+  body { margin:0; background:#0a0a0f; overflow:hidden; font-family:system-ui, sans-serif; }
+  canvas { display:block; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+function resize() {
+  canvas.width = innerWidth;
+  canvas.height = innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+const STRAND_COUNT = 2;
+const NODES_PER_STRAND = 120;
+const HELIX_RADIUS = Math.min(canvas.width, canvas.height) * 0.18;
+const HELIX_HEIGHT = Math.min(canvas.width, canvas.height) * 0.85;
+const TURNS = 3.5;
+const NODE_BASE_RADIUS = 3.5;
+const RUNG_OPACITY = 0.35;
+const ROTATION_SPEED = 0.0006;
+
+const strandColors = [
+  { r: 0, g: 210, b: 255 },   // cyan
+  { r: 255, g: 90, b: 140 }   // magenta
+];
+
+const nodes = [];
+for (let s = 0; s < STRAND_COUNT; s++) {
+  const strand = [];
+  const phaseOffset = s * Math.PI;
+  for (let i = 0; i < NODES_PER_STRAND; i++) {
+    const t = i / (NODES_PER_STRAND - 1);
+    const angle = t * TURNS * Math.PI * 2 + phaseOffset;
+    const y = (t - 0.5) * HELIX_HEIGHT;
+    const x = Math.cos(angle) * HELIX_RADIUS;
+    const z = Math.sin(angle) * HELIX_RADIUS;
+    strand.push({ x, y, z, baseAngle: angle, t });
+  }
+  nodes.push(strand);
+}
+
+let rotation = 0;
+let lastTime = 0;
+
+function project(x, y, z, cx, cy, scale) {
+  const focalLength = 600;
+  const factor = focalLength / (focalLength + z);
+  return {
+    x: cx + x * factor * scale,
+    y: cy + y * factor * scale,
+    scale: factor
+  };
+}
+
+function drawNode(ctx, px, py, radius, color, alpha) {
+  const grad = ctx.createRadialGradient(px, py, 0, px, py, radius);
+  grad.addColorStop(0, `rgba(${color.r},${color.g},${color.b},${alpha})`);
+  grad.addColorStop(1, `rgba(${color.r},${color.g},${color.b},0)`);
+  ctx.beginPath();
+  ctx.arc(px, py, radius, 0, Math.PI * 2);
+  ctx.fillStyle = grad;
+  ctx.fill();
+}
+
+function drawRung(ctx, p1, p2, alpha) {
+  ctx.beginPath();
+  ctx.moveTo(p1.x, p1.y);
+  ctx.lineTo(p2.x, p2.y);
+  ctx.strokeStyle = `rgba(200,220,255,${alpha * RUNG_OPACITY})`;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+}
+
+function animate(time) {
+  const dt = time - lastTime;
+  lastTime = time;
+  rotation += ROTATION_SPEED * dt;
+
+  const cx = canvas.width / 2;
+  const cy = canvas.height / 2;
+  const scale = Math.min(canvas.width, canvas.height) / 800;
+
+  ctx.fillStyle = '#0a0a0f';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const projected = nodes.map(strand =>
+    strand.map(node => {
+      const angle = node.baseAngle + rotation;
+      const x = Math.cos(angle) * HELIX_RADIUS;
+      const z = Math.sin(angle) * HELIX_RADIUS;
+      return project(x, node.y, z, cx, cy, scale);
+    })
+  );
+
+  // Draw rungs first (behind)
+  for (let i = 0; i < NODES_PER_STRAND; i++) {
+    const p1 = projected[0][i];
+    const p2 = projected[1][i];
+    const avgScale = (p1.scale + p2.scale) * 0.5;
+    drawRung(ctx, p1, p2, avgScale);
+  }
+
+  // Draw strands
+  for (let s = 0; s < STRAND_COUNT; s++) {
+    const color = strandColors[s];
+    const strandProj = projected[s];
+    for (let i = 0; i < NODES_PER_STRAND; i++) {
+      const p = strandProj[i];
+      const radius = NODE_BASE_RADIUS * p.scale * scale;
+      const alpha = 0.6 + 0.4 * p.scale;
+      drawNode(ctx, p.x, p.y, radius, color, alpha);
+    }
+  }
+
+  requestAnimationFrame(animate);
+}
+
+requestAnimationFrame(animate);
+</script>
+</body>
+</html>
