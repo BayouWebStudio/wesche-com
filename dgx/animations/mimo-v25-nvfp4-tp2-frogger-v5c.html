@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Frogger - Classic Arcade</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #1a1a2e;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+            color: #e0e0e0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            aspect-ratio: 3/4;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: auto;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+            border: 2px solid #4a4a6a;
+            border-radius: 4px;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.1);
+        }
+
+        #ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #score-bar {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 10px;
+            font-size: 14px;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 1px 1px 0 #000;
+            z-index: 10;
+        }
+
+        #message-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 20;
+            pointer-events: auto;
+        }
+
+        #message-overlay.hidden {
+            display: none;
+        }
+
+        .overlay-title {
+            font-size: 28px;
+            font-weight: bold;
+            color: #0f0;
+            text-shadow: 2px 2px 0 #000;
+            margin-bottom: 10px;
+        }
+
+        .overlay-subtitle {
+            font-size: 14px;
+            color: #aaa;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            background: #2a2a4a;
+            color: #0f0;
+            border: 2px solid #0f0;
+            padding: 10px 25px;
+            font-size: 16px;
+            font-family: 'Courier New', monospace;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s;
+            pointer-events: auto;
+        }
+
+        .btn:hover {
+            background: #0f0;
+            color: #000;
+        }
+
+        /* D-Pad Controls */
+        #controls {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 5px;
+            width: 160px;
+            height: 120px;
+            margin-top: 10px;
+            pointer-events: auto;
+        }
+
+        .ctrl-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            color: #ccc;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.1s;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .ctrl-btn:active {
+            background: rgba(0, 255, 0, 0.3);
+            border-color: #0f0;
+        }
+
+        .ctrl-up { grid-column: 2; grid-row: 1; }
+        .ctrl-left { grid-column: 1; grid-row: 2; }
+        .ctrl-down { grid-column: 2; grid-row: 2; }
+        .ctrl-right { grid-column: 3; grid-row: 2; }
+
+        @media (max-width: 500px) {
+            #controls {
+                width: 200px;
+                height: 150px;
+            }
+            .ctrl-btn {
+                font-size: 26px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+    
+    <div id="ui-overlay">
+        <div id="score-bar">
+            <span id="score-display">SCORE: 0</span>
+            <span id="lives-display">LIVES: 3</span>
+        </div>
+    </div>
+
+    <div id="message-overlay">
+        <div class="overlay-title" id="msg-title">FROGGER</div>
+        <div class="overlay-subtitle" id="msg-sub">Arrow Keys / WASD to move</div>
+        <button class="btn" id="start-btn">START GAME</button>
+    </div>
+</div>
+
+<div id="controls">
+    <button class="ctrl-btn ctrl-up" data-dir="up">▲</button>
+    <button class="ctrl-btn ctrl-left" data-dir="left">◀</button>
+    <button class="ctrl-btn ctrl-down" data-dir="down">▼</button>
+    <button class="ctrl-btn ctrl-right" data-dir="right">▶</button>
+</div>
+
+<script>
+// ============================================================
+// FROGGER - Complete Game Implementation
+// ============================================================
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// --- Configuration ---
+const COLS = 13;
+const ROWS = 15;
+const CELL_SIZE = 40;
+canvas.width = COLS * CELL_SIZE;
+canvas.height = ROWS * CELL_SIZE;
+
+// Colors
+const COLORS = {
+    bg: '#111',
+    road: '#333',
+    roadLine: '#555',
+    grass: '#1a5c1a',
+    grassLight: '#2a7a2a',
+    water: '#003366',
+    waterLight: '#004488',
+    safeZone: '#2a7a2a',
+    frogBody: '#00cc00',
+    frogEye: '#fff',
+    frogPupil: '#000',
+    carRed: '#cc0000',
+    carBlue: '#0066cc',
+    carYellow: '#ccaa00',
+    carWhite: '#cccccc',
+    carPurple: '#9900cc',
+    logBrown: '#8B4513',
+    logDark: '#654321',
+    turtleGreen: '#006600',
+    turtleShell: '#004400',
+    turtleLeg: '#008800',
+    homeSlot: '#003300',
+    homeFilled: '#00ff00',
+    text: '#fff',
+    scoreText: '#0f0'
+};
+
+// --- Game State ---
+let gameState = 'menu'; // menu, playing, dead, win, gameover
+let score = 0;
+let lives = 3;
+let level = 1;
+let frogX, frogY;
+let frogDir = 0; // 0=up, 1=right, 2=down, 3=left
+let frogFrame = 0;
+let frogMoving = false;
+let deathTimer = 0;
+let invincibleTimer = 0;
+let homesReached = [false, false, false, false, false];
+let lastTime = 0;
+let animTime = 0;
+let particles = [];
+
+// --- Sound System (Web Audio API) ---
+let audioCtx = null;
+function initAudio() {
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+}
+
+function playSound(type) {
+    if (!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    gain.gain.value = 0.1;
+
+    switch(type) {
+        case 'move':
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(600, audioCtx.currentTime + 0.05);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+            break;
+        case 'die':
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.5);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.5);
+            break;
+        case 'win':
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(523, audioCtx.currentTime);
+            osc.frequency.setValueAtTime(659, audioCtx.currentTime + 0.1);
+            osc.frequency.setValueAtTime(784, audioCtx.currentTime + 0.2);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.5);
+            break;
+        case 'home':
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.2);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+            break;
+        case 'jump':
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(500, audioCtx.currentTime + 0.05);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.08);
+            break;
+    }
+}
+
+// --- Level Layout ---
+// Row types: 0=safe/grass, 1=road, 2=water, 3=home
+// Each row has properties for vehicles/logs/turtles
+const LEVEL_LAYOUT = [
+    { type: 'safe',   y: 0 },   // Home slots (row 0)
+    { type: 'water',  y: 1 },   // Water lane 1
+    { type: 'water',  y: 2 },   // Water lane 2
+    { type: 'water',  y: 3 },   // Water lane 3
+    { type: 'water',  y: 4 },   // Water lane 4
+    { type: 'water',  y: 5 },   // Water lane 5
+    { type: 'safe',   y: 6 },   // Safe middle grass
+    { type: 'road',   y: 7 },   // Road lane 1
+    { type: 'road',   y: 8 },   // Road lane 2
+    { type: 'road',   y: 9 },   // Road lane 3
+    { type: 'road',   y: 10 },  // Road lane 4
+    { type: 'road',   y: 11 },  // Road lane 5
+    { type: 'safe',   y: 12 },  // Starting grass
+    { type: 'safe',   y: 13 },  // Bottom safe
+    { type: 'safe',   y: 14 },  // Bottom edge
+];
+
+// Vehicle definitions per road row
+const VEHICLES = [];
+const LOGS = [];
+const TURTLES = [];
+
+function initLevel() {
+    VECHICLES.length = 0;
+    LOGS.length = 0;
+    TURTLES.length = 0;
+
+    // Road lanes (rows 7-11)
+    const roadConfigs = [
+        { row: 7, speed: 1.5, dir: 1, count: 3, type: 'car', color: COLORS.carRed, w: 2 },
+        { row: 8, speed: 2.0, dir: -1, count: 2, type: 'truck', color: COLORS.carBlue, w: 3 },
+        { row: 9, speed: 1.2, dir: 1, count: 4, type: 'car', color: COLORS.carYellow, w: 2 },
+        { row: 10, speed: 2.5, dir: -1, count: 2, type: 'car', color: COLORS.carWhite, w: 2 },
+        { row: 11, speed: 1.8, dir: 1, count: 3, type: 'truck', color: COLORS.carPurple, w: 3 },
+    ];
+
+    roadConfigs.forEach(cfg => {
+        for (let i = 0; i < cfg.count; i++) {
+            let x = (i * (COLS / cfg.count)) * CELL_SIZE;
+            if (cfg.dir === -1) x = canvas.width - x - cfg.w * CELL_SIZE;
+            VECHICLES.push({
+                x: x,
+                y: cfg.row * CELL_SIZE,
+                w: cfg.w * CELL_SIZE,
+                h: CELL_SIZE - 4,
+                speed: cfg.speed * cfg.dir * (0.9 + Math.random() * 0.2),
+                color: cfg.color,
+                type: cfg.type
+            });
+        }
+    });
+
+    // Water lanes (rows 1-5)
+    const waterConfigs = [
+        { row: 1, speed: 1.0, dir: 1, count: 2, type: 'log', w: 4 },
+        { row: 2, speed: 0.8, dir: -1, count: 2, type: 'turtle', w: 3 },
+        { row: 3, speed: 1.5, dir: 1, count: 2, type: 'log', w: 5 },
+        { row: 4, speed: 1.2, dir: -1, count: 2, type: 'turtle', w: 2 },
+        { row: 5, speed: 0.9, dir: 1, count: 2, type: 'log', w: 4 },
+    ];
+
+    waterConfigs.forEach(cfg => {
+        for (let i = 0; i < cfg.count; i++) {
+            let x = (i * (COLS / cfg.count)) * CELL_SIZE;
+            if (cfg.dir === -1) x = canvas.width - x - cfg.w * CELL_SIZE;
+            
+            if (cfg.type === 'log') {
+                LOGS.push({
+                    x: x,
+                    y: cfg.row * CELL_SIZE,
+                    w: cfg.w * CELL_SIZE,
+                    h: CELL_SIZE - 4,
+                    speed: cfg.speed * cfg.dir,
+                    type: 'log'
+                });
+            } else {
+                TURTLES.push({
+                    x: x,
+                    y: cfg.row * CELL_SIZE,
+                    w: cfg.w * CELL_SIZE,
+                    h: CELL_SIZE - 4,
+                    speed: cfg.speed * cfg.dir,
+                    type: 'turtle',
+                    diveTimer: Math.random() * 300,
+                    diving: false
+                });
+            }
+        }
+    });
+}
+
+// --- Frog Logic ---
+function resetFrog() {
+    frogX = Math.floor(COLS / 2) * CELL_SIZE;
+    frogY = 12 * CELL_SIZE;
+    frogDir = 0;
+    frogFrame = 0;
+    frogMoving = false;
+    invincibleTimer = 60;
+}
+
+function moveFrog(dir) {
+    if (gameState !== 'playing' || invincibleTimer > 0) return;
+    
+    const step = CELL_SIZE;
+    let newX = frogX;
+    let newY = frogY;
+
+    switch(dir) {
+        case 'up':    newY -= step; break;
+        case 'down':  newY += step; break;
+        case 'left':  newX -= step; break;
+        case 'right': newX += step; break;
+    }
+
+    // Bounds check
+    if (newX < 0) newX = 0;
+    if (newX >= canvas.width - CELL_SIZE) newX = canvas.width - CELL_SIZE;
+    if (newY < 0) newY = 0;
+    if (newY >= canvas.height - CELL_SIZE) newY = canvas.height - CELL_SIZE;
+
+    frogX = newX;
+    frogY = newY;
+    frogMoving = true;
+    frogFrame++;
+    
+    // Direction
+    switch(dir) {
+        case 'up':    frogDir = 0; break;
+        case 'right': frogDir = 1; break;
+        case 'down':  frogDir = 2; break;
+        case 'left':  frogDir = 3; break;
+    }
+
+    playSound('jump');
+
+    // Check if reached home
+    checkHome();
+}
+
+function checkHome() {
+    if (frogY <= CELL_SIZE) {
+        // Check which home slot
+        const slot = Math.floor((frogX + CELL_SIZE/2) / CELL_SIZE);
+        if (slot >= 0 && slot < 5 && !homesReached[slot]) {
+            homesReached[slot] = true;
+            score += 200;
+            playSound('home');
+            
+            // Check if all homes filled
+            if (homesReached.every(h => h)) {
+                level++;
+                score += 1000;
+                playSound('win');
+                homesReached = [false, false, false, false, false];
+                initLevel();
+            }
+            
+            resetFrog();
+        } else {
+            // Invalid home slot
+            die();
+        }
+    }
+}
+
+function die() {
+    if (invincibleTimer > 0) return;
+    gameState = 'dead';
+    deathTimer = 90;
+    lives--;
+    playSound('die');
+    
+    // Spawn particles
+    for (let i = 0; i < 10; i++) {
+        particles.push({
+            x: frogX + CELL_SIZE/2,
+            y: frogY + CELL_SIZE/2,
+            vx: (Math.random() - 0.5) * 5,
+            vy: (Math.random() - 0.5) * 5,
+            life: 30,
+            color: COLORS.frogBody
+        });
+    }
+}
+
+// --- Collision Detection ---
+function checkCollisions() {
+    const fx = frogX + 5;
+    const fy = frogY + 5;
+    const fw = CELL_SIZE - 10;
+    const fh = CELL_SIZE - 10;
+
+    // Check vehicles
+    for (const v of VECHICLES) {
+        if (rectsOverlap(fx, fy, fw, fh, v.x, v.y, v.w, v.h)) {
+            die();
+            return;
+        }
+    }
+
+    // Check water (if not on log/turtle)
+    const row = Math.floor(frogY / CELL_SIZE);
+    if (row >= 1 && row <= 5) {
+        let onPlatform = false;
+        
+        // Check logs
+        for (const l of LOGS) {
+            if (rectsOverlap(fx, fy, fw, fh, l.x, l.y, l.w, l.h)) {
+                onPlatform = true;
+                frogX += l.speed;
+                break;
+            }
+        }
+        
+        // Check turtles
+        if (!onPlatform) {
+            for (const t of TURTLES) {
+                if (!t.diving && rectsOverlap(fx, fy, fw, fh, t.x, t.y, t.w, t.h)) {
+                    onPlatform = true;
+                    frogX += t.speed;
+                    break;
+                }
+            }
+        }
+        
+        if (!onPlatform) {
+            die();
+        }
+    }
+
+    // Check bounds
+    if (frogX < 0 || frogX > canvas.width - CELL_SIZE) {
+        die();
+    }
+}
+
+function rectsOverlap(x1, y1, w1, h1, x2, y2, w2, h2) {
+    return x1 < x2 + w2 && x1 + w1 > x2 && y1 < y2 + h2 && y1 + h1 > y2;
+}
+
+// --- Update ---
+function update(dt) {
+    if (gameState === 'menu' || gameState === 'gameover') return;
+
+    animTime += dt;
+
+    // Update vehicles
+    for (const v of VECHICLES) {
+        v.x += v.speed;
+        if (v.speed > 0 && v.x > canvas.width) v.x = -v.w;
+        if (v.speed < 0 && v.x < -v.w) v.x = canvas.width;
+    }
+
+    // Update logs
+    for (const l of LOGS) {
+        l.x += l.speed;
+        if (l.speed > 0 && l.x > canvas.width) l.x = -l.w;
+        if (l.speed < 0 && l.x < -l.w) l.x = canvas.width;
+    }
+
+    // Update turtles
+    for (const t of TURTLES) {
+        t.x += t.speed;
+        if (t.speed > 0 && t.x > canvas.width) t.x = -t.w;
+        if (t.speed < 0 && t.x < -t.w) t.x = canvas.width;
+        
+        t.diveTimer--;
+        if (t.diveTimer <= 0) {
+            t.diving = !t.diving;
+            t.diveTimer = t.diving ? 120 : 300;
+        }
+    }
+
+    // Invincibility timer
+    if (invincibleTimer > 0) invincibleTimer--;
+
+    // Death animation
+    if (gameState === 'dead') {
+        deathTimer--;
+        if (deathTimer <= 0) {
+            if (lives <= 0) {
+                gameState = 'gameover';
+                showMessage('GAME OVER', `Final Score: ${score}`, 'RETRY');
+            } else {
+                resetFrog();
+                gameState = 'playing';
+            }
+        }
+    }
+
+    // Particles
+    for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life--;
+        if (p.life <= 0) particles.splice(i, 1);
+    }
+
+    // Collision check
+    if (gameState === 'playing') {
+        checkCollisions();
+    }
+}
+
+// --- Drawing ---
+function draw() {
+    ctx.fillStyle = COLORS.bg;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Draw rows
+    for (let r = 0; r < ROWS; r++) {
+        const row = LEVEL_LAYOUT[r];
+        const y = r * CELL_SIZE;
+
+        switch(row.type) {
+            case 'safe':
+                drawGrass(y);
+                break;
+            case 'road':
+                drawRoad(y);
+                break;
+            case 'water':
+                drawWater(y);
+                break;
+        }
+    }
+
+    // Draw home slots
+    drawHomeSlots();
+
+    // Draw vehicles
+    for (const v of VECHICLES) {
+        drawVehicle(v);
+    }
+
+    // Draw logs
+    for (const l of LOGS) {
+        drawLog(l);
+    }
+
+    // Draw turtles
+    for (const t of TURTLES) {
+        drawTurtle(t);
+    }
+
+    // Draw frog
+    if (gameState === 'playing' || gameState === 'dead') {
+        if (invincibleTimer <= 0 || Math.floor(animTime * 10) % 2 === 0) {
+            drawFrog();
+        }
+    }
+
+    // Draw particles
+    for (const p of particles) {
+        ctx.globalAlpha = p.life / 30;
+        ctx.fillStyle = p.color;
+        ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+    }
+    ctx.globalAlpha = 1;
+
+    // Draw score
+    ctx.fillStyle = COLORS.scoreText;
+    ctx.font = 'bold 12px "Courier New", monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText(`SCORE: ${score}`, 10, 12);
+    ctx.textAlign = 'right';
+    ctx.fillText(`LIVES: ${lives}`, canvas.width - 10, 12);
+    ctx.textAlign = 'center';
+    ctx.fillText(`LEVEL: ${level}`, canvas.width / 2, 12);
+}
+
+function drawGrass(y) {
+    ctx.fillStyle = COLORS.grass;
+    ctx.fillRect(0, y, canvas.width, CELL_SIZE);
+    // Grass texture
+    ctx.fillStyle = COLORS.grassLight;
+    for (let x = 0; x < canvas.width; x += 20) {
+        ctx.fillRect(x, y + 5, 2, 10);
+        ctx.fillRect(x + 10, y + 15, 2, 10);
+    }
+}
+
+function drawRoad(y) {
+    ctx.fillStyle = COLORS.road;
+    ctx.fillRect(0, y, canvas.width, CELL_SIZE);
+    // Road lines
+    ctx.fillStyle = COLORS.roadLine;
+    for (let x = 0; x < canvas.width; x += 40) {
+        ctx.fillRect(x, y + CELL_SIZE/2 - 1, 20, 2);
+    }
+}
+
+function drawWater(y) {
+    ctx.fillStyle = COLORS.water;
+    ctx.fillRect(0, y, canvas.width, CELL_SIZE);
+    // Water waves
+    ctx.fillStyle = COLORS.waterLight;
+    for (let x = 0; x < canvas.width; x += 30) {
+        const waveOffset = Math.sin(animTime * 2 + x * 0.1) * 2;
+        ctx.fillRect(x, y + 10 + waveOffset, 15, 2);
+    }
+}
+
+function drawHomeSlots() {
+    for (let i = 0; i < 5; i++) {
+        const x = i * CELL_SIZE * 2.6 + CELL_SIZE * 0.2;
+        const y = 0;
+        const w = CELL_SIZE * 2.2;
+        const h = CELL_SIZE - 2;
+        
+        if (homesReached[i]) {
+            ctx.fillStyle = COLORS.homeFilled;
+        } else {
+            ctx.fillStyle = COLORS.homeSlot;
+        }
+        ctx.fillRect(x, y, w, h);
+        
+        // Slot border
+        ctx.strokeStyle = '#004400';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, w, h);
+    }
+}
+
+function drawVehicle(v) {
+    ctx.fillStyle = v.color;
+    ctx.fillRect(v.x, v.y + 2, v.w, v.h - 4);
+    
+    // Windows
+    ctx.fillStyle = '#333';
+    if (v.type === 'car') {
+        ctx.fillRect(v.x + 5, v.y + 6, v.w * 0.3, v.h * 0.3);
+    } else {
+        ctx.fillRect(v.x + 5, v.y + 5, v.w * 0.25, v.h * 0.3);
+        ctx.fillRect(v.x + v.w * 0.5, v.y + 5, v.w * 0.25, v.h * 0.3);
+    }
+    
+    // Wheels
+    ctx.fillStyle = '#111';
+    ctx.fillRect(v.x + 2, v.y + v.h - 6, 8, 6);
+    ctx.fillRect(v.x + v.w - 10, v.y + v.h - 6, 8, 6);
+}
+
+function drawLog(l) {
+    ctx.fillStyle = COLORS.logBrown;
+    ctx.fillRect(l.x, l.y + 2, l.w, l.h - 4);
+    
+    // Log details
+    ctx.fillStyle = COLORS.logDark;
+    for (let x = l.x + 10; x < l.x + l.w - 10; x += 20) {
+        ctx.fillRect(x, l.y + 5, 2, l.h - 10);
+    }
+    
+    // Log ends
+    ctx.fillStyle = COLORS.logDark;
+    ctx.fillRect(l.x, l.y + 2, 6, l.h - 4);
+    ctx.fillRect(l.x + l.w - 6, l.y + 2, 6, l.h - 4);
+}
+
+function drawTurtle(t) {
+    if (t.diving) {
+        ctx.globalAlpha = 0.3;
+    }
+    
+    // Turtle shell
+    ctx.fillStyle = COLORS.turtleGreen;
+    ctx.fillRect(t.x, t.y + 2, t.w, t.h - 4);
+    
+    // Shell pattern
+    ctx.fillStyle = COLORS.turtleShell;
+    for (let x = t.x + 5; x < t.x + t.w - 5; x += 12) {
+        ctx.fillRect(x, t.y + 5, 8, t.h - 10);
+    }
+    
+    // Legs
+    ctx.fillStyle = COLORS.turtleLeg;
+    ctx.fillRect(t.x + 2, t.y + t.h - 6, 6, 4);
+    ctx.fillRect(t.x + t.w - 8, t.y + t.h - 6, 6, 4);
+    
+    ctx.globalAlpha = 1;
+}
+
+function drawFrog() {
+    const cx = frogX + CELL_SIZE / 2;
+    const cy = frogY + CELL_SIZE / 2;
+    const size = CELL_SIZE * 0.4;
+    
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(frogDir * Math.PI / 2);
+    
+    // Body
+    ctx.fillStyle = COLORS.frogBody;
+    ctx.fillRect(-size, -size, size * 2, size * 2);
+    
+    // Eyes
+    ctx.fillStyle = COLORS.frogEye;
+    ctx.fillRect(-size + 2, -size + 2, 6, 6);
+    ctx.fillRect(size - 8, -size + 2, 6, 6);
+    
+    // Pupils
+    ctx.fillStyle = COLORS.frogPupil;
+    ctx.fillRect(-size + 3, -size + 3, 3, 3);
+    ctx.fillRect(size - 7, -size + 3, 3, 3);
+    
+    // Legs
+    ctx.fillStyle = COLORS.frogBody;
+    ctx.fillRect(-size - 2, -size + 5, 4, 8);
+    ctx.fillRect(size - 2, -size + 5, 4, 8);
+    ctx.fillRect(-size - 2, size - 13, 4, 8);
+    ctx.fillRect(size - 2, size - 13, 4, 8);
+    
+    ctx.restore();
+}
+
+// --- UI Messages ---
+function showMessage(title, subtitle, btnText) {
+    const overlay = document.getElementById('message-overlay');
+    const msgTitle = document.getElementById('msg-title');
+    const msgSub = document.getElementById('msg-sub');
+    const startBtn = document.getElementById('start-btn');
+    
+    msgTitle.textContent = title;
+    msgSub.textContent = subtitle;
+    startBtn.textContent = btnText;
+    overlay.classList.remove('hidden');
+}
+
+function hideMessage() {
+    document.getElementById('message-overlay').classList.add('hidden');
+}
+
+// --- Input Handling ---
+document.addEventListener('keydown', (e) => {
+    if (gameState === 'playing') {
+        switch(e.key) {
+            case 'ArrowUp': case 'w': case 'W': moveFrog('up'); e.preventDefault(); break;
+            case 'ArrowDown': case 's': case 'S': moveFrog('down'); e.preventDefault(); break;
+            case 'ArrowLeft': case 'a': case 'A': moveFrog('left'); e.preventDefault(); break;
+            case 'ArrowRight': case 'd': case 'D': moveFrog('right'); e.preventDefault(); break;
+        }
+    }
+});
+
+// Touch controls
+document.querySelectorAll('.ctrl-btn').forEach(btn => {
+    btn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        if (gameState === 'playing') {
+            moveFrog(btn.dataset.dir);
+        }
+    });
+    
+    btn.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        if (gameState === 'playing') {
+            moveFrog(btn.dataset.dir);
+        }
+    });
+});
+
+// Start button
+document.getElementById('start-btn').addEventListener('click', () => {
+    initAudio();
+    if (gameState === 'menu' || gameState === 'gameover') {
+        startGame();
+    }
+});
+
+function startGame() {
+    score = 0;
+    lives = 3;
+    level = 1;
+    homesReached = [false, false, false, false, false];
+    initLevel();
+    resetFrog();
+    gameState = 'playing';
+    hideMessage();
+}
+
+// --- Game Loop ---
+function gameLoop(timestamp) {
+    const dt = (timestamp - lastTime) / 1000;
+    lastTime = timestamp;
+
+    update(dt);
+    draw();
+
+    requestAnimationFrame(gameLoop);
+}
+
+// --- Initialize ---
+initLevel();
+resetFrog();
+lastTime = performance.now();
+requestAnimationFrame(gameLoop);
+
+// Show initial message
+showMessage('FROGGER', 'Arrow Keys / WASD to move', 'START GAME');
+
+</script>
+</body>
+</html>
