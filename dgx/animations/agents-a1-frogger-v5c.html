@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Retro Frogger</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+        :root {
+            --bg-color: #222;
+            --game-bg: #000;
+            --text-color: #fff;
+            --accent: #0f0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Press Start 2P', cursive;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+            touch-action: none; /* Prevent zoom on mobile */
+        }
+
+        #game-container {
+            position: relative;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            border: 4px solid #444;
+        }
+
+        canvas {
+            background-color: var(--game-bg);
+            display: block;
+            image-rendering: pixelated; /* Retro look */
+        }
+
+        /* UI Overlay */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        .hud {
+            display: flex;
+            justify-content: space-between;
+            text-shadow: 2px 2px #000;
+            font-size: 12px;
+        }
+
+        #start-screen, #game-over-screen {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 20px;
+            border: 2px solid var(--accent);
+            pointer-events: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            min-width: 200px;
+        }
+
+        .hidden { display: none !important; }
+
+        button {
+            background: var(--accent);
+            border: none;
+            padding: 10px 20px;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 12px;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+        button:active { transform: scale(0.95); }
+
+        /* On-screen Controls */
+        #controls {
+            margin-top: 15px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 8px;
+            width: 180px;
+            height: 120px;
+        }
+
+        .control-btn {
+            background: #444;
+            border: 2px solid #666;
+            border-radius: 8px;
+            color: white;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .control-btn:active { background: #666; }
+        
+        #btn-up { grid-column: 2; grid-row: 1; }
+        #btn-left { grid-column: 1; grid-row: 2; }
+        #btn-down { grid-column: 2; grid-row: 2; }
+        #btn-right { grid-column: 3; grid-row: 2; }
+
+        /* Mobile adjustments */
+        @media (max-width: 600px) {
+            canvas { width: 100%; height: auto; }
+            #controls { width: 160px; height: 100px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <canvas id="gameCanvas" width="440" height="520"></canvas>
+        
+        <div id="ui-layer">
+            <div class="hud">
+                <div id="score-display">SCORE: 0</div>
+                <div id="lives-display">LIVES: 3</div>
+            </div>
+        </div>
+
+        <div id="start-screen">
+            <h1 style="color:var(--accent); margin-bottom: 10px;">FROGGER</h1>
+            <p style="font-size: 10px; line-height: 1.5;">Use Arrow Keys or Buttons to move.<br>Ride logs/turtles.<br>Avoid cars!</p>
+            <button id="start-btn">START GAME</button>
+        </div>
+
+        <div id="game-over-screen" class="hidden">
+            <h1 style="color:red;">GAME OVER</h1>
+            <p>Final Score: <span id="final-score">0</span></p>
+            <button id="restart-btn">TRY AGAIN</button>
+        </div>
+    </div>
+
+    <div id="controls">
+        <div class="control-btn" id="btn-up">▲</div>
+        <div class="control-btn" id="btn-left">◀</div>
+        <div class="control-btn" id="btn-down">▼</div>
+        <div class="control-btn" id="btn-right">▶</div>
+    </div>
+
+<script>
+/**
+ * FROGGER CLONE
+ * Single File Implementation
+ */
+
+// --- Configuration ---
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// Game Constants
+const GRID = 40; // Base grid size
+const COLS = 11; // 440px / 40
+const ROWS = 13; // 520px / 40
+
+// Colors
+const C_GRASS = '#009900';
+const C_ROAD = '#333333';
+const C_WATER = '#0000AA';
+const C_FROG = '#00FF00';
+const C_LOG = '#8B4513';
+const C_TURTLE = '#00FF00';
+const C_CAR_1 = '#FF0000';
+const C_CAR_2 = '#FF6600';
+const C_CAR_3 = '#FFFF00';
+
+// --- Game State ---
+let gameState = {
+    score: 0,
+    lives: 3,
+    level: 1,
+    isRunning: false,
+    isGameOver: false,
+    frames: 0
+};
+
+let frog = {
+    x: 5 * GRID,
+    y: 12 * GRID,
+    w: GRID - 4,
+    h: GRID - 4,
+    color: C_FROG,
+    dx: 0,
+    dy: 0,
+    onLog: null, // Reference to the log/turtle group currently riding
+    dead: false
+};
+
+// --- Entities ---
+let cars = [];
+let logs = [];
+let turtles = [];
+
+// --- Audio Context ---
+const AudioContext = window.AudioContext || window.webkitAudioContext;
+const audioCtx = new AudioContext();
+
+// --- Input Handling ---
+const keys = {};
+
+window.addEventListener('keydown', e => {
+    keys[e.code] = true;
+    // Prevent scrolling with arrows
+    if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].indexOf(e.code) > -1) {
+        e.preventDefault();
+    }
+});
+
+window.addEventListener('keyup', e => {
+    keys[e.code] = false;
+});
+
+// Touch Controls
+const setupTouchBtn = (id, code) => {
+    const btn = document.getElementById(id);
+    const start = (e) => { e.preventDefault(); keys[code] = true; };
+    const end = (e) => { e.preventDefault(); keys[code] = false; };
+    
+    btn.addEventListener('mousedown', start);
+    btn.addEventListener('mouseup', end);
+    btn.addEventListener('touchstart', start);
+    btn.addEventListener('touchend', end);
+};
+
+setupTouchBtn('btn-up', 'ArrowUp');
+setupTouchBtn('btn-down', 'ArrowDown');
+setupTouchBtn('btn-left', 'ArrowLeft');
+setupTouchBtn('btn-right', 'ArrowRight');
+
+// --- Sound Effects (Synthesized) ---
+function playSound(type) {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    const now = audioCtx.currentTime;
+
+    if (type === 'jump') {
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(150, now);
+        osc.frequency.exponentialRampToValueAtTime(600, now + 0.1);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+        osc.start(now);
+        osc.stop(now + 0.1);
+    } else if (type === 'die') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(200, now);
+        osc.frequency.linearRampToValueAtTime(50, now + 0.3);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
+        osc.start(now);
+        osc.stop(now + 0.3);
+    } else if (type === 'win') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(400, now);
+        osc.frequency.setValueAtTime(600, now + 0.1);
+        osc.frequency.setValueAtTime(1000, now + 0.2);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.4);
+        osc.start(now);
+        osc.stop(now + 0.4);
+    }
+}
+
+// --- Game Logic ---
+
+function initGame() {
+    gameState.score = 0;
+    gameState.lives = 3;
+    gameState.level = 1;
+    gameState.isRunning = true;
+    gameState.isGameOver = false;
+    resetFrog();
+    spawnEntities();
+    updateUI();
+    document.getElementById('start-screen').classList.add('hidden');
+    document.getElementById('game-over-screen').classList.add('hidden');
+    gameLoop();
+}
+
+function resetFrog() {
+    frog.x = 5 * GRID;
+    frog.y = 12 * GRID;
+    frog.onLog = null;
+    frog.dead = false;
+}
+
+function spawnEntities() {
+    cars = [];
+    logs = [];
+    turtles = [];
+
+    // --- Road (Rows 3, 4, 5, 6, 7) ---
+    // Lane 3 (Right to Left)
+    cars.push(createCar(3, 200, -3 - (gameState.level * 0.2), C_CAR_1));
+    cars.push(createCar(3, 500, -3 - (gameState.level * 0.2), C_CAR_1));
+    
+    // Lane 4 (Left to Right)
+    cars.push(createCar(4, -100, 3 + (gameState.level * 0.2), C_CAR_2));
+    cars.push(createCar(4, 400, 3 + (gameState.level * 0.2), C_CAR_2));
+
+    // Lane 5 (Right to Left - Fast)
+    cars.push(createCar(5, 300, -5 - (gameState.level * 0.2), C_CAR_3));
+    cars.push(createCar(5, 700, -5 - (gameState.level * 0.2), C_CAR_3));
+
+    // Lane 6 (Left to Right - Slow Truck)
+    cars.push(createCar(6, -200, 2, '#555')); // Truck
+
+    // --- River (Rows 8, 9, 10, 11) ---
+    // Logs (Right to Left)
+    logs.push(createLog(8, 100, -2, 2 * GRID));
+    logs.push(createLog(8, 400, -2, 2 * GRID));
+    logs.push(createLog(8, 700, -2, 2 * GRID));
+
+    // Turtles (Left to Right)
+    turtles.push(createTurtle(9, -50, 1.5, 3));
+    turtles.push(createTurtle(9, 300, 1.5, 3));
+    turtles.push(createTurtle(9, 650, 1.5, 3));
+
+    // Logs (Right to Left - Fast)
+    logs.push(createLog(10, 50, -4, 1.5 * GRID));
+    logs.push(createLog(10, 350, -4, 1.5 * GRID));
+    logs.push(createLog(10, 650, -4, 1.5 * GRID));
+}
+
+function createCar(row, x, speed, color) {
+    return { x: x, y: row * GRID, w: GRID * 1.5, h: GRID * 0.8, speed: speed, color: color };
+}
+
+function createLog(row, x, speed, width) {
+    return { x: x, y: row * GRID, w: width, h: GRID, speed: speed, color: C_LOG };
+}
+
+function createTurtle(row, x, speed, count) {
+    return { x: x, y: row * GRID, w: GRID * 1.2, h: GRID, speed: speed, color: C_TURTLE, count: count };
+}
+
+function update() {
+    if (!gameState.isRunning || gameState.isGameOver) return;
+
+    // 1. Movement Input
+    let moved = false;
+    if (keys['ArrowUp'] || keys['KeyW']) { frog.dy = -GRID; moved = true; }
+    else if (keys['ArrowDown'] || keys['KeyS']) { frog.dy = GRID; moved = true; }
+    else if (keys['ArrowLeft'] || keys['KeyA']) { frog.dx = -GRID; moved = true; }
+    else if (keys['ArrowRight'] || keys['KeyD']) { frog.dx = GRID; moved = true; }
+    else {
+        frog.dx = 0;
+        frog.dy = 0;
+    }
+
+    if (moved) playSound('jump');
+
+    // 2. Apply Movement
+    frog.x += frog.dx;
+    frog.y += frog.dy;
+
+    // 3. Boundaries
+    // Left/Right wrap
+    if (frog.x < 0) frog.x = canvas.width - GRID;
+    if (frog.x > canvas.width - GRID) frog.x = 0;
+
+    // Top/Bottom walls
+    if (frog.y < 0) frog.y = 0;
+    if (frog.y > canvas.height - GRID) frog.y = canvas.height - GRID;
+
+    // 4. Win Condition (Reached Top)
+    if (frog.y < GRID) {
+        gameState.score += 100 * gameState.level;
+        playSound('win');
+        gameState.level++;
+        resetFrog();
+        spawnEntities();
+        updateUI();
+        return; // Skip collision check for this frame
+    }
+
+    // 5. Collision Detection
+    
+    // A. Water Collision (Rows 8, 9, 10, 11)
+    if (frog.y >= 8 * GRID && frog.y <= 11 * GRID) {
+        // Check if on a log or turtle
+        let onVehicle = false;
+        
+        // Check Logs
+        for (let log of logs) {
+            if (rectIntersect(frog, log)) {
+                onVehicle = true;
+                // Move frog with log
+                frog.x += log.speed;
+            }
+        }
+        
+        // Check Turtles
+        for (let t of turtles) {
+            if (rectIntersect(frog, t)) {
+                onVehicle = true;
+                frog.x += t.speed;
+            }
+        }
+
+        if (!onVehicle) {
+            die();
+        }
+    }
+
+    // B. Road Collision (Rows 3, 4, 5, 6, 7)
+    // Only check if frog is on the road
+    if (frog.y >= 3 * GRID && frog.y <= 7 * GRID) {
+        for (let car of cars) {
+            if (rectIntersect(frog, car)) {
+                die();
+                return;
+            }
+        }
+    }
+}
+
+function rectIntersect(r1, r2) {
+    return !(r2.x > r1.x + r1.w || 
+             r2.x + r2.w < r1.x || 
+             r2.y > r1.y + r1.h || 
+             r2.y + r2.h < r1.y);
+}
+
+function die() {
+    playSound('die');
+    gameState.lives--;
+    updateUI();
+    
+    if (gameState.lives <= 0) {
+        gameOver();
+    } else {
+        resetFrog();
+    }
+}
+
+function gameOver() {
+    gameState.isRunning = false;
+    gameState.isGameOver = true;
+    document.getElementById('final-score').innerText = gameState.score;
+    document.getElementById('game-over-screen').classList.remove('hidden');
+}
+
+function updateUI() {
+    document.getElementById('score-display').innerText = `SCORE: ${gameState.score}`;
+    document.getElementById('lives-display').innerText = `LIVES: ${gameState.lives}`;
+}
+
+// --- Rendering ---
+
+function draw() {
+    // Clear Screen
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Draw Zones
+    // Grass (Top)
+    ctx.fillStyle = C_GRASS;
+    ctx.fillRect(0, 0, canvas.width, 2 * GRID);
+    // Road
+    ctx.fillStyle = C_ROAD;
+    ctx.fillRect(0, 3 * GRID, canvas.width, 5 * GRID);
+    // Water
+    ctx.fillStyle = C_WATER;
+    ctx.fillRect(0, 8 * GRID, canvas.width, 4 * GRID);
+    // Grass (Bottom - Start)
+    ctx.fillStyle = C_GRASS;
+    ctx.fillRect(0, 12 * GRID, canvas.width, 1 * GRID);
+
+    // Draw Entities
+    drawCars();
+    drawLogs();
+    drawTurtles();
+    drawFrog();
+}
+
+function drawFrog() {
+    ctx.fillStyle = frog.color;
+    // Simple pixel art frog
+    const x = frog.x + 2;
+    const y = frog.y + 2;
+    const w = frog.w;
+    const h = frog.h;
+
+    // Body
+    ctx.fillRect(x, y, w, h);
+    // Eyes
+    ctx.fillStyle = '#000';
+    ctx.fillRect(x + 4, y + 4, 6, 6);
+    ctx.fillRect(x + w - 10, y + 4, 6, 6);
+}
+
+function drawCars() {
+    cars.forEach(car => {
+        ctx.fillStyle = car.color;
+        // Car Body
+        ctx.fillRect(car.x, car.y + 4, car.w, car.h - 8);
+        // Windows
+        ctx.fillStyle = '#ADD8E6';
+        ctx.fillRect(car.x + 4, car.y + 8, car.w - 8, car.h - 16);
+        // Wheels
+        ctx.fillStyle = '#000';
+        ctx.fillRect(car.x + 2, car.y + car.h - 4, 6, 4);
+        ctx.fillRect(car.x + car.w - 8, car.y + car.h - 4, 6, 4);
+    });
+}
+
+function drawLogs() {
+    logs.forEach(log => {
+        ctx.fillStyle = log.color;
+        ctx.fillRect(log.x, log.y + 4, log.w, log.h - 8);
+        // Log texture
+        ctx.fillStyle = '#5C3005';
+        ctx.fillRect(log.x + 5, log.y + 8, log.w - 10, log.h - 16);
+    });
+}
+
+function drawTurtles() {
+    turtles.forEach(t => {
+        ctx.fillStyle = t.color;
+        // Draw multiple turtles
+        for(let i=0; i<t.count; i++) {
+            let tx = t.x + (i * (GRID/2));
+            ctx.fillRect(tx, t.y + 4, GRID/2 - 2, GRID - 8);
+            // Shell detail
+            ctx.fillStyle = '#004400';
+            ctx.fillRect(tx + 2, t.y + 8, (GRID/2) - 6, (GRID/2) - 4);
+            ctx.fillStyle = t.color;
+        }
+    });
+}
+
+// --- Main Loop ---
+
+function gameLoop() {
+    if (gameState.isRunning) {
+        update();
+        draw();
+        requestAnimationFrame(gameLoop);
+    }
+}
+
+// --- Initialization ---
+document.getElementById('start-btn').addEventListener('click', initGame);
+document.getElementById('restart-btn').addEventListener('click', initGame);
+
+// Initial Draw
+ctx.fillStyle = '#000';
+ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+</script>
+</body>
+</html>

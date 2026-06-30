@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Retro Frogger</title>
+    <style>
+        :root {
+            --bg-color: #222;
+            --ui-color: #333;
+            --accent: #00ff00;
+            --text: #fff;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text);
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+            touch-action: none; /* Prevent pull-to-refresh on mobile */
+        }
+
+        #game-container {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 600px;
+        }
+
+        header {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 20px;
+            box-sizing: border-box;
+            background: var(--ui-color);
+            border-bottom: 4px solid #000;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+
+        .stat-box span {
+            color: var(--accent);
+        }
+
+        canvas {
+            background-color: #000;
+            border: 4px solid #555;
+            image-rendering: pixelated; /* Crisp pixels */
+            max-width: 100%;
+            display: block;
+        }
+
+        /* Controls Area */
+        #controls {
+            margin-top: 10px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            width: 200px;
+        }
+
+        .d-btn {
+            background: #444;
+            border: 2px solid #666;
+            border-radius: 8px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: white;
+            cursor: pointer;
+            user-select: none;
+            box-shadow: 0 4px 0 #222;
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+
+        .d-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 #222;
+            background: #555;
+        }
+
+        /* D-Pad Layout */
+        .up { grid-column: 2; }
+        .left { grid-column: 1; grid-row: 2; }
+        .down { grid-column: 2; grid-row: 2; }
+        .right { grid-column: 3; grid-row: 2; }
+
+        /* Overlay for Game Over / Start */
+        #overlay {
+            position: absolute;
+            top: 50px; /* Offset for header */
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            z-index: 10;
+        }
+
+        h1 {
+            color: var(--accent);
+            text-shadow: 2px 2px #000;
+            font-size: 3rem;
+            margin-bottom: 10px;
+        }
+
+        p { margin: 5px; font-size: 1.1rem; }
+
+        button.start-btn {
+            margin-top: 20px;
+            padding: 15px 30px;
+            font-size: 1.5rem;
+            background: var(--accent);
+            border: none;
+            font-family: inherit;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #005500;
+        }
+        
+        button.start-btn:active {
+            transform: translateY(4px);
+            box-shadow: none;
+        }
+
+        /* Mobile adjustments */
+        @media (max-height: 700px) {
+            h1 { font-size: 2rem; }
+            #controls { width: 160px; }
+            .d-btn { height: 50px; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <header>
+        <div class="stat-box">SCORE: <span id="score">0</span></div>
+        <div class="stat-box">LIVES: <span id="lives">3</span></div>
+    </header>
+
+    <!-- Canvas Container to keep aspect ratio logic simple -->
+    <div style="position: relative;">
+        <canvas id="gameCanvas" width="600" height="600"></canvas>
+        
+        <div id="overlay">
+            <h1>FROGGER</h1>
+            <p>Reach the Green Zones</p>
+            <p>Avoid Cars & Water</p>
+            <p>Use Arrow Keys or D-Pad</p>
+            <button class="start-btn" onclick="startGame()">PLAY</button>
+        </div>
+    </div>
+
+    <div id="controls">
+        <div class="d-btn up" ontouchstart="handleInput('up', event)" onmousedown="handleInput('up', event)">▲</div>
+        <div class="d-btn left" ontouchstart="handleInput('left', event)" onmousedown="handleInput('left', event)">◀</div>
+        <div class="d-btn down" ontouchstart="handleInput('down', event)" onmousedown="handleInput('down', event)">▼</div>
+        <div class="d-btn right" ontouchstart="handleInput('right', event)" onmousedown="handleInput('right', event)">▶</div>
+    </div>
+</div>
+
+<script>
+/**
+ * GAME CONFIGURATION & CONSTANTS
+ */
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const scoreEl = document.getElementById('score');
+const livesEl = document.getElementById('lives');
+const overlay = document.getElementById('overlay');
+
+// Grid System: 15 columns x 15 rows (40px tiles)
+const TILE_SIZE = 40;
+const ROWS = 15;
+const COLS = 15;
+
+// Game State
+let gameRunning = false;
+let score = 0;
+let lives = 3;
+let frameCount = 0;
+let speedMultiplier = 1.0;
+
+// Audio Context
+let audioCtx = null;
+
+/**
+ * ENTITIES
+ */
+
+// The Frog
+const frog = {
+    x: 7 * TILE_SIZE,
+    y: 13 * TILE_SIZE, // Start row
+    w: TILE_SIZE - 10, // Hitbox slightly smaller than tile
+    h: TILE_SIZE - 10,
+    color: '#00ff00',
+    dir: 'up',
+    onLog: false,
+    logSpeed: 0,
+    
+    reset: function() {
+        this.x = 7 * TILE_SIZE;
+        this.y = 13 * TILE_SIZE;
+        this.onLog = false;
+        this.logSpeed = 0;
+    },
+    
+    move: function(dir) {
+        if (!gameRunning) return;
+        
+        // Play Move Sound
+        playSound('move');
+
+        switch(dir) {
+            case 'up': this.y -= TILE_SIZE; this.dir = 'up'; break;
+            case 'down': this.y += TILE_SIZE; this.dir = 'down'; break;
+            case 'left': this.x -= TILE_SIZE; this.dir = 'left'; break;
+            case 'right': this.x += TILE_SIZE; this.dir = 'right'; break;
+        }
+
+        // Boundary Checks
+        if (this.x < 0) this.x = 0;
+        if (this.x > canvas.width - TILE_SIZE) this.x = canvas.width - TILE_SIZE;
+        if (this.y < 0) this.y = 0;
+        if (this.y > canvas.height - TILE_SIZE) this.y = canvas.height - TILE_SIZE;
+    },
+
+    draw: function() {
+        ctx.fillStyle = this.color;
+        // Draw body
+        ctx.fillRect(this.x + 5, this.y + 5, this.w, this.h);
+        
+        // Draw Eyes (Retro style)
+        ctx.fillStyle = 'black';
+        if (this.dir === 'up') {
+            ctx.fillRect(this.x + 8, this.y + 6, 4, 4);
+            ctx.fillRect(this.x + 28, this.y + 6, 4, 4);
+        } else if (this.dir === 'down') {
+            ctx.fillRect(this.x + 8, this.y + 28, 4, 4);
+            ctx.fillRect(this.x + 28, this.y + 28, 4, 4);
+        } else if (this.dir === 'left') {
+            ctx.fillRect(this.x + 6, this.y + 8, 4, 4);
+            ctx.fillRect(this.x + 6, this.y + 28, 4, 4);
+        } else {
+            ctx.fillRect(this.x + 28, this.y + 8, 4, 4);
+            ctx.fillRect(this.x + 28, this.y + 28, 4, 4);
+        }
+    }
+};
+
+// Obstacles (Cars)
+class Car {
+    constructor(y, speed, color, width = TILE_SIZE * 2) {
+        this.y = y;
+        this.w = width;
+        this.h = TILE_SIZE - 10;
+        this.speed = speed;
+        this.color = color;
+        this.x = speed > 0 ? -this.w : canvas.width;
+    }
+
+    update() {
+        this.x += this.speed * speedMultiplier;
+        // Wrap around
+        if (this.speed > 0 && this.x > canvas.width) this.x = -this.w;
+        if (this.speed < 0 && this.x < -this.w) this.x = canvas.width;
+    }
+
+    draw() {
+        ctx.fillStyle = this.color;
+        // Car Body
+        ctx.fillRect(this.x, this.y + 5, this.w, this.h);
+        // Wheels
+        ctx.fillStyle = '#333';
+        ctx.fillRect(this.x + 5, this.y + 5, 10, 4);
+        ctx.fillRect(this.x + 5, this.y + 28, 10, 4);
+        ctx.fillRect(this.x + this.w - 15, this.y + 5, 10, 4);
+        ctx.fillRect(this.x + this.w - 15, this.y + 28, 10, 4);
+        // Roof
+        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+        ctx.fillRect(this.x + 10, this.y + 8, this.w - 20, this.h - 6);
+    }
+}
+
+// River Objects (Logs & Turtles)
+class Log {
+    constructor(y, speed, type, length = 1) {
+        this.y = y;
+        this.w = length * TILE_SIZE;
+        this.h = TILE_SIZE - 10;
+        this.speed = speed;
+        this.type = type; // 'log' or 'turtle'
+        this.x = speed > 0 ? -this.w : canvas.width;
+    }
+
+    update() {
+        this.x += this.speed * speedMultiplier;
+        if (this.speed > 0 && this.x > canvas.width) this.x = -this.w;
+        if (this.speed < 0 && this.x < -this.w) this.x = canvas.width;
+    }
+
+    draw() {
+        if (this.type === 'log') {
+            ctx.fillStyle = '#8B4513'; // Brown
+            ctx.fillRect(this.x, this.y + 5, this.w, this.h);
+            // Wood grain detail
+            ctx.fillStyle = '#A0522D';
+            ctx.fillRect(this.x + 5, this.y + 8, this.w - 10, this.h - 6);
+        } else {
+            // Turtles
+            ctx.fillStyle = '#2E8B57'; // SeaGreen
+            // Draw 3 turtles for a long log
+            for(let i=0; i<3; i++) {
+                let tx = this.x + (i * TILE_SIZE);
+                ctx.beginPath();
+                ctx.arc(tx + 20, this.y + 20, 15, 0, Math.PI * 2);
+                ctx.fill();
+                // Head
+                ctx.fillStyle = '#3CB371';
+                ctx.beginPath();
+                ctx.arc(tx + 20, this.y + 20, 8, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#2E8B57'; // Reset
+            }
+        }
+    }
+}
+
+// Goal Slots
+const goals = [
+    {x: 0, y: 0, filled: false},
+    {x: 2, y: 0, filled: false},
+    {x: 4, y: 0, filled: false},
+    {x: 6, y: 0, filled: false},
+    {x: 8, y: 0, filled: false},
+    {x: 10, y: 0, filled: false},
+    {x: 12, y: 0, filled: false},
+    {x: 14, y: 0, filled: false}
+];
+
+// Level Setup
+let cars = [];
+let logs = [];
+
+function initLevel() {
+    cars = [];
+    logs = [];
+
+    // --- ROAD (Rows 9-13) ---
+    // Row 13 (Start) is safe
+    // Row 12: Cars Left
+    for(let i=0; i<3; i++) cars.push(new Car(12 * TILE_SIZE, -2, '#FF4500'));
+    // Row 11: Cars Right (Fast)
+    for(let i=0; i<2; i++) cars.push(new Car(11 * TILE_SIZE, 3, '#FFD700'));
+    // Row 10: Cars Left (Slow)
+    for(let i=0; i<4; i++) cars.push(new Car(10 * TILE_SIZE, -1.5, '#00BFFF'));
+    // Row 9: Cars Right (Trucks)
+    for(let i=0; i<2; i++) cars.push(new Car(9 * TILE_SIZE, 2.5, '#FF69B4', TILE_SIZE * 3));
+
+    // --- RIVER (Rows 4-8) ---
+    // Row 8: Logs Right
+    for(let i=0; i<3; i++) logs.push(new Log(8 * TILE_SIZE, 1.5, 'log', 2));
+    // Row 7: Turtles Left
+    for(let i=0; i<3; i++) logs.push(new Log(7 * TILE_SIZE, -2.5, 'turtle', 3));
+    // Row 6: Logs Right (Fast)
+    for(let i=0; i<2; i++) logs.push(new Log(6 * TILE_SIZE, 3, 'log', 2));
+    // Row 5: Turtles Left (Slow)
+    for(let i=0; i<4; i++) logs.push(new Log(5 * TILE_SIZE, -1.5, 'turtle', 3));
+    // Row 4: Logs Right
+    for(let i=0; i<3; i++) logs.push(new Log(4 * TILE_SIZE, 2, 'log', 2));
+}
+
+/**
+ * GAME LOGIC
+ */
+
+function checkCollisions() {
+    // 1. Check Car Collision
+    // Simple AABB collision
+    let frogRect = {x: frog.x + 5, y: frog.y + 5, w: frog.w, h: frog.h};
+    
+    for (let car of cars) {
+        if (
+            frogRect.x < car.x + car.w &&
+            frogRect.x + frogRect.w > car.x &&
+            frogRect.y < car.y + car.h &&
+            frogRect.y + frogRect.h > car.y
+        ) {
+            die();
+            return;
+        }
+    }
+
+    // 2. Check River Logic
+    let row = Math.round(frog.y / TILE_SIZE);
+    
+    // If in river area (Rows 4-8)
+    if (row >= 4 && row <= 8) {
+        let onLog = false;
+        let currentLogSpeed = 0;
+
+        for (let log of logs) {
+            // Check if frog is horizontally overlapping with log
+            // Allow slightly more leniency on logs
+            if (
+                frog.x + 5 < log.x + log.w &&
+                frog.x + frog.w + 5 > log.x
+            ) {
+                onLog = true;
+                currentLogSpeed = log.speed * speedMultiplier;
+                break;
+            }
+        }
+
+        if (onLog) {
+            frog.onLog = true;
+            frog.logSpeed = currentLogSpeed;
+            frog.x += frog.logSpeed;
+        } else {
+            // Drowning
+            die();
+            return;
+        }
+    } else {
+        frog.onLog = false;
+        frog.logSpeed = 0;
+    }
+
+    // 3. Check Win Condition (Top Row)
+    if (frog.y <= 0) {
+        // Check if landed in a slot
+        let col = Math.round(frog.x / TILE_SIZE);
+        let landed = false;
+        
+        // Find goal index
+        let goalIndex = goals.findIndex(g => g.x === col);
+        
+        if (goalIndex !== -1) {
+            if (!goals[goalIndex].filled) {
+                // Success!
+                goals[goalIndex].filled = true;
+                score += 100;
+                scoreEl.innerText = score;
+                playSound('win');
+                resetFrog();
+                
+                // Check Level Complete
+                if (goals.every(g => g.filled)) {
+                    levelComplete();
+                }
+            } else {
+                // Slot taken
+                die();
+            }
+        } else {
+            // Hit the wall between slots
+            die();
+        }
+    }
+}
+
+function die() {
+    playSound('die');
+    lives--;
+    livesEl.innerText = lives;
+    
+    // Visual feedback
+    ctx.fillStyle = 'red';
+    ctx.fillRect(frog.x, frog.y, TILE_SIZE, TILE_SIZE);
+    
+    if (lives <= 0) {
+        gameOver();
+    } else {
+        resetFrog();
+    }
+}
+
+function resetFrog() {
+    frog.reset();
+}
+
+function levelComplete() {
+    speedMultiplier += 0.2; // Increase difficulty
+    goals.forEach(g => g.filled = false);
+    score += 1000;
+    scoreEl.innerText = score;
+    resetFrog();
+    // Simple flash effect
+    ctx.fillStyle = 'white';
+    ctx.fillRect(0,0,canvas.width, canvas.height);
+}
+
+function gameOver() {
+    gameRunning = false;
+    overlay.style.display = 'flex';
+    overlay.innerHTML = `
+        <h1>GAME OVER</h1>
+        <p>Final Score: ${score}</p>
+        <button class="start-btn" onclick="startGame()">TRY AGAIN</button>
+    `;
+}
+
+/**
+ * RENDERING
+ */
+function drawBackground() {
+    // Water Background
+    ctx.fillStyle = '#00008B'; // DarkBlue
+    ctx.fillRect(0, 4 * TILE_SIZE, canvas.width, 5 * TILE_SIZE);
+
+    // Road Background
+    ctx.fillStyle = '#333';
+    ctx.fillRect(0, 9 * TILE_SIZE, canvas.width, 5 * TILE_SIZE);
+
+    // Safe Zones (Start & Goals)
+    ctx.fillStyle = '#228B22'; // ForestGreen
+    ctx.fillRect(0, 0, canvas.width, 4 * TILE_SIZE); // Top Goal Area
+    ctx.fillRect(0, 13 * TILE_SIZE, canvas.width, 2 * TILE_SIZE); // Bottom Start Area
+
+    // Draw Goal Slots (Empty)
+    ctx.fillStyle = '#006400'; // Darker Green
+    goals.forEach(g => {
+        if (!g.filled) {
+            ctx.fillRect(g.x * TILE_SIZE, 0, TILE_SIZE, TILE_SIZE);
+        } else {
+            // Draw Frog in goal
+            ctx.fillStyle = '#00ff00';
+            ctx.fillRect(g.x * TILE_SIZE + 10, 10, 20, 20);
+        }
+    });
+}
+
+function gameLoop() {
+    if (!gameRunning) return;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    drawBackground();
+
+    // Update & Draw Logs
+    logs.forEach(log => {
+        log.update();
+        log.draw();
+    });
+
+    // Update & Draw Cars
+    cars.forEach(car => {
+        car.update();
+        car.draw();
+    });
+
+    // Update & Draw Frog
+    frog.draw();
+
+    // Logic
+    checkCollisions();
+
+    requestAnimationFrame(gameLoop);
+}
+
+/**
+ * INPUT HANDLING
+ */
+function handleInput(direction, e) {
+    if(e) e.preventDefault(); // Prevent double firing on touch devices
+    if (!gameRunning) return;
+    frog.move(direction);
+}
+
+window.addEventListener('keydown', (e) => {
+    if (!gameRunning) return;
+    switch(e.key) {
+        case 'ArrowUp': case 'w': case 'W': handleInput('up'); break;
+        case 'ArrowDown': case 's': case 'S': handleInput('down'); break;
+        case 'ArrowLeft': case 'a': case 'A': handleInput('left'); break;
+        case 'ArrowRight': case 'd': case 'D': handleInput('right'); break;
+    }
+});
+
+/**
+ * AUDIO SYSTEM (Web Audio API)
+ */
+function initAudio() {
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+}
+
+function playSound(type) {
+    if (!audioCtx) return;
+    
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    const now = audioCtx.currentTime;
+
+    if (type === 'move') {
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(150, now);
+        osc.frequency.exponentialRampToValueAtTime(300, now + 0.1);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+        osc.start(now);
+        osc.stop(now + 0.1);
+    } else if (type === 'die') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(200, now);
+        osc.frequency.exponentialRampToValueAtTime(50, now + 0.3);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+        osc.start(now);
+        osc.stop(now + 0.3);
+    } else if (type === 'win') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(400, now);
+        osc.frequency.setValueAtTime(600, now + 0.1);
+        osc.frequency.setValueAtTime(800, now + 0.2);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.4);
+        osc.start(now);
+        osc.stop(now + 0.4);
+    }
+}
+
+/**
+ * STARTUP
+ */
+function startGame() {
+    initAudio();
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+    
+    score = 0;
+    lives = 3;
+    speedMultiplier = 1.0;
+    scoreEl.innerText = score;
+    livesEl.innerText = lives;
+    
+    // Reset goals
+    goals.forEach(g => g.filled = false);
+    
+    initLevel();
+    resetFrog();
+    
+    overlay.style.display = 'none';
+    gameRunning = true;
+    gameLoop();
+}
+
+// Initial Draw
+ctx.fillStyle = '#000';
+ctx.fillRect(0,0,canvas.width, canvas.height);
+drawBackground();
+
+</script>
+</body>
+</html>

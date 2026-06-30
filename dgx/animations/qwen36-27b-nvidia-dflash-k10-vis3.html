@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rotating DNA Double Helix</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #050508; /* Deep dark background */
+            overflow: hidden; /* Prevent scrollbars */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        canvas {
+            display: block;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="dnaCanvas"></canvas>
+
+<script>
+    const canvas = document.getElementById('dnaCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // Configuration
+    let width, height;
+    const helixRadius = 120;
+    const helixHeight = 600; // Visible height of the helix
+    const nodeSpacing = 15;  // Vertical distance between rungs
+    const rotationSpeed = 0.02;
+    
+    // Colors
+    const colorStrandA = '#00d2ff'; // Cyan/Blue
+    const colorStrandB = '#ff0055'; // Pink/Red
+    const colorRung = '#ffffff';
+
+    let angle = 0;
+
+    // Resize canvas to fit window
+    function resize() {
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = width;
+        canvas.height = height;
+    }
+
+    window.addEventListener('resize', resize);
+    resize();
+
+    function draw() {
+        // Clear screen with a slight fade for motion trails (optional, using solid clear here for crispness)
+        ctx.fillStyle = '#050508';
+        ctx.fillRect(0, 0, width, height);
+
+        // Calculate total nodes based on height
+        const numNodes = Math.ceil(helixHeight / nodeSpacing);
+        const centerY = height / 2;
+        const startX = width / 2;
+
+        // Store points to draw connections later
+        const pointsA = [];
+        const pointsB = [];
+
+        // 1. Calculate positions
+        for (let i = 0; i <= numNodes; i++) {
+            // Map index to Y position (centered)
+            const y = centerY + (i * nodeSpacing) - (helixHeight / 2);
+            
+            // Calculate X offset using sine/cosine
+            // We use 'angle' for rotation over time, and 'i' for position along the helix
+            const theta = angle + (i * 0.15); // 0.15 controls the tightness of the spiral
+            
+            const xOff = Math.cos(theta) * helixRadius;
+            const zOff = Math.sin(theta) * helixRadius; // Z is depth
+
+            // Strand A
+            pointsA.push({ x: startX + xOff, y: y, z: zOff });
+            
+            // Strand B (Opposite phase, + PI)
+            const xOffB = Math.cos(theta + Math.PI) * helixRadius;
+            const zOffB = Math.sin(theta + Math.PI) * helixRadius;
+            
+            pointsB.push({ x: startX + xOffB, y: y, z: zOffB });
+        }
+
+        // 2. Sort nodes based on Z-depth
+        // We need to draw the parts furthest away first, and closest parts last.
+        // We will create a list of "segments" (pairs of points from A and B)
+        const segments = [];
+        for (let i = 0; i < pointsA.length - 1; i++) {
+            // Average Z of the two points in this segment to determine depth
+            const avgZ = (pointsA[i].z + pointsB[i].z + pointsA[i+1].z + pointsB[i+1].z) / 4;
+            segments.push({
+                index: i,
+                z: avgZ
+            });
+        }
+
+        // Sort segments: furthest (lowest Z) to closest (highest Z)
+        segments.sort((a, b) => a.z - b.z);
+
+        // 3. Draw segments
+        for (let i = 0; i < segments.length; i++) {
+            const idx = segments[i].index;
+            const pA1 = pointsA[idx];
+            const pA2 = pointsA[idx + 1];
+            const pB1 = pointsB[idx];
+            const pB2 = pointsB[idx + 1];
+
+            // Calculate opacity based on depth (further away = darker)
+            // Z ranges roughly from -radius to +radius. Normalize to 0-1
+            const depthAlphaA = (pA1.z + helixRadius) / (2 * helixRadius);
+            const depthAlphaB = (pB1.z + helixRadius) / (2 * helixRadius);
+            
+            // Clamp alpha for visual comfort
+            const alphaA = Math.max(0.2, Math.min(1, depthAlphaA));
+            const alphaB = Math.max(0.2, Math.min(1, depthAlphaB));
+
+            // Draw Rung (Connection)
+            // Only draw rungs if they aren't completely obscured or if we want them visible through
+            // For true 3D effect, draw the rung if the average Z is behind the center
+            ctx.beginPath();
+            ctx.moveTo(pA1.x, pA1.y);
+            ctx.lineTo(pB1.x, pB1.y);
+            ctx.strokeStyle = `rgba(255, 255, 255, ${0.15})`; // Rungs are subtle
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // Draw Strand A Segment
+            ctx.beginPath();
+            ctx.moveTo(pA1.x, pA1.y);
+            ctx.lineTo(pA2.x, pA2.y);
+            ctx.strokeStyle = colorStrandA;
+            ctx.lineWidth = 4;
+            ctx.globalAlpha = alphaA; // Apply depth shading
+            ctx.stroke();
+            ctx.globalAlpha = 1.0; // Reset
+
+            // Draw Strand B Segment
+            ctx.beginPath();
+            ctx.moveTo(pB1.x, pB1.y);
+            ctx.lineTo(pB2.x, pB2.y);
+            ctx.strokeStyle = colorStrandB;
+            ctx.lineWidth = 4;
+            ctx.globalAlpha = alphaB; // Apply depth shading
+            ctx.stroke();
+            ctx.globalAlpha = 1.0; // Reset
+
+            // Draw Nodes (Dots)
+            drawNode(pA1.x, pA1.y, alphaA, colorStrandA);
+            drawNode(pB1.x, pB1.y, alphaB, colorStrandB);
+        }
+        
+        // Draw the very last node
+        const lastIdx = pointsA.length - 1;
+        const pA = pointsA[lastIdx];
+        const pB = pointsB[lastIdx];
+        drawNode(pA.x, pA.y, (pA.z + helixRadius)/(2*helixRadius), colorStrandA);
+        drawNode(pB.x, pB.y, (pB.z + helixRadius)/(2*helixRadius), colorStrandB);
+
+        // Update rotation
+        angle += rotationSpeed;
+
+        requestAnimationFrame(draw);
+    }
+
+    function drawNode(x, y, alpha, color) {
+        ctx.beginPath();
+        ctx.arc(x, y, 3, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.globalAlpha = alpha;
+        ctx.fill();
+        ctx.globalAlpha = 1.0;
+    }
+
+    // Start animation
+    requestAnimationFrame(draw);
+
+</script>
+</body>
+</html>

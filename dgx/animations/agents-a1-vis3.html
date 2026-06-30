@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DNA Double Helix Animation</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #050505; /* Dark background */
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="dnaCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('dnaCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let width, height;
+        let nodes = [];
+        const numNodes = 40; // Number of nodes in the chain
+        const strandOffset = Math.PI / 2; // 90 degrees offset between strands
+        const rotationSpeed = 0.02; // Speed of rotation
+        let currentRotation = 0;
+
+        // Configuration
+        const config = {
+            radius: 120,        // Radius of the helix
+            amplitude: 180,     // Vertical amplitude (height of wave)
+            wavelength: 150,    // Vertical wavelength
+            nodeSize: 6,        // Size of the dots
+            strandColor1: '#00f2ff', // Cyan/Turquoise
+            strandColor2: '#ff0055', // Pink/Red
+            rungColor: 'rgba(255, 255, 255, 0.3)' // Faint white
+        };
+
+        function resize() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+        }
+
+        // Initialize nodes
+        function initNodes() {
+            nodes = [];
+            for (let i = 0; i < numNodes; i++) {
+                nodes.push({
+                    yBase: (i * (config.wavelength / 2)) - (numNodes * config.wavelength / 4) // Distribute evenly vertically
+                });
+            }
+        }
+
+        function draw() {
+            // Clear canvas with slight fade for trail effect (optional, using solid clear here for crispness)
+            ctx.fillStyle = '#050505';
+            ctx.fillRect(0, 0, width, height);
+
+            const centerX = width / 2;
+            const centerY = height / 2;
+
+            // Update rotation
+            currentRotation += rotationSpeed;
+
+            // Draw Rungs (Horizontal connections) first so they appear behind nodes
+            ctx.beginPath();
+            ctx.strokeStyle = config.rungColor;
+            ctx.lineWidth = 2;
+
+            for (let i = 0; i < nodes.length; i++) {
+                const node = nodes[i];
+                
+                // Calculate positions for Strand 1 (Left/Right depending on rotation)
+                // We use Math.sin for the vertical wave and Math.cos for the horizontal position relative to center
+                // Adding currentRotation to the angle creates the twist
+                
+                const angle1 = currentRotation + (i * 0.3); // Multiplier determines tightness of spiral
+                const angle2 = currentRotation + (i * 0.3) + strandOffset;
+
+                // Strand 1 Coordinates
+                const x1 = centerX + Math.cos(angle1) * config.radius;
+                const y1 = centerY + Math.sin(angle1) * config.amplitude + node.yBase;
+
+                // Strand 2 Coordinates
+                const x2 = centerX + Math.cos(angle2) * config.radius;
+                const y2 = centerY + Math.sin(angle2) * config.amplitude + node.yBase;
+
+                // Draw Rung
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+            }
+            ctx.stroke();
+
+            // Draw Nodes (Dots)
+            for (let i = 0; i < nodes.length; i++) {
+                const node = nodes[i];
+                const angle1 = currentRotation + (i * 0.3);
+                const angle2 = currentRotation + (i * 0.3) + strandOffset;
+
+                // Strand 1 Node
+                const x1 = centerX + Math.cos(angle1) * config.radius;
+                const y1 = centerY + Math.sin(angle1) * config.amplitude + node.yBase;
+
+                // Strand 2 Node
+                const x2 = centerX + Math.cos(angle2) * config.radius;
+                const y2 = centerY + Math.sin(angle2) * config.amplitude + node.yBase;
+
+                // Draw Strand 1 Node
+                ctx.beginPath();
+                ctx.arc(x1, y1, config.nodeSize, 0, Math.PI * 2);
+                ctx.fillStyle = config.strandColor1;
+                ctx.fill();
+                // Optional glow
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = config.strandColor1;
+                ctx.fill();
+                ctx.shadowBlur = 0;
+
+                // Draw Strand 2 Node
+                ctx.beginPath();
+                ctx.arc(x2, y2, config.nodeSize, 0, Math.PI * 2);
+                ctx.fillStyle = config.strandColor2;
+                ctx.fill();
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = config.strandColor2;
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+
+            requestAnimationFrame(draw);
+        }
+
+        // Event Listeners
+        window.addEventListener('resize', () => {
+            resize();
+            initNodes();
+        });
+
+        // Start
+        resize();
+        initNodes();
+        draw();
+
+    </script>
+</body>
+</html>

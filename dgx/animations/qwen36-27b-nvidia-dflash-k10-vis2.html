@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spiral Galaxy Animation</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="galaxyCanvas"></canvas>
+    <script>
+        const canvas = document.getElementById('galaxyCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let width, height, centerX, centerY;
+        let stars = [];
+        const numStars = 1500;
+        const arms = 4;
+        
+        // Galaxy parameters
+        const spread = 0.15; // How wide the arms are
+        const curve = 0.005; // How much the arms curve
+        const baseSpeed = 0.002;
+
+        // Resize handling
+        function resize() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+            centerX = width / 2;
+            centerY = height / 2;
+            initStars();
+        }
+
+        // Star Class
+        class Star {
+            constructor() {
+                this.reset();
+            }
+
+            reset() {
+                // Determine which arm this star belongs to
+                const armIndex = Math.floor(Math.random() * arms);
+                const armAngleOffset = (armIndex / arms) * Math.PI * 2;
+
+                // Distance from center (exponential distribution for density)
+                // Most stars close to center
+                const minDist = 10;
+                const maxDist = Math.min(width, height) * 0.45;
+                const dist = Math.pow(Math.random(), 1.5) * (maxDist - minDist) + minDist;
+
+                // Calculate base angle based on distance (spiral logic)
+                // Further out = more rotation
+                this.angle = armAngleOffset + (dist * curve) + (Math.random() - 0.5) * spread;
+                
+                this.dist = dist;
+                
+                // Randomize size
+                this.size = Math.random() * 1.5 + 0.5;
+                
+                // Color: Mix of white, blue, and orange
+                const colorChoice = Math.random();
+                if (colorChoice > 0.8) {
+                    // Blueish
+                    this.color = `rgba(180, 200, 255, ${Math.random() * 0.5 + 0.5})`;
+                } else if (colorChoice > 0.6) {
+                    // Orangeish
+                    this.color = `rgba(255, 200, 150, ${Math.random() * 0.5 + 0.5})`;
+                } else {
+                    // White
+                    this.color = `rgba(255, 255, 255, ${Math.random() * 0.5 + 0.5})`;
+                }
+
+                // Twinkle properties
+                this.twinkleSpeed = Math.random() * 0.05 + 0.01;
+                this.twinkleOffset = Math.random() * Math.PI * 2;
+                this.baseAlpha = parseFloat(this.color.match(/[\d.]+\)$/)[0].slice(0, -1));
+            }
+
+            update(time) {
+                // Rotation speed decreases with distance (Keplerian-ish)
+                // Stars closer to center move faster
+                const speed = baseSpeed * (1000 / (this.dist + 100));
+                this.angle += speed;
+
+                // Twinkle effect
+                const twinkle = Math.sin(time * this.twinkleSpeed + this.twinkleOffset);
+                // Modulate alpha between 0.3 and 1.0 based on twinkle
+                this.currentAlpha = this.baseAlpha * (0.5 + 0.5 * twinkle);
+                
+                // Update color string with new alpha
+                // We parse the original color values to keep R,G,B constant
+                const parts = this.color.match(/[\d.]+/g);
+                this.color = `rgba(${parts[0]}, ${parts[1]}, ${parts[2]}, ${this.currentAlpha})`;
+            }
+
+            draw(ctx) {
+                const x = centerX + Math.cos(this.angle) * this.dist;
+                const y = centerY + Math.sin(this.angle) * this.dist;
+
+                ctx.beginPath();
+                ctx.arc(x, y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+            }
+        }
+
+        function initStars() {
+            stars = [];
+            for (let i = 0; i < numStars; i++) {
+                stars.push(new Star());
+            }
+        }
+
+        function drawCore() {
+            // Create a radial gradient for the bright center
+            const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, 60);
+            gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+            gradient.addColorStop(0.1, 'rgba(200, 220, 255, 0.8)');
+            gradient.addColorStop(0.4, 'rgba(100, 150, 255, 0.2)');
+            gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+            ctx.fillStyle = gradient;
+            ctx.globalCompositeOperation = 'lighter'; // Additive blending for glow
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 60, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalCompositeOperation = 'source-over'; // Reset blending
+        }
+
+        let time = 0;
+        function animate() {
+            // Clear canvas with a slight trail effect (optional, using solid black here for crispness)
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, width, height);
+
+            time++;
+
+            // Draw the glowing core
+            drawCore();
+
+            // Update and draw stars
+            // Use additive blending for stars to make the core look denser/brighter
+            ctx.globalCompositeOperation = 'lighter';
+            
+            stars.forEach(star => {
+                star.update(time);
+                star.draw(ctx);
+            });
+
+            ctx.globalCompositeOperation = 'source-over';
+
+            requestAnimationFrame(animate);
+        }
+
+        // Initialize
+        window.addEventListener('resize', resize);
+        resize();
+        animate();
+
+    </script>
+</body>
+</html>
