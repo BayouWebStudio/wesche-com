@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rotating DNA Helix</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { overflow: hidden; background: #0f172a; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <canvas id="dnaCanvas"></canvas>
+    <script>
+        const canvas = document.getElementById('dnaCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Resize canvas to full window dimensions
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // Animation parameters
+        let rotationAngle = 0;
+        const numRungs = 40; // Number of nodes per strand / rungs
+        const strandColor1 = '#4fc3f7'; // Subtle light blue
+        const strandColor2 = '#f48fb1'; // Subtle light pink
+        const rungColor = 'rgba(255, 255, 255, 0.3)';
+        const nodeRadius = 4;
+        const strandLineWidth = 3;
+        const rungLineWidth = 2;
+        const rotationSpeed = 0.02; // Radians per frame (smooth slow rotation)
+        const numTurns = 3; // Full spiral rotations over helix height
+
+        function animate() {
+            // Clear canvas with dark background
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            // Update rotation
+            rotationAngle += rotationSpeed;
+
+            // Calculate responsive helix dimensions
+            const centerX = canvas.width / 2;
+            const yStart = canvas.height * 0.1;
+            const yEnd = canvas.height * 0.9;
+            const helixHeight = yEnd - yStart;
+            const step = helixHeight / (numRungs - 1);
+            const frequency = (numTurns * 2 * Math.PI) / helixHeight; // Spiral tightness
+            const radius = Math.min(120, (canvas.width / 2) * 0.7); // Responsive radius
+
+            // Precompute node positions for both strands
+            const strand1Points = [];
+            const strand2Points = [];
+            for (let i = 0; i < numRungs; i++) {
+                const y = yStart + i * step;
+                const angle = rotationAngle + (y - yStart) * frequency;
+                const x1 = centerX + radius * Math.cos(angle);
+                const x2 = centerX + radius * Math.cos(angle + Math.PI); // 180° offset for second strand
+                strand1Points.push({ x: x1, y });
+                strand2Points.push({ x: x2, y });
+            }
+
+            // Draw horizontal rungs (behind strands)
+            ctx.strokeStyle = rungColor;
+            ctx.lineWidth = rungLineWidth;
+            ctx.beginPath();
+            for (let i = 0; i < numRungs; i++) {
+                const p1 = strand1Points[i];
+                const p2 = strand2Points[i];
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+            }
+            ctx.stroke();
+
+            // Draw first sinusoidal strand
+            ctx.strokeStyle = strandColor1;
+            ctx.lineWidth = strandLineWidth;
+            ctx.beginPath();
+            strand1Points.forEach((p, idx) => idx === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+            ctx.stroke();
+
+            // Draw second sinusoidal strand
+            ctx.strokeStyle = strandColor2;
+            ctx.lineWidth = strandLineWidth;
+            ctx.beginPath();
+            strand2Points.forEach((p, idx) => idx === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+            ctx.stroke();
+
+            // Draw nodes for first strand
+            ctx.fillStyle = strandColor1;
+            strand1Points.forEach(p => {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, nodeRadius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            });
+
+            // Draw nodes for second strand
+            ctx.fillStyle = strandColor2;
+            strand2Points.forEach(p => {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, nodeRadius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            });
+
+            // Request next animation frame
+            requestAnimationFrame(animate);
+        }
+
+        // Start animation
+        animate();
+    </script>
+</body>
+</html>
