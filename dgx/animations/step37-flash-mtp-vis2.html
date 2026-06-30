@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="galaxyCanvas"></canvas>
+    <script>
+        const canvas = document.getElementById('galaxyCanvas');
+        const ctx = canvas.getContext('2d');
+
+        function setCanvasSize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        setCanvasSize();
+
+        const NUM_STARS = 850;
+        const NUM_ARMS = 4;
+        const SPIRAL_TIGHTNESS = 0.01;
+        const ROTATION_SPEED = 0.0008;
+        let globalRotation = 0;
+        let stars = [];
+
+        function initStars() {
+            stars = [];
+            const maxRadius = Math.min(canvas.width, canvas.height) / 2 - 50;
+
+            for (let i = 0; i < NUM_STARS; i++) {
+                const radius = Math.pow(Math.random(), 2) * maxRadius;
+                const arm = Math.floor(Math.random() * NUM_ARMS);
+                const baseAngle = (arm * 2 * Math.PI / NUM_ARMS) + (radius * SPIRAL_TIGHTNESS) + (Math.random() - 0.5) * 0.8;
+                const size = Math.random() * 2 + 0.5;
+                
+                let hue;
+                if (Math.random() < 0.7) {
+                    hue = 200 + Math.random() * 60;
+                } else {
+                    hue = 30 + Math.random() * 30;
+                }
+                const saturation = Math.random() * 30 + 20;
+                const lightness = Math.random() * 30 + 70;
+                const twinkleSpeed = Math.random() * 2 + 0.5;
+                const twinkleOffset = Math.random() * Math.PI * 2;
+
+                stars.push({ radius, baseAngle, size, hue, saturation, lightness, twinkleSpeed, twinkleOffset });
+            }
+
+            // Add bright core stars
+            for (let i = 0; i < 50; i++) {
+                const radius = Math.random() * 20;
+                const baseAngle = Math.random() * Math.PI * 2;
+                stars.push({
+                    radius,
+                    baseAngle,
+                    size: Math.random() * 2 + 2,
+                    hue: Math.random() < 0.5 ? 0 : 40,
+                    saturation: Math.random() * 10,
+                    lightness: 90 + Math.random() * 10,
+                    twinkleSpeed: Math.random() * 1 + 0.2,
+                    twinkleOffset: Math.random() * Math.PI * 2
+                });
+            }
+        }
+
+        initStars();
+
+        window.addEventListener('resize', () => {
+            setCanvasSize();
+            initStars();
+        });
+
+        function animate() {
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const coreX = canvas.width / 2;
+            const coreY = canvas.height / 2;
+
+            // Draw core glow
+            const coreGradient = ctx.createRadialGradient(coreX, coreY, 0, coreX, coreY, 40);
+            coreGradient.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+            coreGradient.addColorStop(0.2, 'rgba(255, 255, 240, 0.5)');
+            coreGradient.addColorStop(0.5, 'rgba(255, 240, 220, 0.1)');
+            coreGradient.addColorStop(1, 'rgba(255, 240, 220, 0)');
+            ctx.fillStyle = coreGradient;
+            ctx.beginPath();
+            ctx.arc(coreX, coreY, 40, 0, Math.PI * 2);
+            ctx.fill();
+
+            globalRotation += ROTATION_SPEED;
+            const time = Date.now() * 0.002;
+
+            stars.forEach(star => {
+                const currentAngle = star.baseAngle + globalRotation;
+                const x = coreX + star.radius * Math.cos(currentAngle);
+                const y = coreY + star.radius * Math.sin(currentAngle);
+
+                const twinkle = Math.sin(time * star.twinkleSpeed + star.twinkleOffset);
+                const opacity = 0.7 + twinkle * 0.3;
+                const currentSize = star.size * (1 + twinkle * 0.2);
+
+                ctx.fillStyle = `hsla(${star.hue}, ${star.saturation}%, ${star.lightness}%, ${opacity})`;
+                ctx.beginPath();
+                ctx.arc(x, y, currentSize, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+    </script>
+</body>
+</html>
