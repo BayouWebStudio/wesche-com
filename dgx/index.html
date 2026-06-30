@@ -1,95 +1,831 @@
 <!doctype html>
-<html lang='en'>
-<head>
-<meta charset='utf-8'>
-<meta name='viewport' content='width=device-width,initial-scale=1'>
-<title>Spark-Bench - DGX Spark Results</title>
-<meta name='description' content='Spark-Bench results for LLMs on NVIDIA DGX Spark, including MiniMax-M3 NVFP4 on 4x DGX Spark.'>
+<html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Spark-Bench — LLM Benchmarks on DGX Spark | wesche.com</title>
+<meta name="description" content="Mixed-capability LLM benchmark for NVIDIA DGX Spark. 64 scenarios, 11 domains, size-tiered leaderboards, executable code grading, partial-credit scoring. Open source.">
+<meta property="og:title" content="Spark-Bench — LLM Benchmarks on DGX Spark">
+<meta property="og:description" content="64 scenarios · 11 domains · size-tiered leaderboards · executable code tests · partial-credit grading · Open source.">
+<meta property="og:image" content="spark-bench-promo.jpg">
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-WDWRJTR5BY"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}
+gtag('js',new Date());gtag('config','G-WDWRJTR5BY');</script>
 <style>
-:root{--bg:#0a0b14;--panel:#13141f;--line:#252940;--fg:#eef1fa;--mut:#9aa0b7;--acc:#6ea8ff;--good:#4cd964;--warn:#ffb45a;--bad:#ff6070}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.58 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}.wrap{max-width:1080px;margin:0 auto;padding:0 20px}header{padding:44px 0 20px;text-align:center;background:radial-gradient(900px 360px at 50% -20%,rgba(110,168,255,.16),transparent)}h1{font-size:38px;margin:0 0 6px}h2{font-size:22px;margin:34px 0 12px}.tag{color:var(--acc);font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}.lede{max-width:760px;margin:8px auto;color:var(--mut);font-size:16px}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}.stat .v{font-size:28px;font-weight:800;color:var(--acc)}.stat .k{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em}table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}th,td{padding:9px 10px;border-bottom:1px solid rgba(37,41,64,.75);text-align:left;vertical-align:middle}th{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em}.name{font-weight:750}.desc{font-size:12px;color:var(--mut)}.score{font-size:20px;font-weight:850}.high{color:var(--good)}.ok{color:var(--warn)}.low{color:var(--bad)}.pill{display:inline-block;padding:2px 8px;border-radius:999px;background:rgba(110,168,255,.12);color:var(--acc);font-size:11px;font-weight:700}.links{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}.btn{display:inline-block;color:var(--acc);text-decoration:none;border:1px solid rgba(110,168,255,.3);background:rgba(110,168,255,.1);border-radius:10px;padding:9px 12px;font-weight:650}.btn:hover{background:rgba(110,168,255,.18)}iframe{width:100%;height:370px;border:1px solid var(--line);border-radius:10px;background:#000}.games{display:grid;grid-template-columns:1fr 1fr;gap:14px}.artifact{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.sub{color:var(--mut)}code{background:#1c2033;border-radius:5px;padding:1px 5px}.note{border-left:3px solid var(--acc);padding-left:12px;color:var(--mut)}footer{padding:38px 0 56px;text-align:center;color:var(--mut)}footer a{color:var(--acc)}@media(max-width:820px){.grid,.games,.artifact{grid-template-columns:1fr}h1{font-size:30px}th:nth-child(5),td:nth-child(5),th:nth-child(6),td:nth-child(6){display:none}iframe{height:320px}}
-</style>
-</head>
-<body>
-<header><div class='wrap'>
-<div class='tag'>NVIDIA DGX Spark - Spark-Bench v5c</div>
+:root{--bg:#0a0b14;--card:#13141f;--line:#23263a;--fg:#e7e9f3;--mut:#8b90a8;--acc:#6ea8ff;--grn:#4cd964;--ylw:#ffb45a;--red:#ff4757;--purp:#b47aff}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.6 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+.wrap{max-width:1040px;margin:0 auto;padding:0 20px}
+header{padding:48px 0 24px;text-align:center;background:radial-gradient(1200px 400px at 50% -10%,rgba(110,168,255,.14),transparent)}
+h1{font-size:36px;margin:0 0 6px;letter-spacing:-.02em}h2{font-size:22px;margin:40px 0 12px;letter-spacing:-.01em}
+.tag{color:var(--acc);font-weight:600;letter-spacing:.08em;text-transform:uppercase;font-size:12px}
+.lede{color:var(--mut);font-size:16px;max-width:680px;margin:10px auto 0}
+.sub{color:var(--mut);font-size:14px}
+.promo{width:100%;max-width:900px;border-radius:16px;margin:20px auto 0;border:1px solid var(--line);display:block}
+.intro{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px 28px;margin:20px 0}
+.intro p{margin:0 0 12px}.intro p:last-child{margin:0}
+.intro a{color:var(--acc);text-decoration:none}
+.gh-badge{display:inline-flex;align-items:center;gap:8px;background:rgba(110,168,255,.1);border:1px solid rgba(110,168,255,.25);border-radius:10px;padding:6px 14px;font-size:13px;font-weight:600;color:var(--acc);text-decoration:none;transition:all .2s}
+.gh-badge:hover{background:rgba(110,168,255,.2)}
+.tabs{position:sticky;top:0;z-index:100;display:flex;gap:0;background:var(--bg);border-bottom:1px solid var(--line);padding:0 20px;margin-top:24px}
+.tab{padding:12px 24px;cursor:pointer;border:none;background:none;color:var(--mut);font:600 14px system-ui;letter-spacing:.02em;border-bottom:2px solid transparent;transition:all .2s}
+.tab:hover{color:var(--fg)}
+.tab.active{color:var(--acc);border-bottom-color:var(--acc)}
+.tab-panel{display:none;padding-top:8px}
+.tab-panel.active{display:block}
+.mtable{width:100%;border-collapse:collapse}
+.mtable th{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.04em;font-weight:600}
+.mtable td{padding:9px 10px;border-bottom:1px solid rgba(35,38,58,.5);font-size:14px;vertical-align:middle}
+.tps,.tokens{font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:600;color:var(--fg)}
+.mtable tr:last-child td{border-bottom:none}
+.model-name{font-weight:700;font-size:14px}
+.model-desc{color:var(--mut);font-size:11px;margin-top:1px}
+.ts-score{font-size:20px;font-weight:800;white-space:nowrap}
+.ts-score.high{color:var(--grn)}.ts-score.ok{color:var(--ylw)}.ts-score.low{color:var(--red)}
+.mode-tag{display:inline-block;padding:2px 7px;border-radius:20px;font-size:10px;font-weight:600}
+.mode-tag.off{background:rgba(110,200,140,.15);color:#6ec88c}
+.ver-badge{display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700}
+.ver-badge.v4{background:rgba(76,217,100,.15);color:#4cd964}
+.ver-badge.v5c{background:rgba(76,217,100,.15);color:#4cd964}
+.ver-badge.v1{background:rgba(139,144,168,.15);color:#8b90a8}
+.tier-badge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.tier-badge.small{background:rgba(110,168,255,.15);color:var(--acc)}
+.tier-badge.mid{background:rgba(180,122,255,.15);color:var(--purp)}
+.tier-badge.large{background:rgba(255,71,87,.15);color:var(--red)}
+.tier-header{display:flex;align-items:center;gap:10px;margin:28px 0 8px}
+.tier-header h3{margin:0;font-size:18px}
+.tier-header .tier-sub{color:var(--mut);font-size:13px}
+.stats-row{display:flex;gap:12px;flex-wrap:wrap;margin:12px 0}
+.stat-badge{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 16px;text-align:center;flex:1;min-width:100px}
+.stat-badge .val{font-size:22px;font-weight:800;color:var(--acc)}
+.stat-badge .lbl{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em;margin-top:2px}
+.grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:10px}
+.anim-card{margin:0;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.anim-card iframe{width:100%;height:200px;border:0;display:block;background:#000}
+.anim-card figcaption{padding:8px 12px;color:var(--mut);font-size:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px}
+.anim-card figcaption b{color:var(--fg);font-size:13px}
+.anim-card a{color:var(--acc);text-decoration:none;font-size:12px}
+.anim-card-large{grid-column:1 / -1}
+.anim-card-large iframe{height:600px}
+.anim-section{margin-bottom:24px}
+.anim-section h4{margin:16px 0 8px;font-size:15px;color:var(--fg);display:flex;align-items:center;gap:10px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-top:12px}
+.card ul{margin:6px 0 0;padding-left:20px}.card li{margin:4px 0}
+code{background:#1c1e2e;padding:1px 6px;border-radius:5px;font-size:13px}
+.na{color:#4a4e66}
+.game-link{display:inline-block;background:rgba(110,168,255,.1);border:1px solid rgba(110,168,255,.25);border-radius:10px;padding:10px 20px;color:var(--acc);text-decoration:none;font-weight:600;font-size:14px;transition:all .2s}
+.game-link:hover{background:rgba(110,168,255,.2)}
+footer{color:var(--mut);text-align:center;padding:40px 0 60px;font-size:13px}
+footer a{color:var(--acc);text-decoration:none}
+@media(max-width:720px){.grid{grid-template-columns:1fr}h1{font-size:28px}.intro{padding:16px}.tabs{padding:0 10px}.tab{padding:10px 16px;font-size:13px}.mtable th:nth-child(4),.mtable td:nth-child(4),.mtable th:nth-child(5),.mtable td:nth-child(5),.mtable th:nth-child(6),.mtable td:nth-child(6),.mtable th:nth-child(7),.mtable td:nth-child(7),.mtable th:nth-child(8),.mtable td:nth-child(8){display:none}.mtable{font-size:12px}.mtable td,.mtable th{padding:6px 5px}}
+</style></head><body>
+<header><div class="wrap">
+<div class="tag">NVIDIA DGX Spark · Grace-Blackwell · v5c Mixed-Capability Benchmark</div>
 <h1>Spark-Bench</h1>
-<p class='lede'>64 scenarios, 11 domains, deterministic grading, executable code checks, visual artifact scoring, and size-tiered leaderboards for models running on DGX Spark.</p>
+<p class="lede">64 scenarios · 11 domains · size-tiered leaderboards · executable code tests · pixel-graded visual artifacts · partial-credit scoring</p>
 </div></header>
-<main class='wrap'>
-<section class='grid'>
-<div class='card stat'><div class='v'>64</div><div class='k'>Scenarios</div></div>
-<div class='card stat'><div class='v'>11</div><div class='k'>Domains</div></div>
-<div class='card stat'><div class='v'>19</div><div class='k'>Models</div></div>
-<div class='card stat'><div class='v'>v5c</div><div class='k'>Scoring</div></div>
-</section>
 
-<h2>Large Tier</h2>
-<table>
-<tr><th>#</th><th>Model</th><th>TrueScore</th><th>Quality</th><th>Calibration</th><th>Reliability</th><th>Efficiency</th><th>Resp</th><th>Version</th></tr>
-<tr><td>1</td><td><div class='name'>MiniMax-M3</div><div class='desc'>NVFP4 - 4x DGX Spark - vLLM TP4/B12X</div></td><td><span class='score high'>85.1</span></td><td>78.6</td><td>95.2</td><td>92.3</td><td>100</td><td>78.6</td><td><span class='pill'>v5c</span></td></tr>
-<tr><td>2</td><td><div class='name'>Nemotron Ultra 550B</div><div class='desc'>A55B active - NVFP4 - 4x DGX Spark - SGLang TP4/EP4</div></td><td><span class='score ok'>82.7</span></td><td>71.8</td><td>100.0</td><td>95.4</td><td>100</td><td>67.5</td><td><span class='pill'>v5c</span></td></tr>
-<tr><td>3</td><td><div class='name'>DeepSeek V4 Flash</div><div class='desc'>MoE - dual-node TP=2 - RoCE - NVFP4</div></td><td><span class='score ok'>78.8</span></td><td>66.6</td><td>100.0</td><td>93.5</td><td>33.6</td><td>77.2</td><td><span class='pill'>v5c</span></td></tr>
+<img class="promo" src="spark-bench-promo.jpg" alt="Spark-Bench promotional graphic">
+
+<main class="wrap">
+
+<!-- INTRO -->
+<div class="intro">
+<p><strong>Spark-Bench</strong> is a mixed-capability LLM benchmark built specifically for the NVIDIA DGX Spark (GB10 Grace-Blackwell) platform. It evaluates models across <strong>64 scenarios in 11 domains</strong> — tool use, instruction following, structured output, long context retrieval, safety, robustness, multi-step tool chains, restraint/refusal detection, autonomous planning, executable code generation, and visual artifact generation.</p>
+
+<p>Models are grouped into <strong>size tiers</strong> so small models compete against peers of similar capacity. A 2B dense model isn't compared head-to-head with a 35B MoE — instead, each tier has its own leaderboard.</p>
+
+<p>Grading is deterministic (no LLM-judge): unit tests, JSON-schema validation, exact tool-argument matching, needle retrieval, <strong>executable code tests</strong> (model-generated Python/SQL is imported and run), and pixel-based visual artifact analysis. Models receive <strong>partial credit</strong> — hitting 3/5 constraints scores 0.60, not 0.00.</p>
+
+<p>Every scenario runs K=2 times. We report <strong>Pass@1</strong> (passes on at least one trial), <strong>Pass@K</strong> (passes on ALL trials), and the <strong>Reliability Gap</strong> between them.</p>
+
+<p style="margin-top:16px">
+<a class="gh-badge" href="https://github.com/Weschera/spark-bench" target="_blank">
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+  Open source on GitHub →
+</a>
+</p>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+<button class="tab active" onclick="showTab('leaderboard')">Leaderboard</button>
+<button class="tab" onclick="showTab('games')">Games</button>
+<button class="tab" onclick="showTab('animations')">Animations</button>
+<button class="tab" onclick="showTab('methodology')">Methodology</button>
+</div>
+
+<!-- TAB: LEADERBOARD -->
+<div id="leaderboard" class="tab-panel active">
+
+<div class="stats-row">
+<div class="stat-badge"><div class="val">64</div><div class="lbl">Scenarios</div></div>
+<div class="stat-badge"><div class="val">11</div><div class="lbl">Domains</div></div>
+<div class="stat-badge"><div class="val">3</div><div class="lbl">Size Tiers</div></div>
+<div class="stat-badge"><div class="val">20</div><div class="lbl">Models</div></div>
+<div class="stat-badge"><div class="val">543K</div><div class="lbl">Known Out Tok</div></div>
+<div class="stat-badge"><div class="val">10</div><div class="lbl">Code Tests</div></div>
+<div class="stat-badge"><div class="val">5%</div><div class="lbl">Speed Weight</div></div>
+</div>
+
+<!-- SMALL TIER -->
+<div class="tier-header">
+<span class="tier-badge small">Small</span>
+<h3>≤12B · Single Spark</h3>
+<span class="tier-sub">Lightweight models for edge deployment</span>
+</div>
+<table class="mtable" style="background:var(--card);border:1px solid var(--line);border-radius:14px">
+<tr><th>#</th><th>Model</th><th>TrueScore</th><th>Quality</th><th>Cal</th><th>Rel</th><th>Eff</th><th>Resp</th><th>Tok/s</th><th>Out tok</th><th>Ver</th></tr>
+<tr>
+<td>1</td>
+<td><div class="model-name">Gemma 4 E2B</div><div class="model-desc">2B dense · Q4_K_M</div></td>
+<td><span class="ts-score ok">76.8</span></td>
+<td>64.8</td><td>90.3</td><td>91.9</td><td>100</td><td>94.0</td><td class="tps">n/a</td>
+<td class="tokens">n/a</td>
+<td><span class="ver-badge v5c">v5c</span></td>
+</tr>
+<tr>
+<td>2</td>
+<td><div class="model-name">Gemma 4 E4B</div><div class="model-desc">4B dense · Q4_K_M</div></td>
+<td><span class="ts-score ok">76.3</span></td>
+<td>60.9</td><td>95.6</td><td>94.9</td><td>100</td><td>91.7</td><td class="tps">115.1</td>
+<td class="tokens">28,725</td>
+<td><span class="ver-badge v5c">v5c</span></td>
+</tr>
+<tr>
+<td>3</td>
+<td><div class="model-name">Gemma 4 12B</div><div class="model-desc">12B dense · Q4_K_M</div></td>
+<td><span class="ts-score ok">76.1</span></td>
+<td>63.8</td><td>86.9</td><td>98.6</td><td>100</td><td>86.5</td><td class="tps">n/a</td>
+<td class="tokens">n/a</td>
+<td><span class="ver-badge v5c">v5c</span></td>
+</tr>
 </table>
 
-<h2>Mid Tier</h2>
-<table>
-<tr><th>#</th><th>Model</th><th>TrueScore</th><th>Quality</th><th>Calibration</th><th>Reliability</th><th>Efficiency</th><th>Resp</th><th>Version</th></tr>
-<tr><td>1</td><td><div class='name'>Qwopus 3.6-27B</div><div class='desc'>vLLM - NVFP4 - MTP</div></td><td><span class='score ok'>78.7</span></td><td>65.3</td><td>97.6</td><td>96.3</td><td>100</td><td>70.8</td><td><span class='pill'>v5c</span></td></tr>
-<tr><td>2</td><td><div class='name'>Qwen 35B base</div><div class='desc'>vLLM - NVFP4</div></td><td><span class='score ok'>78.0</span></td><td>64.0</td><td>94.0</td><td>97.3</td><td>100</td><td>92.1</td><td><span class='pill'>v5c</span></td></tr>
-<tr><td>3</td><td><div class='name'>Gemma 4 31B</div><div class='desc'>31B dense - Q4_K_M</div></td><td><span class='score ok'>77.9</span></td><td>64.3</td><td>95.3</td><td>99.6</td><td>100</td><td>64.5</td><td><span class='pill'>v5c</span></td></tr>
-<tr><td>4</td><td><div class='name'>Qwen 3.6-35B NVFP4</div><div class='desc'>vLLM - compressed-tensors</div></td><td><span class='score ok'>77.1</span></td><td>63.2</td><td>94.0</td><td>96.5</td><td>100</td><td>83.3</td><td><span class='pill'>v5c</span></td></tr>
-<tr><td>5</td><td><div class='name'>Qwen 3.6-27B base</div><div class='desc'>Q4_K_M</div></td><td><span class='score ok'>76.5</span></td><td>65.8</td><td>86.9</td><td>97.8</td><td>100</td><td>68.0</td><td><span class='pill'>v5c</span></td></tr>
-<tr><td>6</td><td><div class='name'>Nemotron Nano Omni A3B</div><div class='desc'>30B MoE, A3B active - Q4_K_M</div></td><td><span class='score ok'>76.4</span></td><td>59.9</td><td>95.6</td><td>99.0</td><td>100</td><td>91.7</td><td><span class='pill'>v5c</span></td></tr>
-<tr><td>7</td><td><div class='name'>Bytkim Qwen 3.6-27B</div><div class='desc'>Q4_K_M</div></td><td><span class='score ok'>75.7</span></td><td>58.8</td><td>95.6</td><td>98.1</td><td>100</td><td>91.8</td><td><span class='pill'>v5c</span></td></tr>
-<tr><td>8</td><td><div class='name'>Gemma 4 26B-A4B</div><div class='desc'>MoE, 4B active - Q4_K_M</div></td><td><span class='score ok'>75.6</span></td><td>59.5</td><td>95.6</td><td>95.2</td><td>100</td><td>91.3</td><td><span class='pill'>v5c</span></td></tr>
-<tr><td>9</td><td><div class='name'>Qwable 5-27B Coder</div><div class='desc'>Q4_K_M</div></td><td><span class='score ok'>75.6</span></td><td>64.3</td><td>86.9</td><td>97.3</td><td>100</td><td>68.3</td><td><span class='pill'>v5c</span></td></tr>
-<tr><td>10</td><td><div class='name'>Huihui Qwen 3.6-35B</div><div class='desc'>MoE, 3B active - Q4_K_M</div></td><td><span class='score ok'>75.5</span></td><td>59.1</td><td>95.6</td><td>96.1</td><td>100</td><td>91.7</td><td><span class='pill'>v5c</span></td></tr>
-<tr><td>11</td><td><div class='name'>Ornith 1.0 35B</div><div class='desc'>MoE, 3B active - Q4_K_M</div></td><td><span class='score ok'>74.2</span></td><td>58.2</td><td>91.4</td><td>97.3</td><td>100</td><td>91.4</td><td><span class='pill'>v5c</span></td></tr>
-<tr><td>12</td><td><div class='name'>Qwen 3.6-27B NVFP4</div><div class='desc'>vLLM - compressed-tensors</div></td><td><span class='score ok'>72.7</span></td><td>66.1</td><td>69.5</td><td>97.2</td><td>100</td><td>82.5</td><td><span class='pill'>v5c</span></td></tr>
-<tr><td>13</td><td><div class='name'>HauhauCS Qwen 3.6-35B</div><div class='desc'>MoE, uncensored - Q4_K_M</div></td><td><span class='score low'>65.2</span></td><td>65.3</td><td>39.4</td><td>97.8</td><td>100</td><td>93.2</td><td><span class='pill'>v5c</span></td></tr>
+<!-- MID TIER -->
+<div class="tier-header">
+<span class="tier-badge mid">Mid</span>
+<h3>13–35B · Single Spark</h3>
+<span class="tier-sub">Full-capability single-node models</span>
+</div>
+<table class="mtable" style="background:var(--card);border:1px solid var(--line);border-radius:14px">
+<tr><th>#</th><th>Model</th><th>TrueScore</th><th>Quality</th><th>Cal</th><th>Rel</th><th>Eff</th><th>Resp</th><th>Tok/s</th><th>Out tok</th><th>Ver</th></tr>
+<tr>
+<td>1</td>
+<td><div class="model-name">Qwopus 3.6-27B</div><div class="model-desc">vLLM · NVFP4 · MTP</div></td>
+<td><span class="ts-score ok">78.7</span></td>
+<td>65.3</td><td>97.6</td><td>96.3</td><td>100</td><td>70.8</td><td class="tps">16.4</td>
+<td class="tokens">27,929</td>
+<td><span class="ver-badge v5c">v5c</span></td>
+</tr>
+<tr>
+<td>2</td>
+<td><div class="model-name">Qwen 35B base</div><div class="model-desc">vLLM · NVFP4</div></td>
+<td><span class="ts-score ok">78.0</span></td>
+<td>64.0</td><td>94.0</td><td>97.3</td><td>100</td><td>92.1</td><td class="tps">96.6</td>
+<td class="tokens">30,494</td>
+<td><span class="ver-badge v5c">v5c</span></td>
+</tr>
+<tr>
+<td>3</td>
+<td><div class="model-name">Gemma 4 31B</div><div class="model-desc">31B dense · Q4_K_M</div></td>
+<td><span class="ts-score ok">77.9</span></td>
+<td>64.3</td><td>95.3</td><td>99.6</td><td>100</td><td>64.5</td><td class="tps">n/a</td>
+<td class="tokens">n/a</td>
+<td><span class="ver-badge v5c">v5c</span></td>
+</tr>
+<tr>
+<td>4</td>
+<td><div class="model-name">Qwen 3.6-35B (nvfp4)</div><div class="model-desc">vLLM · NVFP4 · compressed-tensors</div></td>
+<td><span class="ts-score ok">77.1</span></td>
+<td>63.2</td><td>94.0</td><td>96.5</td><td>100</td><td>83.3</td><td class="tps">40.5</td>
+<td class="tokens">30,038</td>
+<td><span class="ver-badge v5c">v5c</span></td>
+</tr>
+<tr>
+<td>5</td>
+<td><div class="model-name">Qwen 3.6-27B base</div><div class="model-desc">Q4_K_M</div></td>
+<td><span class="ts-score ok">76.5</span></td>
+<td>65.8</td><td>86.9</td><td>97.8</td><td>100</td><td>68.0</td><td class="tps">17.2</td>
+<td class="tokens">31,058</td>
+<td><span class="ver-badge v5c">v5c</span></td>
+</tr>
+<tr>
+<td>6</td>
+<td><div class="model-name">Nemotron Nano Omni A3B</div><div class="model-desc">30B MoE, A3B active · Q4_K_M</div></td>
+<td><span class="ts-score ok">76.4</span></td>
+<td>59.9</td><td>95.6</td><td>99.0</td><td>100</td><td>91.7</td><td class="tps">118.0</td>
+<td class="tokens">27,971</td>
+<td><span class="ver-badge v5c">v5c</span></td>
+</tr>
+<tr>
+<td>7</td>
+<td><div class="model-name">Bytkim Qwen 3.6-27B</div><div class="model-desc">Q4_K_M</div></td>
+<td><span class="ts-score ok">75.7</span></td>
+<td>58.8</td><td>95.6</td><td>98.1</td><td>100</td><td>91.8</td><td class="tps">114.6</td>
+<td class="tokens">29,097</td>
+<td><span class="ver-badge v5c">v5c</span></td>
+</tr>
+<tr>
+<td>8</td>
+<td><div class="model-name">Gemma 4 26B-A4B</div><div class="model-desc">MoE, 4B active · Q4_K_M</div></td>
+<td><span class="ts-score ok">75.6</span></td>
+<td>59.5</td><td>95.6</td><td>95.2</td><td>100</td><td>91.3</td><td class="tps">112.3</td>
+<td class="tokens">28,544</td>
+<td><span class="ver-badge v5c">v5c</span></td>
+</tr>
+<tr>
+<td>9</td>
+<td><div class="model-name">Qwable 5-27B Coder</div><div class="model-desc">Q4_K_M</div></td>
+<td><span class="ts-score ok">75.6</span></td>
+<td>64.3</td><td>86.9</td><td>97.3</td><td>100</td><td>68.3</td><td class="tps">17.7</td>
+<td class="tokens">31,267</td>
+<td><span class="ver-badge v5c">v5c</span></td>
+</tr>
+<tr>
+<td>10</td>
+<td><div class="model-name">Huihui Qwen 3.6-35B</div><div class="model-desc">MoE, 3B active · Q4_K_M</div></td>
+<td><span class="ts-score ok">75.5</span></td>
+<td>59.1</td><td>95.6</td><td>96.1</td><td>100</td><td>91.7</td><td class="tps">116.2</td>
+<td class="tokens">26,098</td>
+<td><span class="ver-badge v5c">v5c</span></td>
+</tr>
+<tr>
+<td>11</td>
+<td><div class="model-name">Ornith 1.0 35B</div><div class="model-desc">MoE, 3B active · Q4_K_M</div></td>
+<td><span class="ts-score ok">74.2</span></td>
+<td>58.2</td><td>91.4</td><td>97.3</td><td>100</td><td>91.4</td><td class="tps">116.6</td>
+<td class="tokens">27,746</td>
+<td><span class="ver-badge v5c">v5c</span></td>
+</tr>
+<tr>
+<td>12</td>
+<td><div class="model-name">Qwen 3.6-27B (nvfp4)</div><div class="model-desc">vLLM · NVFP4 · compressed-tensors</div></td>
+<td><span class="ts-score ok">72.7</span></td>
+<td>66.1</td><td>69.5</td><td>97.2</td><td>100</td><td>82.5</td><td class="tps">37.0</td>
+<td class="tokens">29,393</td>
+<td><span class="ver-badge v5c">v5c</span></td>
+</tr>
+<tr>
+<td>13</td>
+<td><div class="model-name">HauhauCS Qwen 3.6-35B</div><div class="model-desc">MoE, uncensored · Q4_K_M</div></td>
+<td><span class="ts-score low">65.2</span></td>
+<td>65.3</td><td>39.4</td><td>97.8</td><td>100</td><td>93.2</td><td class="tps">110.3</td>
+<td class="tokens">29,378</td>
+<td><span class="ver-badge v5c">v5c</span></td>
+</tr>
 </table>
 
-<h2>Small Tier</h2>
-<table>
-<tr><th>#</th><th>Model</th><th>TrueScore</th><th>Quality</th><th>Calibration</th><th>Reliability</th><th>Efficiency</th><th>Resp</th><th>Version</th></tr>
-<tr><td>1</td><td><div class='name'>Gemma 4 E2B</div><div class='desc'>2B dense - Q4_K_M</div></td><td><span class='score ok'>76.8</span></td><td>64.8</td><td>90.3</td><td>91.9</td><td>100</td><td>94.0</td><td><span class='pill'>v5c</span></td></tr>
-<tr><td>2</td><td><div class='name'>Gemma 4 E4B</div><div class='desc'>4B dense - Q4_K_M</div></td><td><span class='score ok'>76.3</span></td><td>60.9</td><td>95.6</td><td>94.9</td><td>100</td><td>91.7</td><td><span class='pill'>v5c</span></td></tr>
-<tr><td>3</td><td><div class='name'>Gemma 4 12B</div><div class='desc'>12B dense - Q4_K_M</div></td><td><span class='score ok'>76.1</span></td><td>63.8</td><td>86.9</td><td>98.6</td><td>100</td><td>86.5</td><td><span class='pill'>v5c</span></td></tr>
+<!-- LARGE TIER -->
+<div class="tier-header">
+<span class="tier-badge large">Large</span>
+<h3>2+ Sparks Required</h3>
+<span class="tier-sub">Multi-node deployment models</span>
+</div>
+<table class="mtable" style="background:var(--card);border:1px solid var(--line);border-radius:14px">
+<tr><th>#</th><th>Model</th><th>TrueScore</th><th>Quality</th><th>Cal</th><th>Rel</th><th>Eff</th><th>Resp</th><th>Tok/s</th><th>Out tok</th><th>Ver</th></tr>
+<tr>
+<td>1</td>
+<td><div class="model-name">MiniMax-M3</div><div class="model-desc">NVFP4 · 4× DGX Spark · vLLM TP4/B12X</div></td>
+<td><span class="ts-score high">85.1</span></td>
+<td>78.6</td><td>95.2</td><td>92.3</td><td>100</td><td>78.6</td><td class="tps">29.9</td>
+<td class="tokens">27,877</td>
+<td><span class="ver-badge v5c">v5c</span></td>
+</tr>
+<tr>
+<td>2</td>
+<td><div class="model-name">MiMo V2.5 NVFP4</div><div class="model-desc">310B/15B active · NVFP4 KV · 2× DGX Spark · vLLM TP2/MTP1 · 1M ctx</div></td>
+<td><span class="ts-score high">84.7</span></td>
+<td>77.6</td><td>94.0</td><td>93.5</td><td>100</td><td>84.7</td><td class="tps">45.7</td>
+<td class="tokens">31,571</td>
+<td><span class="ver-badge v5c">v5c</span></td>
+</tr>
+<tr>
+<td>3</td>
+<td><div class="model-name">Nemotron Ultra 550B</div><div class="model-desc">A55B active · NVFP4 · 4× DGX Spark · SGLang TP4/EP4</div></td>
+<td><span class="ts-score ok">82.7</span></td>
+<td>71.8</td><td>100.0</td><td>95.4</td><td>100</td><td>67.5</td><td class="tps">16.9</td>
+<td class="tokens">28,214</td>
+<td><span class="ver-badge v5c">v5c</span></td>
+</tr>
+<tr>
+<td>4</td>
+<td><div class="model-name">DeepSeek V4 Flash</div><div class="model-desc">MoE, dual-node TP=2, RoCE · NVFP4</div></td>
+<td><span class="ts-score ok">78.8</span></td>
+<td>66.6</td><td>100.0</td><td>93.5</td><td>33.6</td><td>77.2</td><td class="tps">56.7</td>
+<td class="tokens">77,315</td>
+<td><span class="ver-badge v5c">v5c</span></td>
+</tr>
 </table>
 
-<h2>MiniMax-M3 Deployment</h2>
-<div class='card'>
-<p><strong>MiniMax-M3-NVFP4</strong> was served across four DGX Spark nodes using vLLM with tensor parallel size 4, ModelOpt FP4, B12X attention, B12X MoE, no Ray, RoCE fabric, and the community NVIDIA forum recipe based on <code>lukealonso/MiniMax-M3-NVFP4</code> plus <code>ghcr.io/tonyd2wild/vllm-m3-chthonic:nccl230u1</code>.</p>
-<p class='sub'>Benchmark run: <code>MiniMax-M3-NVFP4-vLLM-thinkOFF-64scen-v5c-4Spark-20260630-024756</code>. TrueScore 85.10, median latency 5.45s, 27,877 output tokens across 64 scenarios.</p>
-<div class='links'>
-<a class='btn' href='animations/minimax-m3-solar-v5c.html'>Solar artifact</a>
-<a class='btn' href='animations/minimax-m3-galaxy-v5c.html'>Galaxy artifact</a>
-<a class='btn' href='animations/minimax-m3-dna-v5c.html'>DNA artifact</a>
+<p class="sub" style="margin-top:14px">💡 <strong>Size tiers</strong> prevent unfair comparisons between a 2B dense model and a 35B MoE. Within each tier, TrueScore ranking applies. All runs use <strong>v5c</strong> weights (Quality 55%, Cal 25%, Rel 15%, Eff 1.5%, Resp 3.5%). 64 scenarios, K=2 repeats.</p>
+<p class="sub">Tok/s is eval output throughput: total generated output tokens divided by summed wall latency across the 64 v5c scenarios. Out tok is total generated output tokens for the benchmark run. <code>n/a</code> means that early v5c run did not persist token-count rows; the 543K aggregate is the known total across 17/20 visible rows.</p>
+
+<p class="sub">More models being benchmarked. <a href="https://github.com/Weschera/spark-bench" style="color:var(--acc)">Follow on GitHub →</a></p>
+
+</div>
+
+<!-- TAB: GAMES -->
+<div id="games" class="tab-panel">
+<h2>Model-generated games</h2>
+<p class="sub" style="margin:-6px 0 10px">Raw single-file HTML games generated by benchmarked models. Space Invaders used the same prompt/parameters across models; Frogger uses the long post-benchmark prompt captured for the model comparison.</p>
+
+<div class="card" style="margin-top:0;margin-bottom:16px">
+<h4 style="margin:0 0 8px">MiniMax-M3 Frogger <span class="ts-score high" style="font-size:14px">85.1</span></h4>
+<iframe src="animations/minimax-m3-frogger-v5c.html" style="width:100%;height:420px;border:1px solid var(--line);border-radius:12px;background:#000" loading="lazy" title="MiniMax-M3 — Frogger"></iframe>
+<p style="margin:8px 0"><a class="game-link" href="animations/minimax-m3-frogger-v5c.html" target="_blank">Play full screen ↗</a></p>
+<p class="sub" style="margin:6px 0 0">Generated after the benchmark from the same Frogger prompt used for the comparison. Raw MiniMax output; no manual game fixes.</p>
+</div>
+
+<div class="card" style="margin-top:0;margin-bottom:16px">
+<h4 style="margin:0 0 8px">MiniMax-M3 Space Invaders <span class="ts-score high" style="font-size:14px">85.1</span></h4>
+<iframe src="../spaceinvaders/minimax-m3.html" style="width:100%;height:360px;border:1px solid var(--line);border-radius:12px;background:#000" loading="lazy" title="MiniMax-M3 — Space Invaders"></iframe>
+<p style="margin:8px 0"><a class="game-link" href="../spaceinvaders/minimax-m3.html" target="_blank">Play full screen ↗</a></p>
+<p class="sub" style="margin:6px 0 0">Prompt: <code>Create a fully playable Space Invaders game in a single HTML file.</code> Temperature 0.3, max_tokens 8000, thinking disabled. Raw MiniMax output; no manual game fixes.</p>
+</div>
+
+<div class="card" style="margin-top:16px">
+<p style="margin:0"><strong>Same prompts as the comparison runs. No manual repair.</strong></p>
+<p class="sub" style="margin:6px 0 0">The saved files are direct model generations with only markdown/prose stripping needed to extract the single HTML file.</p>
 </div>
 </div>
 
-<h2>Raw Model-Generated Games</h2>
-<p class='note'>These are direct MiniMax outputs. Frogger and Space Invaders were not manually repaired.</p>
-<section class='games'>
-<div class='card'><h3>MiniMax-M3 Frogger</h3><iframe src='animations/minimax-m3-frogger-v5c.html' loading='lazy'></iframe><div class='links'><a class='btn' href='animations/minimax-m3-frogger-v5c.html'>Play full screen</a></div></div>
-<div class='card'><h3>MiniMax-M3 Space Invaders</h3><iframe src='../spaceinvaders/minimax-m3.html' loading='lazy'></iframe><div class='links'><a class='btn' href='../spaceinvaders/minimax-m3.html'>Play full screen</a></div><p class='sub'>Prompt: <code>Create a fully playable Space Invaders game in a single HTML file.</code></p></div>
-</section>
+<!-- TAB: ANIMATIONS -->
+<div id="animations" class="tab-panel">
+<h2>Model-generated animations</h2>
+<p class="sub" style="margin:-6px 0 10px">Each model was asked to generate self-contained HTML canvas animations — solar system, spiral galaxy, DNA helix. No external libraries. These are raw model outputs, unedited. All runs use the v5c 64-scenario suite. Click to open full-screen.</p>
 
-<h2>Visual Artifacts</h2>
-<section class='artifact'>
-<div class='card'><h3>Solar System</h3><iframe src='animations/minimax-m3-solar-v5c.html' loading='lazy'></iframe><a class='btn' href='animations/minimax-m3-solar-v5c.html'>Open</a></div>
-<div class='card'><h3>Spiral Galaxy</h3><iframe src='animations/minimax-m3-galaxy-v5c.html' loading='lazy'></iframe><a class='btn' href='animations/minimax-m3-galaxy-v5c.html'>Open</a></div>
-<div class='card'><h3>DNA Helix</h3><iframe src='animations/minimax-m3-dna-v5c.html' loading='lazy'></iframe><a class='btn' href='animations/minimax-m3-dna-v5c.html'>Open</a></div>
-</section>
+<div class="anim-section">
+<h4>MiniMax-M3 <span class="ts-score high" style="font-size:16px">85.1</span></h4>
+<p class="sub" style="margin:-4px 0 10px">4× DGX Spark · vLLM TP4/B12X · NVFP4 · ~18 tok/s observed sequential generation</p>
+<div class="grid">
+<figure class="anim-card">
+<iframe src="animations/minimax-m3-solar-v5c.html" loading="lazy" title="MiniMax-M3 — Solar System"></iframe>
+<figcaption><b>Solar System</b><a href="animations/minimax-m3-solar-v5c.html" target="_blank">open ↗</a></figcaption>
+</figure>
+<figure class="anim-card">
+<iframe src="animations/minimax-m3-galaxy-v5c.html" loading="lazy" title="MiniMax-M3 — Spiral Galaxy"></iframe>
+<figcaption><b>Spiral Galaxy</b><a href="animations/minimax-m3-galaxy-v5c.html" target="_blank">open ↗</a></figcaption>
+</figure>
+<figure class="anim-card">
+<iframe src="animations/minimax-m3-dna-v5c.html" loading="lazy" title="MiniMax-M3 — DNA Helix"></iframe>
+<figcaption><b>DNA Helix</b><a href="animations/minimax-m3-dna-v5c.html" target="_blank">open ↗</a></figcaption>
+</figure>
+</div>
+</div>
 
+<div class="anim-section">
+<h4>MiMo V2.5 NVFP4 <span class="ts-score high" style="font-size:16px">84.7</span></h4>
+<p class="sub" style="margin:-4px 0 10px">2× DGX Spark · vLLM TP2 · NVFP4 KV · MTP1 · 1M ctx · 3.62s median v5c latency</p>
+<div class="grid">
+<figure class="anim-card">
+<iframe src="animations/mimo-v25-nvfp4-tp2-solar-v5c.html" loading="lazy" title="MiMo V2.5 NVFP4 — Solar System"></iframe>
+<figcaption><b>Solar System</b><a href="animations/mimo-v25-nvfp4-tp2-solar-v5c.html" target="_blank">open ↗</a></figcaption>
+</figure>
+<figure class="anim-card">
+<iframe src="animations/mimo-v25-nvfp4-tp2-galaxy-v5c.html" loading="lazy" title="MiMo V2.5 NVFP4 — Spiral Galaxy"></iframe>
+<figcaption><b>Spiral Galaxy</b><a href="animations/mimo-v25-nvfp4-tp2-galaxy-v5c.html" target="_blank">open ↗</a></figcaption>
+</figure>
+<figure class="anim-card">
+<iframe src="animations/mimo-v25-nvfp4-tp2-dna-v5c.html" loading="lazy" title="MiMo V2.5 NVFP4 — DNA Helix"></iframe>
+<figcaption><b>DNA Helix</b><a href="animations/mimo-v25-nvfp4-tp2-dna-v5c.html" target="_blank">open ↗</a></figcaption>
+</figure>
+</div>
+</div>
+
+<div class="anim-section">
+<h4>Nemotron Ultra 550B <span class="ts-score ok" style="font-size:16px">82.7</span></h4>
+<p class="sub" style="margin:-4px 0 10px">4× DGX Spark · SGLang TP4/EP4 · NVFP4 · 22.9 tok/s</p>
+<div class="grid">
+<figure class="anim-card">
+<iframe src="animations/nemotron-ultra-550b-vis1.html" loading="lazy" title="Nemotron Ultra 550B — Solar System"></iframe>
+<figcaption><b>Solar System</b><a href="animations/nemotron-ultra-550b-vis1.html" target="_blank">open ↗</a></figcaption>
+</figure>
+<figure class="anim-card">
+<iframe src="animations/nemotron-ultra-550b-vis2.html" loading="lazy" title="Nemotron Ultra 550B — Spiral Galaxy"></iframe>
+<figcaption><b>Spiral Galaxy</b><a href="animations/nemotron-ultra-550b-vis2.html" target="_blank">open ↗</a></figcaption>
+</figure>
+<figure class="anim-card">
+<iframe src="animations/nemotron-ultra-550b-vis3.html" loading="lazy" title="Nemotron Ultra 550B — DNA Helix"></iframe>
+<figcaption><b>DNA Helix</b><a href="animations/nemotron-ultra-550b-vis3.html" target="_blank">open ↗</a></figcaption>
+</figure>
+</div>
+</div>
+
+<div class="anim-section">
+<h4>DeepSeek V4 Flash <span class="ts-score ok" style="font-size:16px">78.8</span></h4>
+<p class="sub" style="margin:-4px 0 10px">2× DGX Spark · vLLM · NVFP4 · 102.6 tok/s</p>
+<div class="grid">
+<figure class="anim-card">
+<iframe src="animations/deepseek-v4-flash-vis1.html" loading="lazy" title="DeepSeek V4 Flash — Solar System"></iframe>
+<figcaption><b>Solar System</b><a href="animations/deepseek-v4-flash-vis1.html" target="_blank">open ↗</a></figcaption>
+</figure>
+<figure class="anim-card">
+<iframe src="animations/deepseek-v4-flash-vis2.html" loading="lazy" title="DeepSeek V4 Flash — Spiral Galaxy"></iframe>
+<figcaption><b>Spiral Galaxy</b><a href="animations/deepseek-v4-flash-vis2.html" target="_blank">open ↗</a></figcaption>
+</figure>
+<figure class="anim-card">
+<iframe src="animations/deepseek-v4-flash-vis3.html" loading="lazy" title="DeepSeek V4 Flash — DNA Helix"></iframe>
+<figcaption><b>DNA Helix</b><a href="animations/deepseek-v4-flash-vis3.html" target="_blank">open ↗</a></figcaption>
+</figure>
+</div>
+</div>
+
+<div class="anim-section">
+<h4>Qwopus 3.6-27B <span class="ts-score ok" style="font-size:16px">78.7</span></h4>
+<p class="sub" style="margin:-4px 0 10px">1× DGX Spark · vLLM · NVFP4 · MTP · 26.5 tok/s</p>
+<div class="grid">
+<figure class="anim-card">
+<iframe src="animations/qwopus-36-27b-vis1.html" loading="lazy" title="Qwopus 3.6-27B — Solar System"></iframe>
+<figcaption><b>Solar System</b><a href="animations/qwopus-36-27b-vis1.html" target="_blank">open ↗</a></figcaption>
+</figure>
+<figure class="anim-card">
+<iframe src="animations/qwopus-36-27b-vis2.html" loading="lazy" title="Qwopus 3.6-27B — Spiral Galaxy"></iframe>
+<figcaption><b>Spiral Galaxy</b><a href="animations/qwopus-36-27b-vis2.html" target="_blank">open ↗</a></figcaption>
+</figure>
+<figure class="anim-card">
+<iframe src="animations/qwopus-36-27b-vis3.html" loading="lazy" title="Qwopus 3.6-27B — DNA Helix"></iframe>
+<figcaption><b>DNA Helix</b><a href="animations/qwopus-36-27b-vis3.html" target="_blank">open ↗</a></figcaption>
+</figure>
+</div>
+</div>
+
+<div class="anim-section">
+<h4>Qwen 3.6-35B <span class="ts-score ok" style="font-size:16px">77.1</span></h4>
+<p class="sub" style="margin:-4px 0 10px">1× DGX Spark · vLLM · NVFP4 · 58.7 tok/s</p>
+<div class="grid">
+<figure class="anim-card">
+<iframe src="animations/qwen-36-35b-vis1.html" loading="lazy" title="Qwen 3.6-35B — Solar System"></iframe>
+<figcaption><b>Solar System</b><a href="animations/qwen-36-35b-vis1.html" target="_blank">open ↗</a></figcaption>
+</figure>
+<figure class="anim-card">
+<iframe src="animations/qwen-36-35b-vis2.html" loading="lazy" title="Qwen 3.6-35B — Spiral Galaxy"></iframe>
+<figcaption><b>Spiral Galaxy</b><a href="animations/qwen-36-35b-vis2.html" target="_blank">open ↗</a></figcaption>
+</figure>
+<figure class="anim-card">
+<iframe src="animations/qwen-36-35b-vis3.html" loading="lazy" title="Qwen 3.6-35B — DNA Helix"></iframe>
+<figcaption><b>DNA Helix</b><a href="animations/qwen-36-35b-vis3.html" target="_blank">open ↗</a></figcaption>
+</figure>
+</div>
+</div>
+
+<div class="anim-section">
+<h4>Qwen 35B base <span class="ts-score ok" style="font-size:16px">78.0</span></h4>
+<p class="sub" style="margin:-4px 0 10px">1× DGX Spark · vLLM · NVFP4</p>
+<div class="grid">
+<figure class="anim-card">
+<iframe src="animations/qwen-35b-base-vis1.html" loading="lazy" title="Qwen 35B base — Solar System"></iframe>
+<figcaption><b>Solar System</b><a href="animations/qwen-35b-base-vis1.html" target="_blank">open ↗</a></figcaption>
+</figure>
+<figure class="anim-card">
+<iframe src="animations/qwen-35b-base-vis2.html" loading="lazy" title="Qwen 35B base — Spiral Galaxy"></iframe>
+<figcaption><b>Spiral Galaxy</b><a href="animations/qwen-35b-base-vis2.html" target="_blank">open ↗</a></figcaption>
+</figure>
+<figure class="anim-card">
+<iframe src="animations/qwen-35b-base-vis3.html" loading="lazy" title="Qwen 35B base — DNA Helix"></iframe>
+<figcaption><b>DNA Helix</b><a href="animations/qwen-35b-base-vis3.html" target="_blank">open ↗</a></figcaption>
+</figure>
+</div>
+</div>
+
+<div class="anim-section">
+<h4>Gemma 4 31B <span class="ts-score ok" style="font-size:16px">77.9</span></h4>
+<p class="sub" style="margin:-4px 0 10px">1× DGX Spark · vLLM · NVFP4</p>
+<div class="grid">
+<figure class="anim-card">
+<iframe src="animations/gemma-4-31b-vis1.html" loading="lazy" title="Gemma 4 31B — Solar System"></iframe>
+<figcaption><b>Solar System</b><a href="animations/gemma-4-31b-vis1.html" target="_blank">open ↗</a></figcaption>
+</figure>
+<figure class="anim-card">
+<iframe src="animations/gemma-4-31b-vis2.html" loading="lazy" title="Gemma 4 31B — Spiral Galaxy"></iframe>
+<figcaption><b>Spiral Galaxy</b><a href="animations/gemma-4-31b-vis2.html" target="_blank">open ↗</a></figcaption>
+</figure>
+<figure class="anim-card">
+<iframe src="animations/gemma-4-31b-vis3.html" loading="lazy" title="Gemma 4 31B — DNA Helix"></iframe>
+<figcaption><b>DNA Helix</b><a href="animations/gemma-4-31b-vis3.html" target="_blank">open ↗</a></figcaption>
+</figure>
+</div>
+</div>
+
+<div class="anim-section">
+<h4>Gemma 4 E2B <span class="ts-score ok" style="font-size:16px">76.8</span></h4>
+<p class="sub" style="margin:-4px 0 10px">1× DGX Spark · vLLM · NVFP4</p>
+<div class="grid">
+<figure class="anim-card">
+<iframe src="animations/gemma-4-e2b-vis1.html" loading="lazy" title="Gemma 4 E2B — Solar System"></iframe>
+<figcaption><b>Solar System</b><a href="animations/gemma-4-e2b-vis1.html" target="_blank">open ↗</a></figcaption>
+</figure>
+<figure class="anim-card">
+<iframe src="animations/gemma-4-e2b-vis2.html" loading="lazy" title="Gemma 4 E2B — Spiral Galaxy"></iframe>
+<figcaption><b>Spiral Galaxy</b><a href="animations/gemma-4-e2b-vis2.html" target="_blank">open ↗</a></figcaption>
+</figure>
+<figure class="anim-card">
+<iframe src="animations/gemma-4-e2b-vis3.html" loading="lazy" title="Gemma 4 E2B — DNA Helix"></iframe>
+<figcaption><b>DNA Helix</b><a href="animations/gemma-4-e2b-vis3.html" target="_blank">open ↗</a></figcaption>
+</figure>
+</div>
+</div>
+
+<div class="anim-section">
+<h4>Gemma 4 E4B <span class="ts-score ok" style="font-size:16px">76.3</span></h4>
+<p class="sub" style="margin:-4px 0 10px">1× DGX Spark · vLLM · NVFP4</p>
+<div class="grid">
+<figure class="anim-card">
+<iframe src="animations/gemma-4-e4b-vis1.html" loading="lazy" title="Gemma 4 E4B — Solar System"></iframe>
+<figcaption><b>Solar System</b><a href="animations/gemma-4-e4b-vis1.html" target="_blank">open ↗</a></figcaption>
+</figure>
+<figure class="anim-card">
+<iframe src="animations/gemma-4-e4b-vis2.html" loading="lazy" title="Gemma 4 E4B — Spiral Galaxy"></iframe>
+<figcaption><b>Spiral Galaxy</b><a href="animations/gemma-4-e4b-vis2.html" target="_blank">open ↗</a></figcaption>
+</figure>
+<figure class="anim-card">
+<iframe src="animations/gemma-4-e4b-vis3.html" loading="lazy" title="Gemma 4 E4B — DNA Helix"></iframe>
+<figcaption><b>DNA Helix</b><a href="animations/gemma-4-e4b-vis3.html" target="_blank">open ↗</a></figcaption>
+</figure>
+</div>
+</div>
+
+<div class="anim-section">
+<h4>Gemma 4 12B <span class="ts-score ok" style="font-size:16px">76.1</span></h4>
+<p class="sub" style="margin:-4px 0 10px">1× DGX Spark · vLLM · NVFP4</p>
+<div class="grid">
+<figure class="anim-card">
+<iframe src="animations/gemma-4-12b-vis1.html" loading="lazy" title="Gemma 4 12B — Solar System"></iframe>
+<figcaption><b>Solar System</b><a href="animations/gemma-4-12b-vis1.html" target="_blank">open ↗</a></figcaption>
+</figure>
+<figure class="anim-card">
+<iframe src="animations/gemma-4-12b-vis2.html" loading="lazy" title="Gemma 4 12B — Spiral Galaxy"></iframe>
+<figcaption><b>Spiral Galaxy</b><a href="animations/gemma-4-12b-vis2.html" target="_blank">open ↗</a></figcaption>
+</figure>
+<figure class="anim-card">
+<iframe src="animations/gemma-4-12b-vis3.html" loading="lazy" title="Gemma 4 12B — DNA Helix"></iframe>
+<figcaption><b>DNA Helix</b><a href="animations/gemma-4-12b-vis3.html" target="_blank">open ↗</a></figcaption>
+</figure>
+</div>
+</div>
+
+<div class="anim-section">
+<h4>Gemma 4 26B-A4B <span class="ts-score ok" style="font-size:16px">75.6</span></h4>
+<p class="sub" style="margin:-4px 0 10px">1× DGX Spark · vLLM · NVFP4</p>
+<div class="grid">
+<figure class="anim-card">
+<iframe src="animations/gemma-4-26b-a4b-vis1.html" loading="lazy" title="Gemma 4 26B-A4B — Solar System"></iframe>
+<figcaption><b>Solar System</b><a href="animations/gemma-4-26b-a4b-vis1.html" target="_blank">open ↗</a></figcaption>
+</figure>
+<figure class="anim-card">
+<iframe src="animations/gemma-4-26b-a4b-vis2.html" loading="lazy" title="Gemma 4 26B-A4B — Spiral Galaxy"></iframe>
+<figcaption><b>Spiral Galaxy</b><a href="animations/gemma-4-26b-a4b-vis2.html" target="_blank">open ↗</a></figcaption>
+</figure>
+<figure class="anim-card">
+<iframe src="animations/gemma-4-26b-a4b-vis3.html" loading="lazy" title="Gemma 4 26B-A4B — DNA Helix"></iframe>
+<figcaption><b>DNA Helix</b><a href="animations/gemma-4-26b-a4b-vis3.html" target="_blank">open ↗</a></figcaption>
+</figure>
+</div>
+</div>
+
+<div class="anim-section">
+<h4>Qwen 27B base <span class="ts-score ok" style="font-size:16px">76.5</span></h4>
+<p class="sub" style="margin:-4px 0 10px">1× DGX Spark · vLLM · NVFP4</p>
+<div class="grid">
+<figure class="anim-card">
+<iframe src="animations/qwen-27b-base-vis1.html" loading="lazy" title="Qwen 27B base — Solar System"></iframe>
+<figcaption><b>Solar System</b><a href="animations/qwen-27b-base-vis1.html" target="_blank">open ↗</a></figcaption>
+</figure>
+<figure class="anim-card">
+<iframe src="animations/qwen-27b-base-vis2.html" loading="lazy" title="Qwen 27B base — Spiral Galaxy"></iframe>
+<figcaption><b>Spiral Galaxy</b><a href="animations/qwen-27b-base-vis2.html" target="_blank">open ↗</a></figcaption>
+</figure>
+<figure class="anim-card">
+<iframe src="animations/qwen-27b-base-vis3.html" loading="lazy" title="Qwen 27B base — DNA Helix"></iframe>
+<figcaption><b>DNA Helix</b><a href="animations/qwen-27b-base-vis3.html" target="_blank">open ↗</a></figcaption>
+</figure>
+</div>
+</div>
+
+<div class="anim-section">
+<h4>Bytkim-Qwen 3.6-27B <span class="ts-score ok" style="font-size:16px">75.7</span></h4>
+<p class="sub" style="margin:-4px 0 10px">1× DGX Spark · vLLM · NVFP4</p>
+<div class="grid">
+<figure class="anim-card">
+<iframe src="animations/bytkim-qwen-36-27b-vis1.html" loading="lazy" title="Bytkim-Qwen 3.6-27B — Solar System"></iframe>
+<figcaption><b>Solar System</b><a href="animations/bytkim-qwen-36-27b-vis1.html" target="_blank">open ↗</a></figcaption>
+</figure>
+<figure class="anim-card">
+<iframe src="animations/bytkim-qwen-36-27b-vis2.html" loading="lazy" title="Bytkim-Qwen 3.6-27B — Spiral Galaxy"></iframe>
+<figcaption><b>Spiral Galaxy</b><a href="animations/bytkim-qwen-36-27b-vis2.html" target="_blank">open ↗</a></figcaption>
+</figure>
+<figure class="anim-card">
+<iframe src="animations/bytkim-qwen-36-27b-vis3.html" loading="lazy" title="Bytkim-Qwen 3.6-27B — DNA Helix"></iframe>
+<figcaption><b>DNA Helix</b><a href="animations/bytkim-qwen-36-27b-vis3.html" target="_blank">open ↗</a></figcaption>
+</figure>
+</div>
+</div>
+
+<div class="anim-section">
+<h4>Huihui-Qwen 3.6-35B <span class="ts-score ok" style="font-size:16px">75.5</span></h4>
+<p class="sub" style="margin:-4px 0 10px">1× DGX Spark · vLLM · NVFP4</p>
+<div class="grid">
+<figure class="anim-card">
+<iframe src="animations/huihui-qwen-36-35b-vis1.html" loading="lazy" title="Huihui-Qwen 3.6-35B — Solar System"></iframe>
+<figcaption><b>Solar System</b><a href="animations/huihui-qwen-36-35b-vis1.html" target="_blank">open ↗</a></figcaption>
+</figure>
+<figure class="anim-card">
+<iframe src="animations/huihui-qwen-36-35b-vis2.html" loading="lazy" title="Huihui-Qwen 3.6-35B — Spiral Galaxy"></iframe>
+<figcaption><b>Spiral Galaxy</b><a href="animations/huihui-qwen-36-35b-vis2.html" target="_blank">open ↗</a></figcaption>
+</figure>
+<figure class="anim-card">
+<iframe src="animations/huihui-qwen-36-35b-vis3.html" loading="lazy" title="Huihui-Qwen 3.6-35B — DNA Helix"></iframe>
+<figcaption><b>DNA Helix</b><a href="animations/huihui-qwen-36-35b-vis3.html" target="_blank">open ↗</a></figcaption>
+</figure>
+</div>
+</div>
+
+<div class="anim-section">
+<h4>Qwable-5-27B-Coder <span class="ts-score ok" style="font-size:16px">75.6</span></h4>
+<p class="sub" style="margin:-4px 0 10px">1× DGX Spark · vLLM · NVFP4</p>
+<div class="grid">
+<figure class="anim-card">
+<iframe src="animations/qwable-5-27b-coder-vis1.html" loading="lazy" title="Qwable-5-27B-Coder — Solar System"></iframe>
+<figcaption><b>Solar System</b><a href="animations/qwable-5-27b-coder-vis1.html" target="_blank">open ↗</a></figcaption>
+</figure>
+<figure class="anim-card">
+<iframe src="animations/qwable-5-27b-coder-vis2.html" loading="lazy" title="Qwable-5-27B-Coder — Spiral Galaxy"></iframe>
+<figcaption><b>Spiral Galaxy</b><a href="animations/qwable-5-27b-coder-vis2.html" target="_blank">open ↗</a></figcaption>
+</figure>
+<figure class="anim-card">
+<iframe src="animations/qwable-5-27b-coder-vis3.html" loading="lazy" title="Qwable-5-27B-Coder — DNA Helix"></iframe>
+<figcaption><b>DNA Helix</b><a href="animations/qwable-5-27b-coder-vis3.html" target="_blank">open ↗</a></figcaption>
+</figure>
+</div>
+</div>
+
+<div class="anim-section">
+<h4>Nemotron Nano Omni A3B <span class="ts-score low" style="font-size:16px">76.4</span></h4>
+<p class="sub" style="margin:-4px 0 10px">1× DGX Spark · vLLM · NVFP4</p>
+<div class="grid">
+<figure class="anim-card">
+<iframe src="animations/nemotron-nano-omni-30b-vis1.html" loading="lazy" title="Nemotron Nano Omni A3B — Solar System"></iframe>
+<figcaption><b>Solar System</b><a href="animations/nemotron-nano-omni-30b-vis1.html" target="_blank">open ↗</a></figcaption>
+</figure>
+<figure class="anim-card">
+<iframe src="animations/nemotron-nano-omni-30b-vis2.html" loading="lazy" title="Nemotron Nano Omni A3B — Spiral Galaxy"></iframe>
+<figcaption><b>Spiral Galaxy</b><a href="animations/nemotron-nano-omni-30b-vis2.html" target="_blank">open ↗</a></figcaption>
+</figure>
+<figure class="anim-card">
+<iframe src="animations/nemotron-nano-omni-30b-vis3.html" loading="lazy" title="Nemotron Nano Omni A3B — DNA Helix"></iframe>
+<figcaption><b>DNA Helix</b><a href="animations/nemotron-nano-omni-30b-vis3.html" target="_blank">open ↗</a></figcaption>
+</figure>
+</div>
+</div>
+
+<div class="anim-section">
+<h4>Ornith 1.0-35B <span class="ts-score low" style="font-size:16px">74.2</span></h4>
+<p class="sub" style="margin:-4px 0 10px">1× DGX Spark · vLLM · NVFP4</p>
+<div class="grid">
+<figure class="anim-card">
+<iframe src="animations/ornith-10-35b-vis1.html" loading="lazy" title="Ornith 1.0-35B — Solar System"></iframe>
+<figcaption><b>Solar System</b><a href="animations/ornith-10-35b-vis1.html" target="_blank">open ↗</a></figcaption>
+</figure>
+<figure class="anim-card">
+<iframe src="animations/ornith-10-35b-vis2.html" loading="lazy" title="Ornith 1.0-35B — Spiral Galaxy"></iframe>
+<figcaption><b>Spiral Galaxy</b><a href="animations/ornith-10-35b-vis2.html" target="_blank">open ↗</a></figcaption>
+</figure>
+<figure class="anim-card">
+<iframe src="animations/ornith-10-35b-vis3.html" loading="lazy" title="Ornith 1.0-35B — DNA Helix"></iframe>
+<figcaption><b>DNA Helix</b><a href="animations/ornith-10-35b-vis3.html" target="_blank">open ↗</a></figcaption>
+</figure>
+</div>
+</div>
+
+<div class="anim-section">
+<h4>Qwen 3.6-27B (nvfp4) <span class="ts-score low" style="font-size:16px">72.7</span></h4>
+<p class="sub" style="margin:-4px 0 10px">1× DGX Spark · vLLM · NVFP4</p>
+<div class="grid">
+<figure class="anim-card">
+<iframe src="animations/qwen-36-27b-nvfp4-vis1.html" loading="lazy" title="Qwen 3.6-27B (nvfp4) — Solar System"></iframe>
+<figcaption><b>Solar System</b><a href="animations/qwen-36-27b-nvfp4-vis1.html" target="_blank">open ↗</a></figcaption>
+</figure>
+<figure class="anim-card">
+<iframe src="animations/qwen-36-27b-nvfp4-vis2.html" loading="lazy" title="Qwen 3.6-27B (nvfp4) — Spiral Galaxy"></iframe>
+<figcaption><b>Spiral Galaxy</b><a href="animations/qwen-36-27b-nvfp4-vis2.html" target="_blank">open ↗</a></figcaption>
+</figure>
+<figure class="anim-card">
+<iframe src="animations/qwen-36-27b-nvfp4-vis3.html" loading="lazy" title="Qwen 3.6-27B (nvfp4) — DNA Helix"></iframe>
+<figcaption><b>DNA Helix</b><a href="animations/qwen-36-27b-nvfp4-vis3.html" target="_blank">open ↗</a></figcaption>
+</figure>
+</div>
+</div>
+
+<div class="anim-section">
+<h4>HauhauCS-Qwen 3.6-35B <span class="ts-score low" style="font-size:16px">65.2</span></h4>
+<p class="sub" style="margin:-4px 0 10px">1× DGX Spark · vLLM · NVFP4</p>
+<div class="grid">
+<figure class="anim-card">
+<iframe src="animations/hauhaucs-qwen-36-35b-vis1.html" loading="lazy" title="HauhauCS-Qwen 3.6-35B — Solar System"></iframe>
+<figcaption><b>Solar System</b><a href="animations/hauhaucs-qwen-36-35b-vis1.html" target="_blank">open ↗</a></figcaption>
+</figure>
+<figure class="anim-card">
+<iframe src="animations/hauhaucs-qwen-36-35b-vis2.html" loading="lazy" title="HauhauCS-Qwen 3.6-35B — Spiral Galaxy"></iframe>
+<figcaption><b>Spiral Galaxy</b><a href="animations/hauhaucs-qwen-36-35b-vis2.html" target="_blank">open ↗</a></figcaption>
+</figure>
+<figure class="anim-card">
+<iframe src="animations/hauhaucs-qwen-36-35b-vis3.html" loading="lazy" title="HauhauCS-Qwen 3.6-35B — DNA Helix"></iframe>
+<figcaption><b>DNA Helix</b><a href="animations/hauhaucs-qwen-36-35b-vis3.html" target="_blank">open ↗</a></figcaption>
+</figure>
+</div>
+</div>
+
+</div>
+
+<!-- TAB: METHODOLOGY --><!-- TAB: METHODOLOGY -->
+<div id="methodology" class="tab-panel">
 <h2>Methodology</h2>
-<div class='card'>
-<p><code>TrueScore = 0.55*Quality + 0.25*Calibration + 0.15*Reliability + 0.015*Efficiency + 0.035*Responsiveness</code></p>
-<p>Spark-Bench uses deterministic grading: JSON schema checks, exact tool-argument matching, needle retrieval, executable Python and SQL tests, safety and robustness checks, multi-turn tool sequences, and pixel-based visual scoring. Speed is only 5 percent of the total score.</p>
-<div class='links'><a class='btn' href='https://github.com/Weschera/spark-bench'>Spark-Bench source</a></div>
+<div class="card">
+<p>Most LLM leaderboards saturate — every decent model clusters at 88–97 and the ranking stops meaning anything. Spark-Bench is built to <b>discriminate</b> and to be <b>verifiable</b>:</p>
+<ul>
+<li><b>11 domains</b> — tool use, instruction following, structured output, long context, safety, robustness, multi-step tool chains, restraint/refusal, autonomous planning, executable code, visual generation.</li>
+<li><b>64 scenarios</b> — including 10 executable code tests (Python + SQL, graded by running), 3 visual artifact generation, 4 restraint/refusal (over-refusal detection), and 2 autonomous planning scenarios.</li>
+<li><b>Size tiers</b> — models grouped by parameter count and hardware requirements. Small (≤12B), Mid (13–35B), Large (2+ Sparks). Prevents unfair cross-capacity comparisons.</li>
+<li><b>Partial-credit grading</b> — a model hitting 3/5 constraints scores 0.60, not 0.00. No binary pass/fail.</li>
+<li><b>Deterministic grading</b> — unit tests, JSON-schema validation, exact tool-argument matching, needle retrieval, executable code tests. No LLM-judge.</li>
+<li><b>Executable code tests</b> — model-generated Python/SQL is imported and run against test cases. Syntax errors, logic errors, and wrong outputs all fail. Graded by execution, not pattern matching.</li>
+<li><b>Pixel-based visual grading</b> — HTML artifacts rendered in headless Chromium, scored by pixel count, frame delta, and color diversity across t=0/1/2/3s screenshots.</li>
+<li><b>Multi-turn tool calls</b> — graders check the full tool call sequence, not just the first response.</li>
+<li><b>Trial statistics</b> — Pass@1 (≥50% on at least 1 repeat), Pass@K (≥50% on ALL repeats), Reliability Gap, Score StdDev, Scenario StdDev.</li>
+</ul>
 </div>
+
+<h2>TrueScore formula (v5c)</h2>
+<div class="card">
+<p><code>TrueScore = 0.55·Quality + 0.25·Calibration + 0.15·Reliability + 0.015·Efficiency + 0.035·Responsiveness</code></p>
+<table class="mtable" style="margin-top:12px">
+<tr><th>Component</th><th>Weight</th><th>What it measures</th></tr>
+<tr><td>Quality</td><td>55%</td><td>Task correctness across all domains (including executable code)</td></tr>
+<tr><td>Calibration</td><td>25%</td><td>Safety + robustness (appropriate behavior, no over-refusal)</td></tr>
+<tr><td>Reliability</td><td>15%</td><td>Consistency across repeated trials</td></tr>
+<tr><td>Efficiency</td><td>1.5%</td><td>Tokens/second relative to fastest model</td></tr>
+<tr><td>Responsiveness</td><td>3.5%</td><td>Time-to-first-token + total latency</td></tr>
+</table>
+<p class="sub" style="margin-top:8px">Speed components total 5% — quality dominates. This prevents fast-but-shallow models from outranking slower-but-smarter ones. On DGX Spark, slow inference can truncate outputs and reduce quality — the benchmark reflects this real-world tradeoff.</p>
+</div>
+
+<h2>Size tiers</h2>
+<div class="card">
+<table class="mtable">
+<tr><th>Tier</th><th>Range</th><th>Hardware</th><th>Rationale</th></tr>
+<tr><td><span class="tier-badge small">Small</span></td><td>≤12B params</td><td>1× DGX Spark</td><td>Lightweight models for edge/inference</td></tr>
+<tr><td><span class="tier-badge mid">Mid</span></td><td>13–35B params</td><td>1× DGX Spark</td><td>Full-capability single-node models</td></tr>
+<tr><td><span class="tier-badge large">Large</span></td><td>36B+ or 2+ Sparks</td><td>2–4× DGX Spark</td><td>Multi-node deployment required</td></tr>
+</table>
+</div>
+
+<h2>Domain breakdown</h2>
+<div class="card">
+<table class="mtable">
+<tr><th>Domain</th><th>Scenarios</th><th>Description</th></tr>
+<tr><td>tool_use</td><td>10</td><td>Function calling with real tool schemas</td></tr>
+<tr><td>instruction</td><td>11</td><td>Hard instruction following (constraints, format)</td></tr>
+<tr><td>structured</td><td>6</td><td>JSON output with schema validation</td></tr>
+<tr><td>long_context</td><td>4</td><td>Needle-in-haystack retrieval (8K–64K tokens)</td></tr>
+<tr><td>safety</td><td>11</td><td>Refusal + appropriate compliance + over-refusal</td></tr>
+<tr><td>robustness</td><td>4</td><td>Missing params, malformed input, injection</td></tr>
+<tr><td>planning</td><td>5</td><td>Multi-step planning with tool orchestration</td></tr>
+<tr><td>code</td><td>10</td><td>Executable Python + SQL (graded by running)</td></tr>
+<tr><td>visual</td><td>3</td><td>Generate animated HTML5 canvas artifacts</td></tr>
+<tr><td>composition</td><td>2</td><td>Multi-skill composition tasks</td></tr>
+<tr><td>classification</td><td>1</td><td>Categorization with structured output</td></tr>
+</table>
+</div>
+
+<h2>The hardware</h2>
+<div class="card">
+<ul>
+<li><b>4× NVIDIA DGX Spark</b> (GB10 Grace-Blackwell, 128 GB unified memory each).</li>
+<li><b>Small/Mid tier:</b> served via vLLM (NVFP4) or llama.cpp (Q4_K_M), one model per Spark.</li>
+<li><b>Large tier:</b> served via SGLang or vLLM with tensor/expert parallelism across multiple Sparks (RoCE interconnect).</li>
+
+<li><b>Pure stdlib Python</b> — no pip dependencies. Any OpenAI-compatible <code>/v1/chat/completions</code> endpoint works.</li>
+</ul>
+</div>
+
+<h2>Open source</h2>
+<div class="card">
+<p>The full benchmark — 64 scenarios, graders, harness, and all results — is open source:</p>
+<p style="margin-top:8px"><a class="gh-badge" href="https://github.com/Weschera/spark-bench" target="_blank">
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+  github.com/Weschera/spark-bench
+</a></p>
+<p class="sub" style="margin-top:8px">MIT licensed. Methodology inspired by <a href="https://github.com/miaAI-lab/tool-eval-bench" style="color:var(--acc)">tool-eval-bench</a>.</p>
+</div>
+</div>
+
 </main>
-<footer><div class='wrap'>v5c 64-scenario mixed-capability benchmark - 19 models - last updated 2026-06-30 - <a href='https://wesche.com/dgx'>wesche.com/dgx</a></div></footer>
-</body>
-</html>
+<footer>v5c 64-scenario mixed-capability benchmark · 20 models · all scores v5c · last updated 2026-06-30 · <a href="https://wesche.com/dgx">wesche.com/dgx</a> · <a href="https://github.com/Weschera/spark-bench" style="color:var(--acc)">GitHub</a></footer>
+
+<script>
+function showTab(id){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+}
+</script>
+</body></html>

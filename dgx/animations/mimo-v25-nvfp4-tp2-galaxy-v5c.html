@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spiral Galaxy</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="galaxyCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('galaxyCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let width, height;
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Configuration
+        const STAR_COUNT = 1500;
+        const ARM_COUNT = 3; // Number of spiral arms
+        const CORE_RADIUS = 40;
+        const GALAXY_RADIUS = Math.min(width, height) * 0.45;
+        const ROTATION_SPEED = 0.0005; // Radians per frame
+
+        // Stars array
+        const stars = [];
+
+        class Star {
+            constructor() {
+                this.reset();
+            }
+
+            reset() {
+                // Random distance from center, biased towards the arms
+                // Use random square root for uniform distribution over area
+                // But we want it to look like a galaxy, so we bias density towards center
+                const r = Math.random();
+                
+                // Spiral arm logic
+                const armIndex = Math.floor(Math.random() * ARM_COUNT);
+                const baseAngle = (armIndex / ARM_COUNT) * Math.PI * 2;
+                
+                // Add some randomness to the angle based on radius (wider spread further out)
+                const spread = Math.pow(r, 2) * 2.5; 
+                const angleOffset = (Math.random() - 0.5) * spread;
+                
+                this.angle = baseAngle + angleOffset;
+                this.radius = r * GALAXY_RADIUS;
+                
+                // Slight elliptical shape
+                this.xRatio = 1.0;
+                this.yRatio = 0.65;
+
+                // Speed depends on radius (Keplerian-ish rotation, faster inner)
+                // Actually, for visual appeal, flat rotation curve is often nicer.
+                this.speed = 0.8 + Math.random() * 0.4; 
+
+                // Size
+                this.size = Math.random() * 1.5 + 0.5;
+                
+                // Brightness / Color
+                // Core stars are whiter/brighter, outer stars are dimmer/bluer/redder
+                this.brightness = 0.3 + Math.random() * 0.7;
+                
+                // Twinkle parameters
+                this.twinkleSpeed = Math.random() * 0.05 + 0.01;
+                this.twinklePhase = Math.random() * Math.PI * 2;
+                
+                // Base color generation
+                const distFactor = r;
+                if (distFactor < 0.15) {
+                    // Core: Yellow/White
+                    this.r = 255;
+                    this.g = 255;
+                    this.b = 220 + Math.random() * 35;
+                } else if (distFactor > 0.7) {
+                    // Outer: Blue/Purple hints
+                    const t = Math.random();
+                    this.r = 100 + Math.random() * 100;
+                    this.g = 100 + Math.random() * 100;
+                    this.b = 200 + Math.random() * 55;
+                } else {
+                    // Mid: Mix of warm/cool
+                    const t = Math.random();
+                    this.r = 200 + Math.random() * 55;
+                    this.g = 180 + Math.random() * 75;
+                    this.b = 150 + Math.random() * 100;
+                }
+            }
+
+            update(time) {
+                // Rotate
+                this.angle += ROTATION_SPEED * this.speed;
+
+                // Calculate position
+                const x = Math.cos(this.angle) * this.radius * this.xRatio;
+                const y = Math.sin(this.angle) * this.radius * this.yRatio;
+
+                // Convert to screen coordinates
+                this.screenX = width / 2 + x;
+                this.screenY = height / 2 + y;
+
+                // Twinkle effect
+                const twinkle = Math.sin(time * this.twinkleSpeed + this.twinklePhase);
+                this.currentBrightness = this.brightness * (0.7 + 0.3 * twinkle);
+            }
+
+            draw(ctx) {
+                // Don't draw if off screen (optimization)
+                if (this.screenX < -10 || this.screenX > width + 10 || 
+                    this.screenY < -10 || this.screenY > height + 10) return;
+
+                const alpha = this.currentBrightness;
+                ctx.fillStyle = `rgba(${this.r}, ${this.g}, ${this.b}, ${alpha})`;
+                
+                // Draw star
+                ctx.beginPath();
+                ctx.arc(this.screenX, this.screenY, this.size, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Glow effect for brighter/larger stars
+                if (this.size > 1.2 && alpha > 0.6) {
+                    ctx.fillStyle = `rgba(${this.r}, ${this.g}, ${this.b}, ${alpha * 0.15})`;
+                    ctx.beginPath();
+                    ctx.arc(this.screenX, this.screenY, this.size * 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
+
+        // Initialize stars
+        for (let i = 0; i < STAR_COUNT; i++) {
+            stars.push(new Star());
+        }
+
+        // Background dust/nebula layer (drawn once or slowly updated)
+        const bgCanvas = document.createElement('canvas');
+        const bgCtx = bgCanvas.getContext('2d');
+        
+        function generateNebula() {
+            bgCanvas.width = width;
+            bgCanvas.height = height;
+            
+            const cx = width / 2;
+            const cy = height / 2;
+            
+            // Create radial gradients for nebula clouds
+            for (let i = 0; i < 20; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const dist = Math.random() * GALAXY_RADIUS * 0.6;
+                const x = cx + Math.cos(angle) * dist;
+                const y = cy + Math.sin(angle) * dist * 0.65;
+                
+                const radius = 100 + Math.random() * 200;
+                
+                const grad = bgCtx.createRadialGradient(x, y, 0, x, y, radius);
+                
+                const colors = [
+                    [40, 20, 60],   // Deep Purple
+                    [20, 20, 50],   // Dark Blue
+                    [50, 10, 20],   // Dark Red
+                    [10, 30, 40]    // Teal
+                ];
+                const c = colors[Math.floor(Math.random() * colors.length)];
+                
+                grad.addColorStop(0, `rgba(${c[0]}, ${c[1]}, ${c[2]}, 0.05)`);
+                grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                
+                bgCtx.fillStyle = grad;
+                bgCtx.fillRect(0, 0, width, height);
+            }
+        }
+        
+        // Generate on init and resize
+        generateNebula();
+        window.addEventListener('resize', () => {
+            resize();
+            generateNebula();
+        });
+
+        let startTime = performance.now();
+
+        function animate(currentTime) {
+            const time = currentTime - startTime;
+
+            // Clear with slight fade for trail effect? No, clean clear looks better for stars usually.
+            // But we can blend the nebula.
+            
+            ctx.clearRect(0, 0, width, height);
+            
+            // Draw static nebula background
+            ctx.drawImage(bgCanvas, 0, 0);
+
+            // Draw Core Glow
+            const coreGrad = ctx.createRadialGradient(
+                width / 2, height / 2, 0,
+                width / 2, height / 2, CORE_RADIUS * 2
+            );
+            coreGrad.addColorStop(0, 'rgba(255, 255, 250, 0.9)');
+            coreGrad.addColorStop(0.2, 'rgba(255, 255, 220, 0.5)');
+            coreGrad.addColorStop(0.5, 'rgba(255, 255, 200, 0.1)');
+            coreGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            
+            ctx.fillStyle = coreGrad;
+            ctx.beginPath();
+            ctx.arc(width / 2, height / 2, CORE_RADIUS * 2, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Update and draw stars
+            // Sort by Y for depth (optional, not strictly necessary for 2D but nice)
+            // We'll just iterate
+            
+            for (let i = 0; i < stars.length; i++) {
+                stars[i].update(time);
+                stars[i].draw(ctx);
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        requestAnimationFrame(animate);
+    </script>
+</body>
+</html>
