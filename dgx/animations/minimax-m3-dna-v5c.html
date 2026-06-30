@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>DNA Double Helix</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: #05060a;
+    height: 100%;
+    width: 100%;
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+</style>
+</head>
+<body>
+<canvas id="dna"></canvas>
+<script>
+(function () {
+  const canvas = document.getElementById('dna');
+  const ctx = canvas.getContext('2d');
+
+  let width = 0;
+  let height = 0;
+  let dpr = Math.max(1, window.devicePixelRatio || 1);
+
+  function resize() {
+    dpr = Math.max(1, window.devicePixelRatio || 1);
+    width = window.innerWidth;
+    height = window.innerHeight;
+    canvas.width = Math.floor(width * dpr);
+    canvas.height = Math.floor(height * dpr);
+    canvas.style.width = width + 'px';
+    canvas.style.height = height + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // Helix parameters
+  const NUM_POINTS = 60;        // nodes per strand
+  const TURNS = 4;              // number of full turns shown vertically
+  const RADIUS_SCALE = 0.32;    // helix radius relative to min(width,height)
+  const VERTICAL_SPACING = 0.018; // vertical spacing between nodes (relative to height)
+  const NODE_RADIUS = 2.2;
+  const RUNG_WIDTH = 1.6;
+
+  // Two base colors for the strands (subtle variation)
+  // Strand A: cyan/teal, Strand B: magenta/pink
+  const COLOR_A = { r: 80,  g: 220, b: 230 };
+  const COLOR_B = { r: 240, g: 110, b: 200 };
+
+  function lerpColor(c1, c2, t) {
+    return {
+      r: Math.round(c1.r + (c2.r - c1.r) * t),
+      g: Math.round(c1.g + (c2.g - c1.g) * t),
+      b: Math.round(c1.b + (c2.b - c1.b) * t)
+    };
+  }
+
+  function rgba(c, a) {
+    return `rgba(${c.r}, ${c.g}, ${c.b}, ${a})`;
+  }
+
+  let angle = 0;
+  let lastTime = performance.now();
+
+  function draw() {
+    const now = performance.now();
+    const dt = (now - lastTime) / 1000;
+    lastTime = now;
+    angle += dt * 0.6; // rotation speed (radians per second)
+
+    // Clear with subtle fade for trailing effect
+    ctx.fillStyle = 'rgba(5, 6, 10, 0.55)';
+    ctx.fillRect(0, 0, width, height);
+
+    const cx = width / 2;
+    const cy = height / 2;
+    const minDim = Math.min(width, height);
+    const radius = minDim * RADIUS_SCALE;
+    const totalHeight = NUM_POINTS * height * VERTICAL_SPACING;
+    const startY = cy - totalHeight / 2;
+    const omega = TURNS * Math.PI * 2 / NUM_POINTS; // angular step per node
+
+    // Compute all node positions first
+    const nodesA = [];
+    const nodesB = [];
+    for (let i = 0; i < NUM_POINTS; i++) {
+      const phase = angle + i * omega;
+      const y = startY + i * height * VERTICAL_SPACING;
+
+      const xA = cx + Math.cos(phase) * radius;
+      const zA = Math.sin(phase); // -1..1 (depth proxy)
+      nodesA.push({ x: xA, y: y, z: zA, i: i });
+
+      const xB = cx + Math.cos(phase + Math.PI) * radius;
+      const zB = Math.sin(phase + Math.PI);
+      nodesB.push({ x: xB, y: y, z: zB, i: i });
+    }
+
+    // Depth sort: combine all nodes, draw back-to-front
+    const allNodes = [];
+    for (let i = 0; i < NUM_POINTS; i++) {
+      allNodes.push({ ...nodesA[i], strand: 'A' });
+      allNodes.push({ ...nodesB[i], strand: 'B' });
+    }
+    // Smaller z = farther back
+    allNodes.sort((a, b) => a.z - b.z);
+
+    // Draw rungs (connecting lines) first, but only for visible (front-ish) pairs to keep look clean
+    // We'll draw rungs with depth-based opacity
+    ctx.lineWidth = RUNG_WIDTH;
+    for (let i = 0; i < NUM_POINTS; i++) {
+      const a = nodesA[i];
+      const b = nodesB[i];
+      // Average depth for the rung
+      const avgZ = (a.z + b.z) / 2; // -1..1
+      // Skip rungs that are clearly behind the helix (back side)
+      const visibility = (avgZ + 1) / 2; // 0..1
+      if (visibility < 0.18) continue;
+
+      const alpha = 0.15 + 0.55 * visibility;
+      // Color blend between two strand colors based on which strand is more forward
+      const blend = (a.z + 1) / 2; // 0..1, 1 means A is in front
+      const col = lerpColor(COLOR_B, COLOR_A, blend);
+
+      ctx.strokeStyle = rgba(col, alpha * 0.75);
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+    }
+
+    // Draw nodes back-to-front
+    for (const n of allNodes) {
+      const baseColor = n.strand === 'A' ? COLOR_A : COLOR_B;
+      const visibility = (n.z + 1) / 2; // 0..1
+      const alpha = 0.25 + 0.75 * visibility;
+      const size = NODE_RADIUS + visibility * 1.6;
+
+      // Glow
+      const glow = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, size * 5);
+      glow.addColorStop(0, rgba(baseColor, alpha * 0.55));
+      glow.addColorStop(1, rgba(baseColor, 0));
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, size * 5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Core node
+      ctx.fillStyle = rgba(baseColor, alpha);
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, size, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Bright center
+      ctx.fillStyle = rgba({ r: 255, g: 255, b: 255 }, alpha * 0.6);
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, size * 0.35, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    requestAnimationFrame(draw);
+  }
+
+  requestAnimationFrame(draw);
+})();
+</script>
+</body>
+</html>
