@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Spiral Galaxy</title>
+<style>
+body { margin: 0; overflow: hidden; background: #000; }
+canvas { display: block; }
+</style>
+</head>
+<body>
+<canvas id="galaxy"></canvas>
+<script>
+const canvas = document.getElementById('galaxy');
+const ctx = canvas.getContext('2d');
+
+let W, H;
+function resize() {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+const STAR_COUNT = 1200;
+const ARM_COUNT = 4;
+const CORE_GLOW_RADIUS = 120;
+
+// Spiral arms: each arm has a base angle offset
+const arms = [];
+for (let i = 0; i < ARM_COUNT; i++) {
+    arms.push({
+        offset: (Math.PI * 2 / ARM_COUNT) * i,
+        spread: 0.3 + Math.random() * 0.3,
+        length: 1.5 + Math.random() * 1.0
+    });
+}
+
+class Star {
+    constructor() {
+        this.reset();
+    }
+
+    reset() {
+        // Pick a spiral arm
+        const armIdx = Math.floor(Math.random() * ARM_COUNT);
+        const arm = arms[armIdx];
+
+        // Distance from center (with gaussian-ish clustering toward center)
+        const dist = this.gaussianDist(40 + armIdx * 25, 35 + armIdx * 15);
+        const maxDist = 500;
+        if (dist > maxDist) {
+            this.reset();
+            return;
+        }
+
+        // Angle along the spiral: tighter near center, more spread out far away
+        const armAngle = arm.offset;
+        const spiralAngle = armAngle + dist * arm.length * 0.015;
+        const scatter = (Math.random() - 0.5) * arm.spread * (1 + dist * 0.01);
+        const angle = spiralAngle + scatter;
+
+        this.x = W / 2 + Math.cos(angle) * dist;
+        this.y = H / 2 + Math.sin(angle) * dist * 0.6; // slight flattening for 3D feel
+        this.dist = dist;
+        this.angle = angle;
+
+        // Orbital speed: slower farther out (like real galaxies)
+        this.orbitalSpeed = 0.0003 + 0.0008 * Math.exp(-dist * 0.005);
+
+        // Star properties
+        this.size = 0.3 + Math.random() * 2.2;
+        this.baseAlpha = 0.3 + Math.random() * 0.7;
+        this.twinkleSpeed = 0.5 + Math.random() * 3.0;
+        this.twinkleOffset = Math.random() * Math.PI * 2;
+
+        // Color variation: blue-white, white, yellow, orange, red
+        const colorRoll = Math.random();
+        if (colorRoll < 0.15) {
+            this.color = [0.6 + Math.random()*0.4, 0.7 + Math.random()*0.3, 1.0]; // blue
+        } else if (colorRoll < 0.45) {
+            this.color = [0.8 + Math.random()*0.2, 0.85 + Math.random()*0.15, 1.0]; // blue-white
+        } else if (colorRoll < 0.75) {
+            this.color = [1.0, 1.0, 0.85 + Math.random()*0.15]; // white-yellow
+        } else if (colorRoll < 0.92) {
+            this.color = [1.0, 0.8 + Math.random()*0.2, 0.5 + Math.random()*0.3]; // yellow-orange
+        } else {
+            this.color = [1.0, 0.5 + Math.random()*0.3, 0.3 + Math.random()*0.2]; // orange-red
+        }
+
+        // Brighter stars near the core tend to be bluer
+        if (dist < 60 && Math.random() < 0.4) {
+            this.color = [0.7, 0.8, 1.0];
+            this.size *= 1.5;
+        }
+    }
+
+    gaussianDist(mean, sigma) {
+        // Box-Muller transform
+        const u1 = Math.random();
+        const u2 = Math.random();
+        const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+        return Math.abs(z * sigma + mean);
+    }
+
+    update(time) {
+        // Rotate around center
+        this.angle += this.orbitalSpeed * 16; // ~60fps
+        this.x = W / 2 + Math.cos(this.angle) * this.dist;
+        this.y = H / 2 + Math.sin(this.angle) * this.dist * 0.6;
+
+        // Twinkle
+        this.alpha = this.baseAlpha * (0.6 + 0.4 * Math.sin(time * this.twinkleSpeed + this.twinkleOffset));
+    }
+
+    draw() {
+        const [r, g, b] = this.color;
+        const distFromCenter = Math.sqrt(
+            Math.pow(this.x - W/2, 2) + Math.pow(this.y - H/2, 2)
+        );
+
+        // Dim stars at edges
+        const edgeFade = Math.max(0, 1 - Math.pow(distFromCenter / 520, 2));
+        const alpha = this.alpha * edgeFade;
+
+        if (alpha < 0.02) return;
+
+        const size = this.size * (0.8 + 0.2 * Math.sin(this.twinkleOffset + this.twinkleSpeed * performance.now() * 0.001));
+
+        if (size > 1.2) {
+            // Glow for brighter stars
+            const glowSize = size * 3;
+            const grad = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, glowSize);
+            grad.addColorStop(0, `rgba(${Math.floor(r*255)},${Math.floor(g*255)},${Math.floor(b*255)},${alpha * 0.6})`);
+            grad.addColorStop(0.3, `rgba(${Math.floor(r*255)},${Math.floor(g*255)},${Math.floor(b*255)},${alpha * 0.2})`);
+            grad.addColorStop(1, `rgba(${Math.floor(r*255)},${Math.floor(g*255)},${Math.floor(b*255)},0)`);
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, glowSize, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Core star
+        ctx.fillStyle = `rgba(${Math.floor(r*255)},${Math.floor(g*255)},${Math.floor(b*255)},${alpha})`;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, Math.max(0.3, size), 0, Math.PI * 2);
+        ctx.fill();
+    }
+}
+
+// Create stars
+const stars = [];
+for (let i = 0; i < STAR_COUNT; i++) {
+    stars.push(new Star());
+}
+
+// Add some background stars (not part of galaxy)
+const bgStars = [];
+for (let i = 0; i < 300; i++) {
+    bgStars.push({
+        x: Math.random() * W,
+        y: Math.random() * H,
+        size: 0.1 + Math.random() * 0.8,
+        alpha: 0.1 + Math.random() * 0.4,
+        twinkleSpeed: 0.3 + Math.random() * 2.0,
+        offset: Math.random() * Math.PI * 2
+    });
+}
+
+function drawCore() {
+    const cx = W / 2;
+    const cy = H / 2;
+
+    // Multi-layered core glow
+    const layers = [
+        { radius: CORE_GLOW_RADIUS * 2, r: 0.3, g: 0.3, b: 0.6, alpha: 0.03 },
+        { radius: CORE_GLOW_RADIUS * 1.3, r: 0.5, g: 0.5, b: 0.9, alpha: 0.05 },
+        { radius: CORE_GLOW_RADIUS, r: 0.8, g: 0.75, b: 0.95, alpha: 0.1 },
+        { radius: CORE_GLOW_RADIUS * 0.5, r: 1.0, g: 0.95, b: 0.9, alpha: 0.15 },
+    ];
+
+    for (const layer of layers) {
+        const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, layer.radius);
+        grad.addColorStop(0, `rgba(${Math.floor(layer.r*255)},${Math.floor(layer.g*255)},${Math.floor(layer.b*255)},${layer.alpha})`);
+        grad.addColorStop(0.5, `rgba(${Math.floor(layer.r*255)},${Math.floor(layer.g*255)},${Math.floor(layer.b*255)},${layer.alpha * 0.4})`);
+        grad.addColorStop(1, `rgba(${Math.floor(layer.r*255)},${Math.floor(layer.g*255)},${Math.floor(layer.b*255)},0)`);
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(cx, cy, layer.radius, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // Bright central point
+    const pulse = 0.85 + 0.15 * Math.sin(performance.now() * 0.001);
+    const coreGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 30);
+    coreGrad.addColorStop(0, `rgba(255,250,240,${0.9 * pulse})`);
+    coreGrad.addColorStop(0.3, `rgba(200,180,255,${0.4 * pulse})`);
+    coreGrad.addColorStop(1, 'rgba(100,80,200,0)');
+    ctx.fillStyle = coreGrad;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 30, 0, Math.PI * 2);
+    ctx.fill();
+}
+
+function drawBgStars(time) {
+    for (const star of bgStars) {
+        const alpha = star.alpha * (0.5 + 0.5 * Math.sin(time * star.twinkleSpeed + star.offset));
+        ctx.fillStyle = `rgba(200,200,220,${alpha})`;
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+        ctx.fill();
+    }
+}
+
+function animate() {
+    const time = performance.now() * 0.001;
+
+    // Clear
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, W, H);
+
+    // Background stars
+    drawBgStars(time);
+
+    // Core glow
+    drawCore();
+
+    // Update and draw galaxy stars
+    for (const star of stars) {
+        star.update(time);
+        star.draw();
+    }
+
+    requestAnimationFrame(animate);
+}
+
+animate();
+</script>
+</body>
+</html>

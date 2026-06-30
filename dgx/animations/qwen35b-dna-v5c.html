@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rotating DNA Double Helix</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #050510;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="dnaCanvas"></canvas>
+    <script>
+        const canvas = document.getElementById('dnaCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let width, height;
+        
+        // Configuration
+        const config = {
+            nodeCount: 40,
+            radius: 150,
+            verticalSpacing: 30,
+            rotationSpeed: 0.03,
+            baseAngle: 0,
+            color1: { r: 255, g: 50, b: 50 },    // Red-ish strand
+            color2: { r: 50, g: 100, b: 255 }     // Blue-ish strand
+        };
+
+        function resize() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+        }
+
+        window.addEventListener('resize', resize);
+        resize();
+
+        function drawNode(x, y, radius, color, alpha) {
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha})`;
+            ctx.fill();
+            
+            // Add a subtle glow
+            ctx.beginPath();
+            ctx.arc(x, y, radius * 2, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha * 0.2})`;
+            ctx.fill();
+        }
+
+        function drawRung(x1, y1, x2, y2, color, alpha) {
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.strokeStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha})`;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+
+        function animate() {
+            // Clear canvas
+            ctx.fillStyle = '#050510';
+            ctx.fillRect(0, 0, width, height);
+
+            const centerX = width / 2;
+            const centerY = height / 2;
+            
+            // Calculate total height of the helix
+            const totalHeight = config.nodeCount * config.verticalSpacing;
+            const startY = centerY - (totalHeight / 2);
+
+            let nodes1 = [];
+            let nodes2 = [];
+
+            // Generate node positions based on rotation
+            for (let i = 0; i < config.nodeCount; i++) {
+                const yPos = startY + (i * config.verticalSpacing);
+                
+                // Calculate angles for both strands (180 degrees apart)
+                const angle1 = config.baseAngle + (i * 0.3);
+                const angle2 = config.baseAngle + (i * 0.3) + Math.PI;
+
+                // 3D to 2D projection (simple perspective)
+                const z1 = Math.sin(angle1);
+                const z2 = Math.sin(angle2);
+
+                const x1 = centerX + (Math.cos(angle1) * config.radius);
+                const x2 = centerX + (Math.cos(angle2) * config.radius);
+
+                // Store node data with depth for sorting
+                nodes1.push({ x: x1, y: yPos, z: z1, index: i });
+                nodes2.push({ x: x2, y: yPos, z: z2, index: i });
+            }
+
+            // Combine all nodes and sort by Z-depth (back to front)
+            let allNodes = [...nodes1, ...nodes2];
+            allNodes.sort((a, b) => a.z - b.z);
+
+            // Draw rungs first (behind nodes)
+            for (let i = 0; i < config.nodeCount; i++) {
+                const n1 = nodes1[i];
+                const n2 = nodes2[i];
+                
+                // Average depth for rung visibility
+                const rungZ = (n1.z + n2.z) / 2;
+                const alpha = 0.3 + (rungZ * 0.2); // Visibility based on depth
+                
+                drawRung(n1.x, n1.y, n2.x, n2.y, { r: 200, g: 200, b: 255 }, Math.max(0.05, alpha));
+            }
+
+            // Draw nodes sorted by depth
+            allNodes.forEach(node => {
+                const isStrand1 = node.index < config.nodeCount; // Simple check, though index is just i
+                // Determine color based on original strand
+                // Since we lost the strand ID in the combined array, we check x position relative to center or use a flag
+                // Actually, let's just use the node data structure. 
+                // Re-structuring slightly: we need to know which strand a node belongs to.
+                
+                // Let's fix the sorting logic to preserve strand info or just draw them back to front properly.
+                // Since we need to draw rungs before nodes, and nodes sorted by Z, 
+                // we need to ensure rungs are drawn correctly.
+                
+                // Simple fix: Draw rungs, then draw all nodes sorted by Z.
+                // To know color, we can check if x is on left or right, but that fails at edges.
+                // Better: Store strand ID in node object.
+            });
+            
+            // Let's redo the node generation to include strand ID
+            let drawList = [];
+            
+            for (let i = 0; i < config.nodeCount; i++) {
+                const yPos = startY + (i * config.verticalSpacing);
+                const angle1 = config.baseAngle + (i * 0.3);
+                const angle2 = config.baseAngle + (i * 0.3) + Math.PI;
+
+                const z1 = Math.sin(angle1);
+                const z2 = Math.sin(angle2);
+
+                const x1 = centerX + (Math.cos(angle1) * config.radius);
+                const x2 = centerX + (Math.cos(angle2) * config.radius);
+
+                drawList.push({ 
+                    x: x1, y: yPos, z: z1, strand: 1, index: i 
+                });
+                drawList.push({ 
+                    x: x2, y: yPos, z: z2, strand: 2, index: i 
+                });
+            }
+
+            // Draw rungs
+            for (let i = 0; i < config.nodeCount; i++) {
+                // Find nodes for this index
+                const n1 = drawList.find(n => n.index === i && n.strand === 1);
+                const n2 = drawList.find(n => n.index === i && n.strand === 2);
+                
+                if (n1 && n2) {
+                    const rungZ = (n1.z + n2.z) / 2;
+                    const alpha = 0.2 + (rungZ * 0.15);
+                    drawRung(n1.x, n1.y, n2.x, n2.y, { r: 200, g: 200, b: 255 }, Math.max(0.05, alpha));
+                }
+            }
+
+            // Sort all nodes by Z-depth
+            drawList.sort((a, b) => a.z - b.z);
+
+            // Draw nodes
+            drawList.forEach(node => {
+                const color = node.strand === 1 ? config.color1 : config.color2;
+                // Size and alpha based on depth (z)
+                // z ranges from -1 to 1. 
+                // Closer to camera (higher z) = larger, more opaque
+                const depthFactor = (node.z + 1) / 2; // 0 to 1
+                const radius = 4 + (depthFactor * 3);
+                const alpha = 0.4 + (depthFactor * 0.6);
+                
+                drawNode(node.x, node.y, radius, color, alpha);
+            });
+
+            // Update rotation
+            config.baseAngle += config.rotationSpeed;
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+    </script>
+</body>
+</html>

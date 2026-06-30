@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rotating DNA Double Helix</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #0a0a12;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="dnaCanvas"></canvas>
+    <script>
+        const canvas = document.getElementById('dnaCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let width, height;
+        let rotation = 0;
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+        resize();
+        window.addEventListener('resize', resize);
+
+        const numNodes = 40;
+        const helixRadius = 120;
+        const verticalSpacing = 25;
+        const twistRate = 0.25;
+        const centerX = width / 2;
+        const centerY = height / 2;
+
+        function getNodePosition(index, angleOffset) {
+            const y = (index - numNodes / 2) * verticalSpacing;
+            const angle = index * twistRate + angleOffset;
+            const x = Math.cos(angle) * helixRadius;
+            const z = Math.sin(angle) * helixRadius;
+            return { x, y, z, angle };
+        }
+
+        function drawNode(x, y, z, color, radius) {
+            const scale = 1 + z / 500;
+            const screenX = centerX + x;
+            const screenY = centerY + y;
+            
+            ctx.beginPath();
+            ctx.arc(screenX, screenY, radius * scale, 0, Math.PI * 2);
+            ctx.fillStyle = color;
+            ctx.fill();
+            
+            if (scale > 0.8) {
+                ctx.beginPath();
+                ctx.arc(screenX, screenY, radius * scale * 1.5, 0, Math.PI * 2);
+                ctx.fillStyle = color.replace('1)', '0.2)');
+                ctx.fill();
+            }
+        }
+
+        function drawStrand(startNode, endNode, color) {
+            const scale1 = 1 + startNode.z / 500;
+            const scale2 = 1 + endNode.z / 500;
+            
+            ctx.beginPath();
+            ctx.moveTo(centerX + startNode.x, centerY + startNode.y);
+            ctx.lineTo(centerX + endNode.x, centerY + endNode.y);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2 * ((scale1 + scale2) / 2);
+            ctx.stroke();
+        }
+
+        function drawRung(node1, node2) {
+            const scale1 = 1 + node1.z / 500;
+            const scale2 = 1 + node2.z / 500;
+            const avgScale = (scale1 + scale2) / 2;
+            
+            const alpha = 0.3 + avgScale * 0.3;
+            ctx.beginPath();
+            ctx.moveTo(centerX + node1.x, centerY + node1.y);
+            ctx.lineTo(centerX + node2.x, centerY + node2.y);
+            ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+        }
+
+        function animate() {
+            ctx.fillStyle = 'rgba(10, 10, 18, 0.3)';
+            ctx.fillRect(0, 0, width, height);
+
+            const nodes1 = [];
+            const nodes2 = [];
+
+            for (let i = 0; i < numNodes; i++) {
+                nodes1.push(getNodePosition(i, rotation));
+                nodes2.push(getNodePosition(i, rotation + Math.PI));
+            }
+
+            for (let i = 0; i < numNodes - 1; i++) {
+                drawRung(nodes1[i], nodes2[i]);
+            }
+
+            for (let i = 0; i < numNodes - 1; i++) {
+                drawStrand(nodes1[i], nodes1[i + 1], 'rgba(64, 156, 255, 0.8)');
+                drawStrand(nodes2[i], nodes2[i + 1], 'rgba(255, 102, 102, 0.8)');
+            }
+
+            for (let i = 0; i < numNodes; i++) {
+                drawNode(nodes1[i].x, nodes1[i].y, nodes1[i].z, 'rgba(100, 180, 255, 1)', 4);
+                drawNode(nodes2[i].x, nodes2[i].y, nodes2[i].z, 'rgba(255, 130, 130, 1)', 4);
+            }
+
+            rotation += 0.02;
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+    </script>
+</body>
+</html>
