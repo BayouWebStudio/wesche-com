@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>DNA Double Helix Animation</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #050505;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="dnaCanvas"></canvas>
+    <script>
+        const canvas = document.getElementById('dnaCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let width, height;
+        let angle = 0;
+
+        // Configuration
+        const numNodes = 40;
+        const radius = 120;
+        const verticalSpacing = 25;
+        const twistSpeed = 0.03;
+        const perspective = 800; // Depth for 3D projection
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Color palette for strands
+        const colorA = { r: 0, g: 255, b: 200 }; // Cyan/Teal
+        const colorB = { r: 255, g: 50, b: 150 }; // Magenta/Pink
+
+        function lerpColor(c1, c2, t) {
+            return {
+                r: Math.round(c1.r + (c2.r - c1.r) * t),
+                g: Math.round(c1.g + (c2.g - c1.g) * t),
+                b: Math.round(c1.b + (c2.b - c1.b) * t)
+            };
+        }
+
+        function getDepthColor(depth, baseColor) {
+            // Adjust brightness based on depth (z)
+            // z goes roughly from -radius to +radius
+            const normalizedZ = (depth + radius) / (2 * radius); // 0 (back) to 1 (front)
+            const brightness = 0.3 + 0.7 * normalizedZ;
+            
+            return {
+                r: Math.round(baseColor.r * brightness),
+                g: Math.round(baseColor.g * brightness),
+                b: Math.round(baseColor.b * brightness)
+            };
+        }
+
+        function draw() {
+            // Dark background with slight fade for motion trail effect
+            ctx.fillStyle = 'rgba(5, 5, 5, 0.4)';
+            ctx.fillRect(0, 0, width, height);
+
+            const centerX = width / 2;
+            const centerY = height / 2;
+
+            // Calculate all nodes first to handle depth sorting
+            const nodes = [];
+
+            for (let i = 0; i < numNodes; i++) {
+                const y = (i - numNodes / 2) * verticalSpacing;
+                
+                // Node A (Strand 1)
+                const angleA = angle + (i * 0.3);
+                const ax = Math.cos(angleA) * radius;
+                const ay = y;
+                const az = Math.sin(angleA) * radius;
+
+                // Node B (Strand 2) - offset by PI
+                const angleB = angleA + Math.PI;
+                const bx = Math.cos(angleB) * radius;
+                const by = y;
+                const bz = Math.sin(angleB) * radius;
+
+                nodes.push({ x: ax, y: ay, z: az, type: 'A', index: i });
+                nodes.push({ x: bx, y: by, z: bz, type: 'B', index: i });
+            }
+
+            // Sort by Z (back to front) so we draw far nodes first
+            nodes.sort((a, b) => a.z - b.z);
+
+            // Draw Rungs (connecting bars)
+            // We need to draw rungs before nodes so they appear behind the front nodes
+            // But we also need to draw them in correct depth order relative to nodes
+            // Simplified approach: Draw rungs, then draw all nodes on top
+            
+            // Draw Rungs
+            for (let i = 0; i < numNodes; i++) {
+                const nodeA = nodes.find(n => n.type === 'A' && n.index === i);
+                const nodeB = nodes.find(n => n.type === 'B' && n.index === i);
+
+                if (!nodeA || !nodeB) continue;
+
+                // Project 3D to 2D
+                const scaleA = perspective / (perspective + nodeA.z);
+                const scaleB = perspective / (perspective + nodeB.z);
+
+                const screenAx = centerX + nodeA.x * scaleA;
+                const screenAy = centerY + nodeA.y * scaleA;
+                const screenBx = centerX + nodeB.x * scaleB;
+                const screenBy = centerY + nodeB.y * scaleB;
+
+                // Depth-based opacity
+                const avgZ = (nodeA.z + nodeB.z) / 2;
+                const alpha = 0.3 + 0.5 * ((avgZ + radius) / (2 * radius));
+
+                ctx.beginPath();
+                ctx.strokeStyle = `rgba(200, 200, 255, ${alpha.toFixed(2)})`;
+                ctx.lineWidth = 1.5 * ((scaleA + scaleB) / 2);
+                ctx.moveTo(screenAx, screenAy);
+                ctx.lineTo(screenBx, screenBy);
+                ctx.stroke();
+            }
+
+            // Draw Nodes
+            for (const node of nodes) {
+                const scale = perspective / (perspective + node.z);
+                const screenX = centerX + node.x * scale;
+                const screenY = centerY + node.y * scale;
+                const radius = 5 * scale;
+
+                const baseColor = node.type === 'A' ? colorA : colorB;
+                const color = getDepthColor(node.z, baseColor);
+
+                // Glow effect
+                ctx.beginPath();
+                ctx.arc(screenX, screenY, radius * 2.5, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, 0.15)`;
+                ctx.fill();
+
+                // Main node
+                ctx.beginPath();
+                ctx.arc(screenX, screenY, radius, 0, Math.PI * 2);
+                ctx.fillStyle = `rgb(${color.r}, ${color.g}, ${color.b})`;
+                ctx.fill();
+
+                // Highlight
+                ctx.beginPath();
+                ctx.arc(screenX - radius * 0.3, screenY - radius * 0.3, radius * 0.4, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(255, 255, 255, 0.6)`;
+                ctx.fill();
+            }
+
+            angle += twistSpeed;
+            requestAnimationFrame(draw);
+        }
+
+        draw();
+    </script>
+</body>
+</html>

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Solar System Animation</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #000;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<script>
+    (function() {
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Set canvas size to window size
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        
+        // Starfield background
+        const starCount = 150;
+        const stars = [];
+        for (let i = 0; i < starCount; i++) {
+            stars.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                len: Math.random() * 2 + 1,
+                speed: Math.random() * 0.5 + 0.5
+            });
+        }
+        
+        // Sun parameters
+        const sunRadius = 40;
+        const sunGlow = 30;
+        const sunSpeed = 0.5; // slower rotation
+        
+        // Planet parameters
+        const planets = [
+            { radius: 15, speed: 0.8, color: '#ff9999' }, // Mercury-like
+            { radius: 20, speed: 0.6, color: '#ffcc99' }, // Venus-like
+            { radius: 25, speed: 0.4, color: '#ffdd99' }, // Earth-like
+            { radius: 30, speed: 0.3, color: '#fffa99' }, // Mars-like
+            { radius: 35, speed: 0.2, color: '#fffaa6' }, // Jupiter-like
+            { radius: 40, speed: 0.1, color: '#fffa99' }  // Saturn-like
+        ];
+        
+        // Animation
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw stars (using simple lines for performance)
+            ctx.fillStyle = 'rgba(255,255,255,0.8)';
+            for (const star of stars) {
+                ctx.beginPath();
+                ctx.moveTo(star.x, star.y);
+                ctx.lineTo(star.x + star.len, star.y + star.len);
+                ctx.stroke();
+            }
+            
+            // Calculate time for animation
+            const time = performance.now() / 1000;
+            
+            // Sun (center)
+            const sunX = canvas.width / 2;
+            const sunY = canvas.height / 2;
+            const sunScale = 1 + Math.sin(time * sunSpeed) * 0.3;
+            
+            // Draw glowing sun
+            ctx.beginPath();
+            ctx.arc(sunX, sunY, sunRadius * sunScale, 0, Math.PI * 2);
+            const gradient = ctx.createRadialGradient(sunX, sunY, sunRadius, sunX, sunY, sunRadius + sunGlow);
+            gradient.addColorStop(0, 'rgba(255,255,0,1)');
+            gradient.addColorStop(0.6, 'rgba(255,255,0,0.7)');
+            gradient.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = gradient;
+            ctx.fill();
+            
+            // Draw planets
+            for (const p of planets) {
+                const angle = time * p.speed + Math.random() * 2;
+                const radius = p.radius * (1 + Math.sin(time * 0.3) * 0.2);
+                const x = sunX + Math.cos(angle) * radius;
+                const y = sunY + Math.sin(angle) * radius;
+                
+                const size = p.radius * sunScale;
+                ctx.beginPath();
+                ctx.arc(x, y, size, 0, Math.PI * 2);
+                const gradientP = ctx.createRadialGradient(x, y, size * 0.4, x, y, size);
+                gradientP.addColorStop(0, `rgba(${p.color.split('#')[1]},1)`);
+                gradientP.addColorStop(1, `rgba(${p.color.split('#')[1]},0.3)`);
+                ctx.fillStyle = gradientP;
+                ctx.fill();
+                
+                // Add orbit trail (optional)
+                ctx.beginPath();
+                ctx.arc(x, y, size * 1.5, 0, Math.PI * 2);
+                ctx.strokeStyle = `rgba(0,0,0,0.2)`;
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+            
+            requestAnimationFrame(animate);
+        }
+        animate();
+    })();
+</script>
+</body>
+</html>

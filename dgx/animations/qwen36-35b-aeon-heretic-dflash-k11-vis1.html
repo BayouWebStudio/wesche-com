@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Animated Solar System</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;;
+            background-color: #000;
+            color: #fff;
+            font-family: sans-serif;
+        }
+        canvas {
+            display: block;
+        }
+        .info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="solarCanvas"></canvas>
+    <div class="info">
+        <h1>Solar System</h1>
+        <p>Click to toggle planet labels</p>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('solarCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let width, height, centerX, centerY;
+        let showLabels = true;
+
+        // Resize handling
+        function resize() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+            centerX = width / 2;
+            centerY = height / 2;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Click to toggle labels
+        canvas.addEventListener('click', () => {
+            showLabels = !showLabels;
+        });
+
+        // Starfield
+        const stars = [];
+        for (let i = 0; i < 500; i++) {
+            stars.push({
+                x: Math.random() * width,
+                y: Math.random() * height,
+                radius: Math.random() * 2,
+                opacity: Math.random()
+            });
+        }
+
+        // Sun
+        const sun = {
+            radius: 30,
+            color: '#FFD700',
+            glowColor: 'rgba(255, 215, 0, 0.3)'
+        };
+
+        // Planets
+        const planets = [
+            { name: 'Mercury', radius: 5, color: '#A9A9A9', orbitRadius: 60, speed: 0.02 },
+            { name: 'Venus', radius: 8, color: '#FFA500', orbitRadius: 100, speed: 0.015 },
+            { name: 'Earth', radius: 10, color: '#4B0082', orbitRadius: 150, speed: 0.01 },
+            { name: 'Mars', radius: 7, color: '#FF4500', orbitRadius: 200, speed: 0.008 },
+            { name: 'Jupiter', radius: 15, color: '#D2691E', orbitRadius: 280, speed: 0.005 },
+            { name: 'Saturn', radius: 12, color: '#DEB887', orbitRadius: 350, speed: 0.003 },
+            { name: 'Uranus', radius: 9, color: '#87CEEB', orbitRadius: 420, speed: 0.002 },
+            { name: 'Neptune', radius: 8, color: '#1E90FF', orbitRadius: 500, speed: 0.001 }
+        ];
+
+        // Animation loop
+        function animate() {
+            ctx.clearRect(0, 0, width, height);
+
+            // Draw stars
+            stars.forEach(star => {
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(255, 255, 255, ${star.opacity})`;
+                ctx.fill();
+            });
+
+            // Draw Sun
+            const sunGradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, sun.radius);
+            sunGradient.addColorStop(0, sun.glowColor);
+            sunGradient.addColorStop(1, sun.color);
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, sun.radius, 0, Math.PI * 2);
+            ctx.fillStyle = sunGradient;
+            ctx.fill();
+
+            // Draw planets
+            planets.forEach(planet => {
+                const angle = Date.now() * planet.speed;
+                const x = centerX + Math.cos(angle) * planet.orbitRadius;
+                const y = centerY + Math.sin(angle) * planet.orbitRadius;
+
+                // Draw orbit path
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, planet.orbitRadius, 0, Math.PI * 2);
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+                ctx.stroke();
+
+                // Draw planet
+                ctx.beginPath();
+                ctx.arc(x, y, planet.radius, 0, Math.PI * 2);
+                ctx.fillStyle = planet.color;
+                ctx.fill();
+
+                // Draw label
+                if (showLabels) {
+                    ctx.font = '12px Arial';
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.fillText(planet.name, x + 15, y);
+                }
+            });
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+    </script>
+</body>
+</html>

@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>DNA Double Helix</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #111;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="dnaCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('dnaCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Configuration
+        const NODES_PER_STRAND = 30;
+        const HELIX_WIDTH = 100;
+        const HELIX_HEIGHT = 400;
+        const ROTATION_SPEED = 0.02;
+        const NODE_RADIUS = 6;
+        const RUNG_WIDTH = 2;
+        const STRAND_WIDTH = 3;
+
+        // Colors
+        const STRAND_A_COLOR = '#FF6B6B'; // Coral Red
+        const STRAND_B_COLOR = '#4ECDCD'; // Turquoise
+        const RUNG_COLOR = '#F7F7F7';      // Off-white
+        const BG_COLOR = '#1A1A1A';       // Dark Gray
+
+        let width, height;
+        let angle = 0;
+
+        function resize() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+        }
+
+        window.addEventListener('resize', resize);
+        resize();
+
+        function drawDNA() {
+            // Clear canvas
+            ctx.fillStyle = BG_COLOR;
+            ctx.fillRect(0, 0, width, height);
+
+            // Calculate dimensions
+            const centerY = height / 2;
+            const centerX = width / 2;
+            const totalHeight = HELIX_HEIGHT;
+            const startX = centerX;
+            const startY = centerY - totalHeight / 2;
+            const nodeSpacing = totalHeight / (NODES_PER_STRAND - 1);
+
+            // Store node positions for connecting lines
+            const nodesA = [];
+            const nodesB = [];
+
+            // Calculate node positions
+            for (let i = 0; i < NODES_PER_STRAND; i++) {
+                const y = startY + i * nodeSpacing;
+                // Calculate x positions using sine/cosine for the spiral effect
+                const xA = centerX + HELIX_WIDTH * Math.cos(angle + i * 0.3);
+                const xB = centerX + HELIX_WIDTH * Math.cos(angle + Math.PI + i * 0.3);
+                
+                nodesA.push({ x: xA, y: y });
+                nodesB.push({ x: xB, y: y });
+            }
+
+            // Draw connecting rungs first (so they appear behind the nodes)
+            ctx.lineWidth = RUNG_WIDTH;
+            for (let i = 0; i <NODES_PER_STRAND; i++) {
+                ctx.beginPath();
+                ctx.moveTo(nodesA[i].x, nodesA[i].y);
+                ctx.lineTo(nodesB[i].x, nodesB[i].y);
+                ctx.strokeStyle = RUNG_COLOR;
+                ctx.globalAlpha = 0.6;
+                ctx.stroke();
+                ctx.globalAlpha = 1.0;
+            }
+
+            // Draw strand A
+            ctx.lineWidth = STRAND_WIDTH;
+            ctx.strokeStyle = STRAND_A_COLOR;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.beginPath();
+            for (let i = 0; i < NODES_PER_STRAND; i++) {
+                if (i === 0) {
+                    ctx.moveTo(nodesA[i].x, nodesA[i].y);
+                } else {
+                    ctx.lineTo(nodesA[i].x, nodesA[i].y);
+                }
+            }
+            ctx.stroke();
+
+            // Draw strand B
+            ctx.strokeStyle = STRAND_B_COLOR;
+            ctx.beginPath();
+            for (let i = 0; i < NODES_PER_STRAND; i++) {
+                if (i === 0) {
+                    ctx.moveTo(nodesB[i].x, nodesB[i].y);
+                } else {
+                    ctx.lineTo(nodesB[i].x, nodesB[i].y);
+                }
+            }
+            ctx.stroke();
+
+            // Draw nodes (circles at each point)
+            for (let i = 0; i < NODES_PER_STRAND; i++) {
+                // Node A
+                ctx.beginPath();
+                ctx.arc(nodesA[i].x, nodesA[i].y, NODE_RADIUS, 0, Math.PI * 2);
+                ctx.fillStyle = STRAND_A_COLOR;
+                ctx.fill();
+
+                // Node B
+                ctx.beginPath();
+                ctx.arc(nodesB[i].x, nodesB[i].y, NODE_RADIUS, 0, Math.PI * 2);
+                ctx.fillStyle = STRAND_B_COLOR;
+                ctx.fill();
+            }
+
+            // Advance the angle for the next frame
+            angle += ROTATION_SPEED;
+
+            // Continue animation
+            requestAnimationFrame(drawDNA);
+        }
+
+        // Start the animation
+        drawDNA();
+    </script>
+</body>
+</html>

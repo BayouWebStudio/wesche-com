@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DNA Double Helix</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #050510;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="dnaCanvas"></canvas>
+    <script>
+        const canvas = document.getElementById('dnaCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let width, height;
+        let time = 0;
+        const numNodes = 60;
+        const numRungs = 20;
+        const radius = 120;
+        const verticalSpacing = 25;
+        const rotationSpeed = 0.02;
+
+        function resize() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+        }
+        resize();
+        window.addEventListener('resize', resize);
+
+        function draw() {
+            ctx.fillStyle = '#050510';
+            ctx.fillRect(0, 0, width, height);
+
+            const centerX = width / 2;
+            const centerY = height / 2;
+            const totalHeight = numNodes * verticalSpacing;
+            const startY = centerY - totalHeight / 2;
+
+            const strand1Color = '#00d4ff';
+            const strand2Color = '#ff6b35';
+            const rungColor = '#ffffff';
+
+            ctx.save();
+            ctx.translate(centerX, startY);
+
+            for (let i = 0; i <= numNodes; i++) {
+                const y = i * verticalSpacing;
+                const angle = i * 0.3 + time;
+                const x = Math.cos(angle) * radius;
+                const z = Math.sin(angle) * radius;
+                
+                nodes[i] = { x, y, z, angle };
+            }
+
+            const sortedNodes = [...nodes].sort((a, b) => a.z - b.z);
+            
+            for (let i = 0; i <= numNodes; i++) {
+                const node = nodes[i];
+                const isRungNode = i % (numNodes / numRung) === 0;
+                
+                ctx.beginPath();
+                ctx.arc(node.x, node.y, isRungNode ? 4 : 2.5, 0, Math.PI * 2);
+                ctx.fillStyle = strand1Color;
+                ctx.fill();
+            }
+
+            for (let i = 0; i <= numNodes; i++) {
+                const node = nodes[i];
+                const isRungNode = i % (numNodes / numRung) === 0;
+                
+                ctx.beginPath();
+                ctx.arc(node.x, node.y, isRungNode ? 4 : 2.5, 0, Math.PI * 2);
+                ctx.fillStyle = strand2Color;
+                ctx.fill();
+            }
+
+            for (let i = 0; i < numRungs; i++) {
+                const rungIndex = Math.floor(i * (numNodes / numRung));
+                const nextRungIndex = Math.floor((i + 1) * (numNodes / numRung));
+                
+                const node1 = nodes[rungIndex];
+                const node2 = nodes[rungIndex];
+                
+                ctx.beginPath();
+                ctx.moveTo(node1.x, node1.y);
+                ctx.lineTo(node2.x, node2.y);
+                ctx.strokeStyle = rungColor;
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+            }
+
+            ctx.restore();
+
+            time += rotationSpeed;
+            requestAnimationFrame(draw);
+        }
+
+        const nodes = [];
+        draw();
+    </script>
+</body>
+</html>

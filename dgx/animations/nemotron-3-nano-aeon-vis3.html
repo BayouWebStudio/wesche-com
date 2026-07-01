@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Rotating DNA Helix</title>
+    <style>
+        body {
+            margin: 0;
+            background: #0a0a0a;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="dnaCanvas" width="800" height="600"></canvas>
+    <script>
+        (function() {
+            const canvas = document.getElementById('dnaCanvas');
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            const centerX = width / 2;
+            const centerY = height / 2;
+            const axisX = centerX;
+            const axisY = centerY;
+            
+            const numNodes = 30;
+            const numRungs = 25;
+            const radius = 120;
+            const rungSpacing = 25;
+            
+            const strandA = []; // left strand nodes
+            const strandB = []; // right strand nodes
+            
+            // Generate nodes for left strand
+            for (let i = 0; i < numNodes; i++) {
+                const angle = (i / numNodes) * Math.PI * 2;
+                const x = axisX + Math.cos(angle) * radius;
+                const y = axisY + Math.sin(angle) * radius;
+                strandA.push({x: x, y: y, angle: angle});
+            }
+            
+            // Generate nodes for right strand
+            for (let i = 0; i < numNodes; i++) {
+                const angle = (i / numNodes) * Math.PI * 2 + Math.PI;
+                const x = axisX + Math.cos(angle) * radius;
+                const y = axisY + Math.sin(angle) * radius;
+                strandB.push({x: x, y: y, angle: angle});
+            }
+            
+            // Draw the DNA helix
+            function drawHelix(rotationAngle) {
+                ctx.clearRect(0, 0, width, height);
+                
+                // Draw strands
+                for (let i = 0; i < numNodes; i++) {
+                    const nodeA = strandA[(i + Math.floor(rotationAngle / 25)) % numNodes];
+                    const nodeB = strandB[(i + Math.floor(rotationAngle / 25)) % numNodes];
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(nodeA.x, nodeA.y);
+                    ctx.lineTo(nodeB.x, nodeB.y);
+                    ctx.strokeStyle = (i % 2 === 0) ? '#4a90e2' : '#7b68e2';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+                
+                // Draw connecting rungs
+                for (let i = 0; i < numRungs; i++) {
+                    const nodeA = strandA[i];
+                    const nodeB = strandB[i];
+                    
+                    const midX = (nodeA.x + nodeB.x) / 2;
+                    const midY = (nodeA.y + nodeB.y) / 2;
+                    const dist = Math.sqrt((nodeB.x - nodeA.x) ** 2 + (nodeB.y - nodeA.y) ** 2);
+                    
+                    const rungAngle = Math.atan2(nodeB.y - nodeA.y, nodeB.x - nodeA.x);
+                    const rungLength = dist;
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(nodeA.x, nodeA.y);
+                    ctx.lineTo(nodeB.x, nodeB.y);
+                    ctx.strokeStyle = '#f0f0f0';
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+                }
+            }
+            
+            // Animation
+            let rotationAngle = 0;
+            function animate() {
+                rotationAngle += 0.5; // speed of rotation
+                drawHelix(rotationAngle);
+                requestAnimationFrame(animate);
+            }
+            animate();
+            
+            // Subtle color variation over time
+            let colorShift = 0;
+            function updateColor() {
+                const hueA = (colorShift % 360);
+                const hueB = ((colorShift + 180) % 360);
+                const colorA = `hsl(${hueA}, 50%, 45%)`;
+                const colorB = `hsl(${hueB}, 50%, 45%)`;
+                
+                for (let i = 0; i < strandA.length; i++) {
+                    strandA[i].color = colorA;
+                }
+                for (let i = 0; i < strandB.length; i++) {
+                    strandB[i].color = colorB;
+                }
+                
+                colorShift += 0.2;
+                requestAnimationFrame(updateColor);
+            }
+            updateColor();
+        })();
+    </script>
+</body>
+</html>
