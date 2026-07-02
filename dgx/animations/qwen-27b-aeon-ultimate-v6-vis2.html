@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Procedural Spiral Galaxy</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="galaxy"></canvas>
+
+    <script>
+        const canvas = document.getElementById('galaxy');
+        const ctx = canvas.getContext('2d');
+
+        let width, height, centerX, centerY;
+        const STAR_COUNT = 1500;
+        const ARMS = 4;
+        const ARM_SPREAD = 0.6; // How "fluffy" the arms are
+        const GALAXY_SIZE = 300;
+        const CORE_SIZE = 80;
+        const ROTATION_SPEED = 0.002;
+
+        // Stars array
+        const stars = [];
+
+        // Resize handler
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            centerX = width / 2;
+            centerY = height / 2;
+        }
+
+        // Helper: Random range
+        function random(min, max) {
+            return Math.random() * (max - min) + min;
+        }
+
+        // Helper: Polar to Cartesian
+        function polarToCartesian(cx, cy, radius, angle) {
+            return {
+                x: cx + radius * Math.cos(angle),
+                y: cy + radius * Math.sin(angle)
+            };
+        }
+
+        // Initialize Stars
+        function initStars() {
+            stars.length = 0; // Clear array
+
+            for (let i = 0; i < STAR_COUNT; i++) {
+                // Determine if star is in the core or in the arms
+                const isCore = Math.random() < 0.3; // 30% core stars
+                
+                let radius, angle, size, color;
+
+                if (isCore) {
+                    // Core distribution: Dense, circular, slightly elliptical
+                    const r = Math.abs(random(-CORE_SIZE, CORE_SIZE));
+                    const theta = random(0, Math.PI * 2);
+                    radius = r * (Math.random() < 0.5 ? 1 : 0.7); // Slight ellipse
+                    angle = theta;
+                    
+                    // Core color: Warm white/yellow
+                    const rColor = 200 + random(0, 55);
+                    const gColor = 180 + random(0, 55);
+                    const bColor = 150 + random(0, 105);
+                    color = `rgb(${rColor}, ${gColor}, ${bColor})`;
+                    size = random(0.5, 1.5);
+                } else {
+                    // Spiral Arms distribution
+                    const armIndex = Math.floor(random(0, ARMS));
+                    const armAngle = (armIndex / ARMS) * (Math.PI * 2);
+                    
+                    // Radius increases from center
+                    radius = random(CORE_SIZE, GALAXY_SIZE);
+                    
+                    // Spiral angle: Base arm angle + spiral twist (twist increases with radius)
+                    const spiralTwist = (radius / GALAXY_SIZE) * (Math.PI * 2 * 1.5);
+                    angle = armAngle + spiralTwist;
+                    
+                    // Add randomness (spread)
+                    const spread = random(-ARM_SPREAD, ARM_SPREAD);
+                    angle += spread;
+                    
+                    // Color: Blue/White for outer stars, reddish for inner
+                    const blueFactor = (radius - CORE_SIZE) / (GALAXY_SIZE - CORE_SIZE);
+                    const rColor = 200 - (blueFactor * 100);
+                    const gColor = 200 - (blueFactor * 50);
+                    const bColor = 200 + (blueFactor * 55);
+                    color = `rgb(${rColor}, ${gColor}, ${bColor})`;
+                    
+                    size = random(0.5, 1.2);
+                }
+
+                // Store star data
+                stars.push({
+                    radius: radius,
+                    angle: angle,
+                    size: size,
+                    color: color,
+                    twinkleSpeed: random(0.01, 0.05),
+                    twinkleOffset: random(0, Math.PI * 2)
+                });
+            }
+        }
+
+        // Animation Loop
+        let time = 0;
+        function animate() {
+            // Clear canvas with slight transparency for trail effect (optional, currently solid black)
+            ctx.fillStyle = 'rgba(0, 0, 0, 1)';
+            ctx.fillRect(0, 0, width, height);
+
+            // Update time
+            time += ROTATION_SPEED;
+
+            // Draw Stars
+            for (let i = 0; i < stars.length; i++) {
+                const star = stars[i];
+
+                // Calculate current angle (rotation)
+                // Inner stars rotate faster than outer stars (differential rotation)
+                const rotationFactor = 1 - (star.radius / GALAXY_SIZE);
+                const currentAngle = star.angle + (time * (0.5 + rotationFactor));
+
+                // Calculate position
+                const pos = polarToCartesian(centerX, centerY, star.radius, currentAngle);
+
+                // Calculate twinkle
+                const twinkle = Math.sin(time * 100 * star.twinkleSpeed + star.twinkleOffset);
+                const alpha = 0.5 + (0.5 * (0.5 + 0.5 * twinkle)); // Alpha between 0.25 and 1.0
+
+                // Draw star
+                ctx.globalAlpha = alpha;
+                ctx.fillStyle = star.color;
+                ctx.beginPath();
+                ctx.arc(pos.x, pos.y, star.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Draw Bright Core Glow
+            const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, CORE_SIZE);
+            gradient.addColorStop(0, 'rgba(255, 250, 240, 0.8)');
+            gradient.addColorStop(0.2, 'rgba(255, 200, 150, 0.4)');
+            gradient.addColorStop(0.5, 'rgba(200, 150, 100, 0.1)');
+            gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, CORE_SIZE, 0, Math.PI * 2);
+            ctx.fill();
+
+            requestAnimationFrame(animate);
+        }
+
+        // Initialize
+        resize();
+        window.addEventListener('resize', resize);
+        initStars();
+        animate();
+
+    </script>
+</body>
+</html>

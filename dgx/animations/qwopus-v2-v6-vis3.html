@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DNA Double Helix Animation</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #050505; /* Dark background */
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="dnaCanvas"></canvas>
+
+<script>
+    const canvas = document.getElementById('dnaCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let width, height;
+    let rotation = 0;
+
+    // Configuration for the DNA structure
+    const config = {
+        nodeCount: 80,          // Number of nodes along the helix
+        amplitude: 150,         // Width of the helix
+        verticalSpacing: 12,    // Distance between rungs
+        rotationSpeed: 0.02,    // Speed of rotation
+        perspective: 800,       // Perspective depth for 3D effect
+        rungLength: 0.8,        // How close rungs are to the center (0-1)
+        colorStrandA: 'rgba(255, 100, 150, ', // Pinkish
+        colorStrandB: 'rgba(100, 200, 255, ', // Blueish
+        colorRung: 'rgba(255, 255, 255, '     // Whiteish
+    };
+
+    // Resize canvas to fit window
+    function resize() {
+        width = canvas.width = window.innerWidth;
+        height = canvas.height = window.innerHeight;
+    }
+
+    window.addEventListener('resize', resize);
+    resize();
+
+    function draw() {
+        // Clear canvas
+        ctx.fillStyle = '#050505';
+        ctx.fillRect(0, 0, width, height);
+
+        const centerX = width / 2;
+        const centerY = height / 2;
+
+        // Calculate the total height of the DNA strand based on node count
+        const totalHeight = config.nodeCount * config.verticalSpacing;
+        
+        // Array to store points for depth sorting (Painter's Algorithm)
+        // We need to draw back-to-front so rungs behind the helix are hidden by the helix
+        const points = [];
+
+        // Calculate positions for all nodes
+        for (let i = 0; i < config.nodeCount; i++) {
+            // Calculate angle based on index and current rotation
+            // We add a vertical offset to the angle to create the spiral
+            const angle = (i * 0.2) + rotation;
+            
+            // Calculate 3D coordinates
+            // z oscillates between -amplitude and +amplitude
+            const z = Math.cos(angle) * config.amplitude;
+            // x oscillates between -amplitude and +amplitude
+            const x = Math.sin(angle) * config.amplitude;
+            // y is the vertical position
+            const y = i * config.verticalSpacing - (totalHeight / 2);
+
+            // Apply simple perspective projection
+            // The closer to the screen (higher z), the larger the scale
+            const scale = config.perspective / (config.perspective + z);
+            
+            const projectedX = centerX + (x * scale);
+            const projectedY = centerY + (y * scale);
+
+            // Determine opacity based on depth (z) for atmospheric depth
+            // z ranges from -amplitude to +amplitude. We map this to 0.2 to 1.0 opacity
+            const normalizedZ = (z + config.amplitude) / (2 * config.amplitude);
+            const opacity = 0.2 + (normalizedZ * 0.8);
+
+            points.push({
+                index: i,
+                x: projectedX,
+                y: projectedY,
+                z: z, // Store z for sorting
+                scale: scale,
+                opacity: opacity,
+                // Determine which strand this point belongs to (A or B)
+                // Alternating based on index or just strand logic
+                strand: 'A' 
+            });
+
+            // Calculate the corresponding point on the other strand (180 degrees / PI radians away)
+            const angleB = angle + Math.PI;
+            const zB = Math.cos(angleB) * config.amplitude;
+            const xB = Math.sin(angleB) * config.amplitude;
+            const scaleB = config.perspective / (config.perspective + zB);
+            const projectedXB = centerX + (xB * scaleB);
+            const normalizedZB = (zB + config.amplitude) / (2 * config.amplitude);
+            const opacityB = 0.2 + (normalizedZB * 0.8);
+
+            points.push({
+                index: i,
+                x: projectedXB,
+                y: projectedY, // Same Y
+                z: zB,
+                scale: scaleB,
+                opacity: opacityB,
+                strand: 'B'
+            });
+        }
+
+        // Sort points by Z depth (farthest to nearest)
+        points.sort((a, b) => a.z - b.z);
+
+        // Draw the nodes and strands
+        // We draw nodes first, then we can draw rungs. 
+        // However, since rungs connect specific nodes, and nodes are sorted by Z,
+        // drawing rungs after nodes might cause lines to overlap nodes incorrectly if not careful.
+        // A better approach for a wireframe look: Draw rungs first, then nodes.
+        
+        // 1. Draw Rungs
+        // We iterate through the original index (0 to nodeCount) to find pairs
+        // But we need to find the specific objects in our sorted array to get their projected positions
+        // Actually, we calculated positions in the loop above. Let's store them in a map or just recalculate for rungs?
+        // Let's just iterate through the original loop logic again to draw rungs, but use the Z-sorting logic implicitly.
+        // Since we want rungs to be behind the front strand but in front of the back strand, 
+        // the Z-sorting of individual nodes is tricky for lines.
+        
+        // Simplified approach: Draw all rungs, then draw all nodes. 
+        // Because nodes are circles, they will cover the line ends nicely.
+        
+        for (let i = 0; i < config.nodeCount; i++) {
+            const angle = (i * 0.2) + rotation;
+            const z = Math.cos(angle) * config.amplitude;
+            const x = Math.sin(angle) * config.amplitude;
+            const y = i * config.verticalSpacing - (totalHeight / 2);
+            const scale = config.perspective / (config.perspective + z);
+            const projectedX = centerX + (x * scale);
+
+            const angleB = angle + Math.PI;
+            const zB = Math.cos(angleB) * config.amplitude;
+            const xB = Math.sin(angleB) * config.amplitude;
+            const scaleB = config.perspective / (config.perspective + zB);
+            const projectedXB = centerX + (xB * scaleB);
+
+            // Rung opacity based on average depth of the two points
+            const avgZ = (z + zB) / 2;
+            const normalizedAvgZ = (avgZ + config.amplitude) / (2 * config.amplitude);
+            const rungOpacity = 0.1 + (normalizedAvgZ * 0.4);
+
+            ctx.beginPath();
+            ctx.moveTo(projectedX, y + centerY);
+            ctx.lineTo(projectedXB, y + centerY);
+            ctx.strokeStyle = config.colorRung + rungOpacity + ')';
+            ctx.lineWidth = 2 * scale; // Thicker in front
+            ctx.stroke();
+        }
+
+        // 2. Draw Nodes (already sorted by Z in 'points' array)
+        for (let i = 0; i < points.length; i++) {
+            const p = points[i];
+            const radius = 4 * p.scale; // Node size depends on perspective
+
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+            
+            if (p.strand === 'A') {
+                ctx.fillStyle = config.colorStrandA + p.opacity + ')';
+            } else {
+                ctx.fillStyle = config.colorStrandB + p.opacity + ')';
+            }
+            
+            ctx.fill();
+        }
+
+        // 3. Draw Connecting Lines (Strands)
+        // To make it look like a continuous strand, we connect node i to node i+1
+        // We do this for Strand A and Strand B separately.
+        // We need to be careful with Z-sorting here too. 
+        // Ideally, we draw the line segment between two nodes if both are "visible" or based on depth.
+        // For simplicity and visual appeal, we draw the lines after the rungs but before the nodes? 
+        // No, nodes cover line ends. So: Rungs -> Lines -> Nodes.
+        
+        // Let's draw the lines. We iterate through the points array which is Z-sorted.
+        // But the points array is flat (A1, B5, A2, B1...). We need to connect A1 to A2.
+        // It's easier to iterate through the original index range again for lines, 
+        // but we can apply a simple depth check: if the midpoint of the line is behind something, maybe don't draw?
+        // For a clean look, just drawing them with low opacity works well.
+
+        for (let i = 0; i < config.nodeCount - 1; i++) {
+            // Strand A
+            const angleA1 = (i * 0.2) + rotation;
+            const angleA2 = ((i + 1) * 0.2) + rotation;
+            
+            const zA1 = Math.cos(angleA1) * config.amplitude;
+            const xA1 = Math.sin(angleA1) * config.amplitude;
+            const yA1 = i * config.verticalSpacing - (totalHeight / 2);
+            const scaleA1 = config.perspective / (config.perspective + zA1);
+            const pxA1 = centerX + (xA1 * scaleA1);
+
+            const zA2 = Math.cos(angleA2) * config.amplitude;
+            const xA2 = Math.sin(angleA2) * config.amplitude;
+            const yA2 = (i + 1) * config.verticalSpacing - (totalHeight / 2);
+            const scaleA2 = config.perspective / (config.perspective + zA2);
+            const pxA2 = centerX + (xA2 * scaleA2);
+
+            // Calculate average opacity for the line segment
+            const avgZA = (zA1 + zA2) / 2;
+            const normAvgZA = (avgZA + config.amplitude) / (2 * config.amplitude);
+            const opacityA = 0.2 + (normAvgZA * 0.6);
+
+            ctx.beginPath();
+            ctx.moveTo(pxA1, yA1 + centerY);
+            ctx.lineTo(pxA2, yA2 + centerY);
+            ctx.strokeStyle = config.colorStrandA + opacityA + ')';
+            ctx.lineWidth = 3 * scaleA1; // Approximate width
+            ctx.stroke();
+
+            // Strand B
+            const angleB1 = angleA1 + Math.PI;
+            const angleB2 = angleA2 + Math.PI;
+
+            const zB1 = Math.cos(angleB1) * config.amplitude;
+            const xB1 = Math.sin(angleB1) * config.amplitude;
+            const scaleB1 = config.perspective / (config.perspective + zB1);
+            const pxB1 = centerX + (xB1 * scaleB1);
+
+            const zB2 = Math.cos(angleB2) * config.amplitude;
+            const xB2 = Math.sin(angleB2) * config.amplitude;
+            const scaleB2 = config.perspective / (config.perspective + zB2);
+            const pxB2 = centerX + (xB2 * scaleB2);
+
+            const avgZB = (zB1 + zB2) / 2;
+            const normAvgZB = (avgZB + config.amplitude) / (2 * config.amplitude);
+            const opacityB = 0.2 + (normAvgZB * 0.6);
+
+            ctx.beginPath();
+            ctx.moveTo(pxB1, yA1 + centerY);
+            ctx.lineTo(pxB2, yA2 + centerY);
+            ctx.strokeStyle = config.colorStrandB + opacityB + ')';
+            ctx.lineWidth = 3 * scaleB1;
+            ctx.stroke();
+        }
+
+        // Update rotation
+        rotation += config.rotationSpeed;
+
+        requestAnimationFrame(draw);
+    }
+
+    // Start animation
+    requestAnimationFrame(draw);
+
+</script>
+
+</body>
+</html>

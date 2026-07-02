@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rotating DNA Double Helix</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #0a0a12; /* Dark background */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            font-family: sans-serif;
+        }
+
+        canvas {
+            display: block;
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
+            border-radius: 4px;
+        }
+
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            color: #555;
+            font-size: 12px;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="dnaCanvas"></canvas>
+    <div id="controls">Rendering on HTML5 Canvas</div>
+
+    <script>
+        const canvas = document.getElementById('dnaCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let width, height;
+        let time = 0;
+
+        // Configuration for the Helix
+        const config = {
+            strandCount: 2,
+            nodesPerStrand: 40,
+            amplitude: 60, // Radius of the helix
+            verticalSpacing: 15, // Distance between rungs
+            rotationSpeed: 0.02,
+            nodeRadius: 4,
+            colors: {
+                strand1: '#00d2ff', // Cyan
+                strand2: '#ff007f', // Magenta
+                rung: '#ffffff',
+                bg: '#0a0a12'
+            }
+        };
+
+        // Resize handling
+        function resize() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+        }
+
+        window.addEventListener('resize', resize);
+        resize();
+
+        /**
+         * Calculates the 2D position of a node on the helix.
+         * Uses Sine and Cosine to simulate the 3D rotation.
+         * 
+         * @param {number} index - The index of the node along the Y-axis.
+         * @param {number} phase - The phase offset (0 for strand 1, PI for strand 2).
+         * @param {number} t - The current time/rotation angle.
+         * @param {number} yOffset - The vertical position on screen.
+         */
+        function getNodePosition(index, phase, t, yOffset) {
+            // Calculate the angle for this specific node based on time and vertical position
+            const angle = t + (index * 0.2) + phase;
+            
+            // 3D to 2D projection
+            // X = Cos(angle) * Amplitude + CenterX
+            // Z (Depth) = Sin(angle) * Amplitude
+            // We use Z for sorting and opacity
+            
+            const x = Math.cos(angle) * config.amplitude + (width / 2);
+            const z = Math.sin(angle) * config.amplitude; // Positive Z is "front"
+
+            return { x, y: yOffset, z };
+        }
+
+        function draw() {
+            // Clear screen with a slight fade effect for motion blur (optional, currently solid clear)
+            ctx.fillStyle = config.colors.bg;
+            ctx.fillRect(0, 0, width, height);
+
+            // Calculate the total height of the helix
+            const totalHeight = config.nodesPerStrand * config.verticalSpacing;
+            const startY = (height - totalHeight) / 2;
+
+            // Store all nodes for Z-sorting (Painter's Algorithm)
+            // We need to sort rungs and nodes so that "back" elements are drawn before "front" elements
+            let drawQueue = [];
+
+            // Generate data for all nodes
+            for (let i = 0; i < config.nodesPerStrand; i++) {
+                const y = startY + (i * config.verticalSpacing);
+                
+                // Node 1 (Strand A)
+                const node1 = getNodePosition(i, 0, time, y);
+                // Node 2 (Strand B) - offset by PI (180 degrees)
+                const node2 = getNodePosition(i, Math.PI, time, y);
+
+                // Add Rungs to the queue
+                // We use the average Z of the two nodes to determine depth
+                drawQueue.push({
+                    type: 'rung',
+                    z: (node1.z + node2.z) / 2,
+                    n1: node1,
+                    n2: node2
+                });
+
+                // Add Nodes to the queue
+                drawQueue.push({
+                    type: 'node',
+                    z: node1.z,
+                    pos: node1,
+                    color: config.colors.strand1
+                });
+
+                drawQueue.push({
+                    type: 'node',
+                    z: node2.z,
+                    pos: node2,
+                    color: config.colors.strand2
+                });
+            }
+
+            // Sort queue by Z-depth (lowest Z drawn first)
+            drawQueue.sort((a, b) => a.z - b.z);
+
+            // Execute Drawing
+            drawQueue.forEach(item => {
+                if (item.type === 'rung') {
+                    // Calculate opacity based on depth (further back = more transparent)
+                    // Z ranges roughly from -amplitude to +amplitude
+                    const opacity = (item.z + config.amplitude) / (2 * config.amplitude);
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(item.n1.x, item.n1.y);
+                    ctx.lineTo(item.n2.x, item.n2.y);
+                    ctx.strokeStyle = `rgba(255, 255, 255, ${0.1 + (opacity * 0.4)})`;
+                    ctx.lineWidth = 1 + opacity; // Thicker when in front
+                    ctx.stroke();
+                } 
+                else if (item.type === 'node') {
+                    // Draw Node
+                    const opacity = (item.z + config.amplitude) / (2 * config.amplitude);
+                    const scale = 0.5 + (opacity * 0.5); // Scale size based on depth
+
+                    ctx.beginPath();
+                    ctx.arc(item.pos.x, item.pos.y, config.nodeRadius * scale, 0, Math.PI * 2);
+                    ctx.fillStyle = item.color;
+                    
+                    // Add a glow effect
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = item.color;
+                    ctx.globalAlpha = 0.5 + (opacity * 0.5);
+                    
+                    ctx.fill();
+                    
+                    // Reset shadow and alpha for performance
+                    ctx.shadowBlur = 0;
+                    ctx.globalAlpha = 1.0;
+                }
+            });
+
+            // Connect the strands (Draw the backbone lines)
+            // Note: For a cleaner look, we draw the backbone lines *after* the nodes, 
+            // but strictly speaking, they should be sorted by Z too. 
+            // For simplicity in this demo, we draw them with low opacity.
+            drawStrandBackbone(0);
+            drawStrandBackbone(Math.PI);
+
+            // Update Time
+            time += config.rotationSpeed;
+
+            requestAnimationFrame(draw);
+        }
+
+        function drawStrandBackbone(phase) {
+            ctx.beginPath();
+            let started = false;
+
+            for (let i = 0; i < config.nodesPerStrand; i++) {
+                const y = (height - (config.nodesPerStrand * config.verticalSpacing)) / 2 + (i * config.verticalSpacing);
+                const pos = getNodePosition(i, phase, time, y);
+
+                if (!started) {
+                    ctx.moveTo(pos.x, pos.y);
+                    started = true;
+                } else {
+                    ctx.lineTo(pos.x, pos.y);
+                }
+            }
+
+            // Determine color based on phase
+            const color = phase === 0 ? config.colors.strand1 : config.colors.strand2;
+            
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.globalAlpha = 0.3; // Make lines subtle
+            ctx.stroke();
+            ctx.globalAlpha = 1.0;
+        }
+
+        // Start Animation
+        requestAnimationFrame(draw);
+
+    </script>
+</body>
+</html>

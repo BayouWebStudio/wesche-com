@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DNA Double Helix Animation</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #0a0a0a;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="dnaCanvas"></canvas>
+    <script>
+        const canvas = document.getElementById('dnaCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let width, height;
+        let animationFrame;
+
+        // Configuration
+        const nodeCount = 40;      // Number of nodes per strand
+        const radius = 120;         // Radius of the helix
+        const helixPitch = 0.3;     // Vertical spacing factor
+        const rotationSpeed = 0.02; // Speed of rotation
+        
+        let rotation = 0;
+
+        function resize() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+        }
+
+        window.addEventListener('resize', resize);
+        resize();
+
+        function draw() {
+            // Clear canvas with a slight trail effect or solid black
+            ctx.fillStyle = 'rgba(10, 10, 10, 1)';
+            ctx.fillRect(0, 0, width, height);
+
+            const centerX = width / 2;
+            const centerY = height / 2;
+
+            // Draw the DNA strands
+            // Strand 1 (Blueish)
+            // Strand 2 (Reddish)
+            const colors = ['#4488ff', '#ff4466'];
+
+            // Draw Rungs first (so they are behind the nodes)
+            for (let i = 0; i < nodeCount; i++) {
+                // Calculate vertical position
+                const y = centerY - (nodeCount * helixPitch) / 2 + (i * helixPitch);
+                
+                // Calculate angles
+                // Strand 1 is at angle theta
+                // Strand 2 is 180 degrees (PI) out of phase
+                const angle1 = rotation + (i * 0.4);
+                const angle2 = rotation + (i * 0.4) + Math.PI;
+
+                const x1 = centerX + Math.cos(angle1) * radius;
+                const z1 = Math.sin(angle1) * radius; // Used for 3D depth perception
+                
+                const x2 = centerX + Math.cos(angle2) * radius;
+                const z2 = Math.sin(angle2) * radius;
+
+                // Simple 3D projection: scale X based on Z depth
+                // We'll use a simple perspective: x' = x * (1 + z/depth)
+                const perspective = 0.8;
+                const x1_proj = x1 * (1 + z1 * 0.002);
+                const x2_proj = x2 * (1 + z2 * 0.002);
+
+                // Draw connecting rung
+                ctx.beginPath();
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+                ctx.lineWidth = 1;
+                ctx.moveTo(x1_proj, y);
+                ctx.lineTo(x2_proj, y);
+                ctx.stroke();
+            }
+
+            // Draw Nodes (Strands)
+            for (let i = 0; i < nodeCount; i++) {
+                const y = centerY - (nodeCount * helixPitch) / 2 + (i * helixPitch);
+                
+                const angle1 = rotation + (i * 0.4);
+                const angle2 = rotation + (i * 0.4) + Math.PI;
+
+                const x1 = centerX + Math.cos(angle1) * radius;
+                const z1 = Math.sin(angle1) * radius;
+                
+                const x2 = centerX + Math.cos(angle2) * radius;
+                const z2 = Math.sin(angle2) * radius;
+
+                const x1_proj = x1 * (1 + z1 * 0.002);
+                const x2_proj = x2 * (1 + z2 * 0.002);
+
+                // Draw Strand 1 Node
+                ctx.beginPath();
+                ctx.fillStyle = colors[0];
+                ctx.arc(x1_proj, y, 3, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Draw Strand 2 Node
+                ctx.beginPath();
+                ctx.fillStyle = colors[1];
+                ctx.arc(x2_proj, y, 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            rotation += rotationSpeed;
+            animationFrame = requestAnimationFrame(draw);
+        }
+
+        draw();
+    </script>
+</body>
+</html>

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rotating DNA Double Helix</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #0a0a0f;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="dnaCanvas"></canvas>
+    <script>
+        const canvas = document.getElementById('dnaCanvas');
+        const ctx = canvas.getContext('2d');
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        const numNodes = 60;
+        const radius = 120;
+        const verticalSpacing = 25;
+        const phaseShift = Math.PI; // 180 degrees between strands
+        let rotationOffset = 0;
+        const rotationSpeed = 0.02;
+
+        function drawDNA() {
+            ctx.fillStyle = '#0a0a0f';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const totalHeight = numNodes * verticalSpacing;
+            const startY = centerY - totalHeight / 2;
+
+            // Calculate all node positions
+            const nodes = [];
+            for (let i = 0; i < numNodes; i++) {
+                const y = startY + i * verticalSpacing;
+                const angle1 = (i * 0.3) + rotationOffset;
+                const angle2 = (i * 0.3) + rotationOffset + phaseShift;
+
+                const x1 = centerX + Math.cos(angle1) * radius;
+                const z1 = Math.sin(angle1) * radius;
+                const x2 = centerX + Math.cos(angle2) * radius;
+                const z2 = Math.sin(angle2) * radius;
+
+                nodes.push({
+                    y: y,
+                    x1: x1, z1: z1,
+                    x2: x2, z2: z2
+                });
+            }
+
+            // Draw rungs first (behind strands)
+            for (let i = 0; i < numNodes; i++) {
+                const node = nodes[i];
+                const avgZ = (node.z1 + node.z2) / 2;
+                const opacity = 0.3 + (avgZ + radius) / (2 * radius) * 0.4;
+
+                ctx.beginPath();
+                ctx.moveTo(node.x1, node.y);
+                ctx.lineTo(node.x2, node.y);
+                ctx.strokeStyle = `rgba(100, 200, 255, ${opacity})`;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+
+            // Sort all points by z-depth for proper rendering
+            const allPoints = [];
+            for (let i = 0; i < numNodes; i++) {
+                allPoints.push({ x: nodes[i].x1, z: nodes[i].z1, y: nodes[i].y, strand: 1, index: i });
+                allPoints.push({ x: nodes[i].x2, z: nodes[i].z2, y: nodes[i].y, strand: 2, index: i });
+            }
+            allPoints.sort((a, b) => a.z - b.z);
+
+            // Draw strands
+            for (let strand = 1; strand <= 2; strand++) {
+                const strandNodes = allPoints.filter(p => p.strand === strand);
+                
+                // Draw connections
+                for (let i = 0; i < strandNodes.length - 1; i++) {
+                    const p1 = strandNodes[i];
+                    const p2 = strandNodes[i + 1];
+                    const avgZ = (p1.z + p2.z) / 2;
+                    const brightness = 0.5 + (avgZ + radius) / (2 * radius) * 0.5;
+
+                    if (strand === 1) {
+                        ctx.strokeStyle = `rgba(255, 100, 100, ${brightness})`;
+                    } else {
+                        ctx.strokeStyle = `rgba(100, 255, 100, ${brightness})`;
+                    }
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.moveTo(p1.x, p1.y);
+                    ctx.lineTo(p2.x, p2.y);
+                    ctx.stroke();
+                }
+
+                // Draw nodes
+                for (const point of strandNodes) {
+                    const brightness = 0.5 + (point.z + radius) / (2 * radius) * 0.5;
+                    const size = 4 + brightness * 4;
+
+                    if (strand === 1) {
+                        ctx.fillStyle = `rgba(255, 150, 150, ${brightness})`;
+                    } else {
+                        ctx.fillStyle = `rgba(150, 255, 150, ${brightness})`;
+                    }
+
+                    ctx.beginPath();
+                    ctx.arc(point.x, point.y, size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            rotationOffset += rotationSpeed;
+            requestAnimationFrame(drawDNA);
+        }
+
+        drawDNA();
+    </script>
+</body>
+</html>

@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DNA Double Helix</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: #08080f;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: sans-serif;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="helix"></canvas>
+    <script>
+        (function() {
+            const canvas = document.getElementById('helix');
+            const ctx = canvas.getContext('2d');
+
+            let W, H;
+
+            function resize() {
+                W = canvas.width = window.innerWidth;
+                H = canvas.height = window.innerHeight;
+            }
+            resize();
+            window.addEventListener('resize', resize);
+
+            // ─── DNA Parameters ──────────────────────────────────────────────
+            const RADIUS = 82;
+            const HEIGHT = 380;
+            const TURNS = 4.2;
+            const NODES = 52;
+            const FOCAL = 520;
+
+            let rotation = 0;
+            const ROT_SPEED = 0.006;
+
+            // ─── Colors ──────────────────────────────────────────────────────
+            const STRAND1_COL = { r: 60, g: 155, b: 255 };
+            const STRAND2_COL = { r: 255, g: 95, b: 155 };
+            const RUNG_COL = { r: 190, g: 200, b: 255 };
+
+            // ─── 3D → 2D with perspective ──────────────────────────────────
+            function project(x3, y3, z3, rot) {
+                // rotate around Y axis
+                const cosR = Math.cos(rot);
+                const sinR = Math.sin(rot);
+                const xr = x3 * cosR + z3 * sinR;
+                const zr = -x3 * sinR + z3 * cosR;
+                const yr = y3;
+
+                const scale = FOCAL / (FOCAL + zr);
+                const sx = xr * scale + W / 2;
+                const sy = yr * scale + H / 2;
+                return { x: sx, y: sy, z: zr, scale: scale };
+            }
+
+            // ─── Generate helix points ──────────────────────────────────────
+            function generateHelix(rot) {
+                const pts1 = [];
+                const pts2 = [];
+
+                for (let i = 0; i < NODES; i++) {
+                    const t = i / (NODES - 1);
+                    const y = -HEIGHT / 2 + t * HEIGHT;
+                    const theta = t * TURNS * 2 * Math.PI;
+
+                    // Strand 1
+                    const x1 = RADIUS * Math.cos(theta);
+                    const z1 = RADIUS * Math.sin(theta);
+                    const p1 = project(x1, y, z1, rot);
+                    p1.t = t;
+                    p1.i = i;
+                    pts1.push(p1);
+
+                    // Strand 2 (offset by π)
+                    const x2 = RADIUS * Math.cos(theta + Math.PI);
+                    const z2 = RADIUS * Math.sin(theta + Math.PI);
+                    const p2 = project(x2, y, z2, rot);
+                    p2.t = t;
+                    p2.i = i;
+                    pts2.push(p2);
+                }
+                return { pts1, pts2 };
+            }
+
+            // ─── Drawing helpers ────────────────────────────────────────────
+            function lerpColor(c1, c2, t) {
+                return {
+                    r: Math.round(c1.r + (c2.r - c1.r) * t),
+                    g: Math.round(c1.g + (c2.g - c1.g) * t),
+                    b: Math.round(c1.b + (c2.b - c1.b) * t)
+                };
+            }
+
+            function colorStr(c, alpha) {
+                return `rgba(${c.r},${c.g},${c.b},${alpha})`;
+            }
+
+            function drawStrandSeg(p1, p2, color, lw, alpha) {
+                ctx.beginPath();
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.strokeStyle = colorStr(color, alpha);
+                ctx.lineWidth = lw;
+                ctx.stroke();
+            }
+
+            function drawRung(p1, p2, c1, c2, lw, alpha) {
+                const steps = 12;
+                for (let s = 0; s < steps; s++) {
+                    const t0 = s / steps;
+                    const t1 = (s + 1) / steps;
+                    const col = lerpColor(c1, c2, (t0 + t1) / 2);
+                    const x0 = p1.x + (p2.x - p1.x) * t0;
+                    const y0 = p1.y + (p2.y - p1.y) * t0;
+                    const x1 = p1.x + (p2.x - p1.x) * t1;
+                    const y1 = p1.y + (p2.y - p1.y) * t1;
+                    ctx.beginPath();
+                    ctx.moveTo(x0, y0);
+                    ctx.lineTo(x1, y1);
+                    ctx.strokeStyle = colorStr(col, alpha * 0.7);
+                    ctx.lineWidth = lw * (0.8 + 0.4 * Math.sin(s / steps * Math.PI));
+                    ctx.stroke();
+                }
+            }
+
+            function drawNode(x, y, radius, color, alpha, glowIntensity) {
+                // outer glow
+                ctx.shadowColor = colorStr(color, alpha * 0.6);
+                ctx.shadowBlur = glowIntensity * 18;
+
+                ctx.beginPath();
+                ctx.arc(x, y, radius, 0, Math.PI * 2);
+                ctx.fillStyle = colorStr(color, alpha);
+                ctx.fill();
+
+                // inner highlight
+                ctx.shadowBlur = 0;
+                ctx.beginPath();
+                ctx.arc(x - radius * 0.15, y - radius * 0.15, radius * 0.45, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(255,255,255,${alpha * 0.35})`;
+                ctx.fill();
+
+                // reset shadow
+                ctx.shadowBlur = 0;
+            }
+
+            // ─── Background ─────────────────────────────────────────────────
+            function drawBackground() {
+                const grad = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) * 0.7);
+                grad.addColorStop(0, '#0e0e1a');
+                grad.addColorStop(0.5, '#090910');
+                grad.addColorStop(1, '#040407');
+                ctx.fillStyle = grad;
+                ctx.fillRect(0, 0, W, H);
+
+                // subtle stars
+                const seed = 12345;
+                for (let i = 0; i < 120; i++) {
+                    const sx = ((i * 7919 + seed) % W);
+                    const sy = ((i * 6271 + seed * 3) % H);
+                    const brightness = 0.15 + 0.25 * ((i * 3571) % 100) / 100;
+                    const sz = 0.5 + 1.5 * ((i * 2311) % 100) / 100;
+                    ctx.beginPath();
+                    ctx.arc(sx, sy, sz, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(200,210,255,${brightness})`;
+                    ctx.fill();
+                }
+            }
+
+            // ─── Main draw ──────────────────────────────────────────────────
+            function draw() {
+                drawBackground();
+
+                const { pts1, pts2 } = generateHelix(rotation);
+
+                // Build element list for z-sorting
+                const elements = [];
+
+                // strand segments
+                for (let i = 0; i < NODES - 1; i++) {
+                    const avgZ1 = (pts1[i].z + pts1[i + 1].z) / 2;
+                    elements.push({ type: 's1', z: avgZ1, p1: pts1[i], p2: pts1[i + 1], i: i });
+
+                    const avgZ2 = (pts2[i].z + pts2[i + 1].z) / 2;
+                    elements.push({ type: 's2', z: avgZ2, p1: pts2[i], p2: pts2[i + 1], i: i });
+                }
+
+                // rungs
+                for (let i = 0; i < NODES; i++) {
+                    const avgZ = (pts1[i].z + pts2[i].z) / 2;
+                    elements.push({ type: 'rung', z: avgZ, p1: pts1[i], p2: pts2[i], i: i });
+                }
+
+                // nodes
+                for (let i = 0; i < NODES; i++) {
+                    elements.push({ type: 'n1', z: pts1[i].z, p: pts1[i], i: i });
+                    elements.push({ type: 'n2', z: pts2[i].z, p: pts2[i], i: i });
+                }
+
+                // sort back → front
+                elements.sort((a, b) => a.z - b.z);
+
+                // draw elements in order
+                for (const el of elements) {
+                    const depthAlpha = Math.min(1, Math.max(0.15, (el.z + FOCAL) / (FOCAL * 1.8)));
+
+                    switch (el.type) {
+                        case 's1': {
+                            const t = (el.p1.t + el.p2.t) / 2;
+                            const col = lerpColor({ r: 30, g: 100, b: 200 }, { r: 100, g: 200, b: 255 }, t);
+                            const lw = 2.8 * (el.p1.scale + el.p2.scale) / 2;
+                            drawStrandSeg(el.p1, el.p2, col, lw, depthAlpha * 0.85);
+                            // subtle glow line
+                            ctx.shadowColor = colorStr(col, depthAlpha * 0.2);
+                            ctx.shadowBlur = 8;
+                            drawStrandSeg(el.p1, el.p2, col, lw * 0.6, depthAlpha * 0.2);
+                            ctx.shadowBlur = 0;
+                            break;
+                        }
+                        case 's2': {
+                            const t = (el.p1.t + el.p2.t) / 2;
+                            const col = lerpColor({ r: 180, g: 50, b: 100 }, { r: 255, g: 140, b: 190 }, t);
+                            const lw = 2.8 * (el.p1.scale + el.p2.scale) / 2;
+                            drawStrandSeg(el.p1, el.p2, col, lw, depthAlpha * 0.85);
+                            ctx.shadowColor = colorStr(col, depthAlpha * 0.2);
+                            ctx.shadowBlur = 8;
+                            drawStrandSeg(el.p1, el.p2, col, lw * 0.6, depthAlpha * 0.2);
+                            ctx.shadowBlur = 0;
+                            break;
+                        }
+                        case 'rung': {
+                            const tMid = (el.p1.t + el.p2.t) / 2;
+                            const c1 = lerpColor({ r: 30, g: 100, b: 200 }, { r: 100, g: 200, b: 255 }, tMid);
+                            const c2 = lerpColor({ r: 180, g: 50, b: 100 }, { r: 255, g: 140, b: 190 }, tMid);
+                            const lw = 1.6 * (el.p1.scale + el.p2.scale) / 2;
+                            drawRung(el.p1, el.p2, c1, c2, lw, depthAlpha * 0.6);
+                            break;
+                        }
+                        case 'n1': {
+                            const t = el.p.t;
+                            const col = lerpColor({ r: 30, g: 100, b: 200 }, { r: 100, g: 200, b: 255 }, t);
+                            const r = 4.2 * el.p.scale;
+                            const glow = 0.6 + 0.4 * (0.5 + 0.5 * Math.sin(el.p.i * 0.5 + rotation * 2));
+                            drawNode(el.p.x, el.p.y, r, col, depthAlpha, glow);
+                            break;
+                        }
+                        case 'n2': {
+                            const t = el.p.t;
+                            const col = lerpColor({ r: 180, g: 50, b: 100 }, { r: 255, g: 140, b: 190 }, t);
+                            const r = 4.2 * el.p.scale;
+                            const glow = 0.6 + 0.4 * (0.5 + 0.5 * Math.sin(el.p.i * 0.5 + rotation * 2 + 1.2));
+                            drawNode(el.p.x, el.p.y, r, col, depthAlpha, glow);
+                            break;
+                        }
+                    }
+                }
+
+                // ─── central axis subtle glow ───────────────────────────────
+                const gradAxis = ctx.createLinearGradient(W / 2, H / 2 - HEIGHT / 2 - 40, W / 2, H / 2 + HEIGHT / 2 + 40);
+                gradAxis.addColorStop(0, 'rgba(100,140,255,0)');
+                gradAxis.addColorStop(0.3, 'rgba(100,140,255,0.03)');
+                gradAxis.addColorStop(0.5, 'rgba(180,160,255,0.05)');
+                gradAxis.addColorStop(0.7, 'rgba(255,140,200,0.03)');
+                gradAxis.addColorStop(1, 'rgba(255,140,200,0)');
+                ctx.fillStyle = gradAxis;
+                ctx.fillRect(W / 2 - 60, H / 2 - HEIGHT / 2 - 40, 120, HEIGHT + 80);
+
+                rotation += ROT_SPEED;
+                requestAnimationFrame(draw);
+            }
+
+            draw();
+        })();
+    </script>
+</body>
+</html>

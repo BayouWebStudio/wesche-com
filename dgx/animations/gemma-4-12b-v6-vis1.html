@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solar System Animation</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #050505;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="solarCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('solarCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let width, height;
+        const planets = [];
+        const stars = [];
+
+        // Configuration
+        const colors = ['#A5A5A5', '#E3BB76', '#2E7D32', '#2196F3', '#F44336', '#9C27B0', '#FF9800'];
+
+        function resize() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+            initStars();
+        }
+
+        function initStars() {
+            stars.length = 0;
+            for (let i = 0; i < 400; i++) {
+                stars.push({
+                    x: Math.random() * width,
+                    y: Math.random() * height,
+                    size: Math.random() * 1.5,
+                    opacity: Math.random()
+                });
+            }
+        }
+
+        class Planet {
+            constructor(name, distance, radius, speed, color, angleOffset) {
+                this.name = name;
+                this.distance = distance;
+                this.radius = radius;
+                this.speed = speed;
+                this.color = color;
+                this.angle = angleOffset;
+            }
+
+            update() {
+                this.angle += this.speed;
+            }
+
+            draw() {
+                const x = width / 2 + Math.cos(this.angle) * this.distance;
+                const y = height / 2 + Math.sin(this.angle) * this.distance;
+
+                // Draw Orbit Path
+                ctx.beginPath();
+                ctx.arc(width / 2, height / 2, this.distance, 0, Math.PI * 2);
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+                ctx.stroke();
+
+                // Draw Planet
+                ctx.beginPath();
+                ctx.arc(x, y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+
+                // Simple Glow
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = this.color;
+            }
+        }
+
+        function initPlanets() {
+            // distance, radius, speed, color, angleOffset
+            planets.push(new Planet('Mercury', 60, 4, 0.04, colors[0], 0));
+            planets.push(new Planet('Venus', 90, 8, 0.015, colors[1], 0.5));
+            planets.push(new Planet('Earth', 130, 9, 0.01, colors[2], 1.2));
+            planets.push(new Planet('Mars', 170, 6, 0.008, colors[3], 2.0));
+            planets.push(new Planet('Jupiter', 230, 16, 0.004, colors[4], 3.0));
+            planets.push(new Planet('Saturn', 290, 14, 0.002, colors[5], 4.0));
+            planets.push(new Planet('Uranus', 340, 10, 0.001, colors[6], 5.0));
+        }
+
+        function drawSun() {
+            const centerX = width / 2;
+            const centerY = height / 2;
+
+            // Outer Glow
+            const gradient = ctx.createRadialGradient(centerX, centerY, 5, centerX, centerY, 40);
+            gradient.addColorStop(0, '#FFF5F2');
+            gradient.addColorStop(0.2, '#FFD200');
+            gradient.addColorStop(1, 'transparent');
+
+            ctx.shadowBlur = 30;
+            ctx.shadowColor = '#FFD200';
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 40, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Inner Core
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = '#FFCC00';
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 25, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function animate() {
+            ctx.fillStyle = '#050505';
+            ctx.fillRect(0, 0, width, height);
+
+            // Draw Stars
+            stars.forEach(star => {
+                ctx.fillStyle = `rgba(255, 255, 255, ${star.opacity})`;
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            drawSun();
+
+            planets.forEach(planet => {
+                planet.update();
+                planet.draw();
+            });
+
+            requestAnimationFrame(animate);
+        }
+
+        window.addEventListener('resize', resize);
+        
+        resize();
+        initPlanets();
+        animate();
+    </script>
+</body>
+</html>

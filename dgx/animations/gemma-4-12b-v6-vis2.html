@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spiral Galaxy Animation</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="galaxyCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('galaxyCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let width, height;
+        let stars = [];
+        const STAR_COUNT = 1200;
+        const CORE_COLOR = 'rgba(255, 255, 200, 0.8)';
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+
+        window.addEventListener('resize', resize);
+        resize();
+
+        class Star {
+            constructor() {
+                this.init();
+            }
+
+            init() {
+                // Spiral math parameters
+                // Distance from center (r) and angle (theta)
+                // Using a logarithmic-ish spiral: r = a * e^(b * theta)
+                const angle = Math.random() * Math.PI * 2;
+                const dist = Math.pow(Math.random(), 0.7) * (Math.min(width, height) * 0.45);
+                
+                // Position in spiral
+                this.baseAngle = angle;
+                this.radius = dist;
+                
+                // Orbital properties
+                // Closer stars move faster (Keplerian-ish feel)
+                this.speed = (1 / (this.radius + 50)) * 0.5 + 0.01;
+                this.rotationSpeed = this.speed * 2;
+                
+                // Visuals
+                this.size = Math.random() * 1.5 + 0.5;
+                this.opacity = Math.random() * 0.8 + 0.2;
+                this.twinkleSpeed = Math.random() * 0.05 + 0.02;
+                this.twinkleOffset = Math.random() * Math.PI * 2;
+                
+                // Color variation (Blues, Purples, Yellows)
+                const colors = ['#fff', '#fff', '#eef', '#ff0', '#dff'];
+                this.color = colors[Math.floor(Math.random() * colors.length)];
+                
+                // Slight orbital "thickness"
+                this.spread = (Math.random() - 0.5) * (this.radius * 0.2 + 10);
+                
+                this.updatePosition();
+            }
+
+            updatePosition() {
+                // Increment angle based on speed
+                this.baseAngle += this.rotationSpeed;
+                
+                // Calculate x and y based on spiral
+                // We add a slight offset to make it look like a 3D disk
+                const x = Math.cos(this.baseAngle) * this.radius + (Math.random() - 0.5) * this.spread;
+                const y = Math.sin(this.baseAngle) * this.radius + (Math.random() - 0.5) * this.spread;
+                
+                // Perspective compression (make it look like a tilted disk)
+                this.x = width / 2 + x;
+                this.y = height / 2 + y * 0.4; // Flattening the Y axis for perspective
+            }
+
+            draw() {
+                const twinkle = (Math.sin(Date.now() * this.twinkleSpeed + this.twinkleOffset) + 1) / 2;
+                ctx.fillStyle = this.color;
+                ctx.globalAlpha = this.opacity * (0.5 + twinkle * 0.5);
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function createGalaxy() {
+            stars = [];
+            for (let i = 0; i < STAR_COUNT; i++) {
+                stars.push(new Star());
+            }
+        }
+
+        function animate() {
+            // Subtle motion blur effect
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+            ctx.fillRect(0, 0, width, height);
+
+            // Draw Core Glow
+            const gradient = ctx.createRadialGradient(width/2, height/2, 0, width/2, height/2, 50);
+            gradient.addColorStop(0, CORE_COLOR);
+            gradient.addColorStop(1, 'transparent');
+            ctx.fillStyle = gradient;
+            ctx.globalAlpha = 1;
+            ctx.beginPath();
+            ctx.arc(width/2, height/2, 50, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Draw Stars
+            stars.forEach(star => {
+                star.updatePosition();
+                star.draw();
+            });
+
+            requestAnimationFrame(animate);
+        }
+
+        createGalaxy();
+        animate();
+    </script>
+</body>
+</html>
