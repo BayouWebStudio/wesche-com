@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+  <meta name="theme-color" content="#071317">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Hex">
+  <meta name="format-detection" content="telephone=no">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://*.trycloudflare.com; img-src 'self' data:; media-src 'self' blob: https://*.trycloudflare.com; style-src 'self'; script-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'">
+  <title>Hex // Jarvis</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/hex-icon-180.png">
+  <link rel="icon" href="icons/hex-icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <canvas id="field" aria-hidden="true"></canvas>
+
+  <section id="login-screen" class="login-screen" aria-labelledby="login-title">
+    <div class="login-panel glass">
+      <div class="login-mark" aria-hidden="true">
+        <img src="icons/hex-icon.svg" alt="">
+      </div>
+      <p class="eyebrow">PRIVATE INTELLIGENCE SYSTEM</p>
+      <h1 id="login-title">HEX<span class="energy">//</span>JARVIS</h1>
+      <p class="login-copy">Identity verification required.</p>
+      <form id="login-form" autocomplete="on">
+        <label for="password">Access phrase</label>
+        <div class="password-row">
+          <input id="password" name="password" type="password" autocomplete="current-password" required maxlength="256" placeholder="Enter access phrase">
+          <button id="toggle-password" type="button" class="icon-button" aria-label="Show password">◉</button>
+        </div>
+        <button id="login-button" class="primary-button" type="submit">
+          <span>Establish secure link</span>
+          <span aria-hidden="true">→</span>
+        </button>
+        <p id="login-error" class="form-error" role="alert"></p>
+      </form>
+      <div class="secure-line"><span></span> END-TO-END TLS <span></span></div>
+    </div>
+  </section>
+
+  <div id="app" class="app" hidden>
+    <header class="topbar">
+      <div class="brand-lockup">
+        <div class="brand-glyph">H</div>
+        <div>
+          <p>HEX OPERATING SYSTEM</p>
+          <strong>JARVIS HUB</strong>
+        </div>
+      </div>
+      <div class="top-status">
+        <span id="link-dot" class="status-dot"></span>
+        <span id="clock">--:--</span>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <section id="panel-command" class="panel active" aria-labelledby="command-title">
+        <h2 id="command-title" class="sr-only">Command Hex</h2>
+        <div class="face-stage">
+          <div class="orbital-data orbital-left" aria-hidden="true">
+            <span>CORE</span><strong id="core-status">ONLINE</strong>
+          </div>
+          <div class="orbital-data orbital-right" aria-hidden="true">
+            <span>SPARKS</span><strong id="spark-count">-- / 4</strong>
+          </div>
+
+          <div id="hex-face" class="hex-face" data-state="idle" aria-label="Hex is idle">
+            <div class="halo halo-a"></div>
+            <div class="halo halo-b"></div>
+            <svg viewBox="0 0 420 420" role="img" aria-labelledby="face-title face-desc">
+              <title id="face-title">Hex</title>
+              <desc id="face-desc">A geometric luminous face representing Hex.</desc>
+              <defs>
+                <linearGradient id="face-energy" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0" stop-color="#47a7ff"/>
+                  <stop offset="1" stop-color="#45f5df"/>
+                </linearGradient>
+                <radialGradient id="core-energy">
+                  <stop offset="0" stop-color="#efffff"/>
+                  <stop offset=".25" stop-color="#45f5df"/>
+                  <stop offset="1" stop-color="#45f5df" stop-opacity="0"/>
+                </radialGradient>
+                <filter id="face-glow" x="-100%" y="-100%" width="300%" height="300%">
+                  <feGaussianBlur stdDeviation="7" result="blur"/>
+                  <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                </filter>
+              </defs>
+              <g class="face-grid" opacity=".2">
+                <path d="M210 18 371 111v186L210 390 49 297V111Z"/>
+                <path d="M210 48 345 126v156L210 360 75 282V126Z"/>
+                <circle cx="210" cy="204" r="118"/>
+                <path d="M25 204h370M210 18v372"/>
+              </g>
+              <g class="head-shell">
+                <path d="M210 58 319 121l30 121-62 91-77 44-77-44-62-91 30-121Z"/>
+                <path class="shell-detail" d="m102 128 49 39-20 92 79 93 79-93-20-92 49-39"/>
+              </g>
+              <g class="eyes" filter="url(#face-glow)">
+                <path class="eye eye-left" d="m113 191 75 12-18 31-69-10Z"/>
+                <path class="eye eye-right" d="m307 191-75 12 18 31 69-10Z"/>
+              </g>
+              <g class="core" filter="url(#face-glow)">
+                <circle cx="210" cy="279" r="42" fill="url(#core-energy)"/>
+                <path d="m210 250 28 48h-56Z"/>
+                <circle cx="210" cy="279" r="22"/>
+              </g>
+              <g class="mouth-wave" filter="url(#face-glow)">
+                <path d="M152 253h18l8-8 11 16 10-23 12 30 11-20 10 12 10-7h26"/>
+              </g>
+              <g class="listen-bars" aria-hidden="true">
+                <path d="M52 244v-38M66 260v-70M80 246v-42M340 246v-42M354 260v-70M368 244v-38"/>
+              </g>
+            </svg>
+          </div>
+
+          <div class="face-caption">
+            <p id="face-state">SYSTEM READY</p>
+            <span id="face-substate">Tap the core to speak</span>
+          </div>
+        </div>
+
+        <div id="conversation" class="conversation glass" aria-live="polite">
+          <div class="message hex-message">
+            <span class="message-label">HEX</span>
+            <p>Secure link established. What are we working on?</p>
+          </div>
+        </div>
+
+        <div class="command-dock glass">
+          <button id="voice-button" class="voice-button" type="button" aria-label="Start voice input">
+            <span class="mic-ring"></span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 0 0 3.5-3.5V6a3.5 3.5 0 0 0-7 0v6a3.5 3.5 0 0 0 3.5 3.5Zm-7-4a1 1 0 0 1 2 0 5 5 0 0 0 10 0 1 1 0 1 1 2 0 7 7 0 0 1-6 6.92V21h3a1 1 0 1 1 0 2H8a1 1 0 1 1 0-2h3v-2.58A7 7 0 0 1 5 11.5Z"/></svg>
+          </button>
+          <form id="chat-form">
+            <label class="sr-only" for="message-input">Message Hex</label>
+            <textarea id="message-input" rows="1" maxlength="20000" placeholder="Message Hex..."></textarea>
+            <button id="send-button" class="send-button" type="submit" aria-label="Send message">↑</button>
+          </form>
+          <button id="voice-output-toggle" class="sound-toggle active" type="button" aria-label="Disable spoken replies">VOICE</button>
+        </div>
+      </section>
+
+      <section id="panel-sparks" class="panel" aria-labelledby="sparks-title">
+        <div class="section-heading">
+          <div><p class="eyebrow">COMPUTE FABRIC</p><h2 id="sparks-title">DGX Sparks</h2></div>
+          <button id="refresh-sparks" class="secondary-button" type="button">Refresh</button>
+        </div>
+        <div class="cluster-summary glass">
+          <div><span>CLUSTER</span><strong id="cluster-state">CHECKING</strong></div>
+          <div><span>ONLINE</span><strong id="cluster-online">-- / 4</strong></div>
+          <div><span>ACTIVE MODELS</span><strong id="cluster-models">--</strong></div>
+        </div>
+        <div id="spark-grid" class="spark-grid" aria-live="polite">
+          <div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div>
+        </div>
+      </section>
+
+      <section id="panel-vault" class="panel" aria-labelledby="vault-title">
+        <div class="section-heading">
+          <div><p class="eyebrow">KNOWLEDGE CORE</p><h2 id="vault-title">Obsidian Vault</h2></div>
+          <span class="read-only-badge">READ ONLY</span>
+        </div>
+        <form id="vault-search-form" class="vault-search glass">
+          <label class="sr-only" for="vault-query">Search the vault</label>
+          <span aria-hidden="true">⌕</span>
+          <input id="vault-query" type="search" maxlength="200" placeholder="Search projects, decisions, workflows...">
+          <button type="submit">Search</button>
+        </form>
+        <div class="vault-shortcuts">
+          <button type="button" data-vault-query="DGX Spark">DGX / AI</button>
+          <button type="button" data-vault-query="OMF Geometry">OMF</button>
+          <button type="button" data-vault-query="Eterno">Eterno</button>
+          <button type="button" data-vault-query="Personal Goals">Personal</button>
+        </div>
+        <div id="vault-results" class="vault-results">
+          <div class="empty-state glass"><strong>858 notes connected</strong><p>Search across projects, decisions, workflows, and personal systems.</p></div>
+        </div>
+      </section>
+
+      <section id="panel-system" class="panel" aria-labelledby="system-title">
+        <div class="section-heading">
+          <div><p class="eyebrow">CONTROL PLANE</p><h2 id="system-title">System</h2></div>
+        </div>
+        <div class="system-hero glass">
+          <img src="icons/hex-icon.svg" alt="Hex">
+          <div><span>ACTIVE INTELLIGENCE</span><h3>GPT-5.6 Sol</h3><p>Hermes Agent · Full tool access</p></div>
+          <i id="hermes-indicator"></i>
+        </div>
+        <div class="system-grid">
+          <article class="system-card glass"><span>HERMES</span><strong id="hermes-state">CONNECTED</strong><p>Persistent memory, skills, tools, and sessions.</p></article>
+          <article class="system-card glass"><span>VOICE</span><strong>LOCAL + EDGE</strong><p>Faster-Whisper input and neural spoken replies.</p></article>
+          <article class="system-card glass"><span>KNOWLEDGE</span><strong>OBSIDIAN</strong><p>Synced private vault on the Spark network.</p></article>
+          <article class="system-card glass"><span>SECURITY</span><strong>PRIVATE LINK</strong><p>Signed access token over Cloudflare Tunnel.</p></article>
+        </div>
+        <div class="quick-links glass">
+          <a href="/dgx/"><span>DGX Benchmark Lab</span><strong>Open →</strong></a>
+          <a href="https://omfgeometry.com"><span>OMF Geometry</span><strong>Open →</strong></a>
+        </div>
+        <button id="logout-button" class="danger-button" type="button">End secure session</button>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" aria-label="Main navigation">
+      <button class="nav-button active" data-panel="command" type="button"><span>⬡</span><small>Command</small></button>
+      <button class="nav-button" data-panel="sparks" type="button"><span>◫</span><small>Sparks</small></button>
+      <button class="nav-button" data-panel="vault" type="button"><span>◇</span><small>Vault</small></button>
+      <button class="nav-button" data-panel="system" type="button"><span>⌘</span><small>System</small></button>
+    </nav>
+  </div>
+
+  <dialog id="note-dialog" class="note-dialog">
+    <header><div><span>OBSIDIAN NOTE</span><h2 id="note-title">Note</h2></div><button id="close-note" type="button" aria-label="Close note">×</button></header>
+    <p id="note-path" class="note-path"></p>
+    <pre id="note-content"></pre>
+    <footer><button id="ask-about-note" class="primary-button" type="button">Ask Hex about this note</button></footer>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="app.js" defer></script>
+</body>
+</html>
