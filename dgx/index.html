@@ -2,9 +2,9 @@
 <html lang="en"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Spark-Bench — LLM Benchmarks on DGX Spark | wesche.com</title>
-<meta name="description" content="Mixed-capability LLM benchmark for NVIDIA DGX Spark. 64 scenarios, 11 domains, size-tiered leaderboards, executable code grading, partial-credit scoring. Open source.">
+<meta name="description" content="Mixed-capability LLM benchmark for NVIDIA DGX Spark. 74 scenarios, 11 domains, provenance-stamped grading, executable code tests, partial-credit scoring. Open source.">
 <meta property="og:title" content="Spark-Bench — LLM Benchmarks on DGX Spark">
-<meta property="og:description" content="64 scenarios · 11 domains · size-tiered leaderboards · executable code tests · partial-credit grading · Open source.">
+<meta property="og:description" content="74 scenarios · 11 domains · provenance-stamped grading · executable code tests · partial-credit grading · Open source.">
 <meta property="og:image" content="spark-bench-promo.jpg">
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-WDWRJTR5BY"></script>
 <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}
@@ -43,8 +43,11 @@ h1{font-size:36px;margin:0 0 6px;letter-spacing:-.02em}h2{font-size:22px;margin:
 .mode-tag.off{background:rgba(110,200,140,.15);color:#6ec88c}
 .ver-badge{display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700}
 .ver-badge.v4{background:rgba(76,217,100,.15);color:#4cd964}
-.ver-badge.v5c{background:rgba(76,217,100,.15);color:#4cd964}
+.ver-badge.v5c{background:rgba(139,144,168,.15);color:#8b90a8}
+.ver-badge.v64c{background:rgba(76,217,100,.15);color:#4cd964}
 .ver-badge.v1{background:rgba(139,144,168,.15);color:#8b90a8}
+.quarantine-note{background:rgba(255,165,0,.08);border:1px solid rgba(255,165,0,.25);border-radius:10px;padding:12px 16px;font-size:13px;color:var(--mut);margin:14px 0 26px}
+.hist-note{color:var(--mut);font-size:13px;margin:6px 0 18px}
 .tier-badge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
 .tier-badge.small{background:rgba(110,168,255,.15);color:var(--acc)}
 .tier-badge.mid{background:rgba(180,122,255,.15);color:var(--purp)}
@@ -77,9 +80,9 @@ footer a{color:var(--acc);text-decoration:none}
 @media(max-width:720px){.grid{grid-template-columns:1fr}h1{font-size:28px}.intro{padding:16px}.tabs{padding:0 10px}.tab{padding:10px 16px;font-size:13px}.mtable th:nth-child(4),.mtable td:nth-child(4),.mtable th:nth-child(5),.mtable td:nth-child(5),.mtable th:nth-child(6),.mtable td:nth-child(6),.mtable th:nth-child(7),.mtable td:nth-child(7),.mtable th:nth-child(8),.mtable td:nth-child(8){display:none}.mtable{font-size:12px}.mtable td,.mtable th{padding:6px 5px}}
 </style></head><body>
 <header><div class="wrap">
-<div class="tag">NVIDIA DGX Spark · Grace-Blackwell · v6.1 Mixed-Capability Benchmark</div>
+<div class="tag">NVIDIA DGX Spark · Grace-Blackwell · v6.4c Mixed-Capability Benchmark</div>
 <h1>Spark-Bench</h1>
-<p class="lede">64 scenarios · 11 domains · size-tiered leaderboards · executable code tests · pixel-graded visual artifacts · partial-credit scoring</p>
+<p class="lede">74 scenarios · 11 domains · executable code tests · pixel-graded visual artifacts · partial-credit scoring · provenance-stamped grading</p>
 </div></header>
 
 <img class="promo" src="spark-bench-promo.jpg" alt="Spark-Bench promotional graphic">
@@ -88,7 +91,7 @@ footer a{color:var(--acc);text-decoration:none}
 
 <!-- INTRO -->
 <div class="intro">
-<p><strong>Spark-Bench</strong> is a mixed-capability LLM benchmark built specifically for the NVIDIA DGX Spark (GB10 Grace-Blackwell) platform. It evaluates models across <strong>64 scenarios in 11 domains</strong> using the v6.1 benchmark — tool use, instruction following, structured output, long context retrieval, safety, robustness, multi-step tool chains, restraint/refusal detection, autonomous planning, executable code generation, and visual artifact generation.</p>
+<p><strong>Spark-Bench</strong> is a mixed-capability LLM benchmark built specifically for the NVIDIA DGX Spark (GB10 Grace-Blackwell) platform. It evaluates models across <strong>74 scenarios in 11 domains</strong> using the v6.4c protocol — tool use, instruction following, structured output, long context retrieval, safety, robustness, multi-step tool chains, restraint/refusal detection, autonomous planning, executable code generation, and visual artifact generation.</p>
 
 <p>Models are grouped into <strong>size tiers</strong> so small models compete against peers of similar capacity. A 2B dense model isn't compared head-to-head with a 35B MoE — instead, each tier has its own leaderboard.</p>
 
@@ -116,14 +119,42 @@ footer a{color:var(--acc);text-decoration:none}
 <div id="leaderboard" class="tab-panel active">
 
 <div class="stats-row">
-<div class="stat-badge"><div class="val">64</div><div class="lbl">Scenarios</div></div>
+<div class="stat-badge"><div class="val">74</div><div class="lbl">Scenarios</div></div>
 <div class="stat-badge"><div class="val">11</div><div class="lbl">Domains</div></div>
-<div class="stat-badge"><div class="val">3</div><div class="lbl">Size Tiers</div></div>
-<div class="stat-badge"><div class="val">27</div><div class="lbl">Models</div></div>
-<div class="stat-badge"><div class="val">777K</div><div class="lbl">Known Out Tok</div></div>
+<div class="stat-badge"><div class="val">v6.4c</div><div class="lbl">Protocol</div></div>
+<div class="stat-badge"><div class="val">8</div><div class="lbl">Ranked Runs</div></div>
+<div class="stat-badge"><div class="val">36</div><div class="lbl">Quarantined</div></div>
 <div class="stat-badge"><div class="val">10</div><div class="lbl">Code Tests</div></div>
-<div class="stat-badge"><div class="val">5%</div><div class="lbl">Speed Weight</div></div>
+<div class="stat-badge"><div class="val">K=2</div><div class="lbl">Repeats</div></div>
 </div>
+
+<!-- CURRENT BOARD: v6.4c -->
+<div class="tier-header">
+<span class="tier-badge mid">Current</span>
+<h3>TrueScore v6.4c · 74 scenarios · think-OFF</h3>
+<span class="tier-sub">1× DGX Spark unless marked · grader-provenance stamped</span>
+</div>
+<table class="mtable" style="background:var(--card);border:1px solid var(--line);border-radius:14px">
+<tr><th>#</th><th>Model</th><th>TrueScore</th><th>Capability</th><th>Cal</th><th>Rel</th><th>Spec decode</th><th>Ver</th></tr>
+<tr><td>1</td><td><div class="model-name">Qwopus 27B (AWQ)</div><div class="model-desc">27B dense merge · AWQ · vLLM</div></td><td><span class="ts-score high">89.1</span></td><td>83.2</td><td>100.0</td><td>97.4</td><td>—</td><td><span class="ver-badge v64c">v6.4c</span></td></tr>
+<tr><td>2</td><td><div class="model-name">Agents A1 (NVFP4)</div><div class="model-desc">NVFP4 · vLLM</div></td><td><span class="ts-score high">88.1</span></td><td>81.8</td><td>96.9</td><td>95.5</td><td>—</td><td><span class="ver-badge v64c">v6.4c</span></td></tr>
+<tr><td>3</td><td><div class="model-name">Qwen 3.6-35B UD-Q8</div><div class="model-desc">35B-A3B MoE · UD-Q8_K_XL · llama.cpp</div></td><td><span class="ts-score high">87.5</span></td><td>81.7</td><td>93.9</td><td>96.7</td><td>—</td><td><span class="ver-badge v64c">v6.4c</span></td></tr>
+<tr><td>4</td><td><div class="model-name">Qwen 3.6-35B NVFP4 · DFlash</div><div class="model-desc">35B-A3B MoE · NVFP4 · vLLM · DFlash k=10</div></td><td><span class="ts-score high">87.2</span></td><td>80.2</td><td>93.9</td><td>99.1</td><td>dflash-k10</td><td><span class="ver-badge v64c">v6.4c</span></td></tr>
+<tr><td>5</td><td><div class="model-name">Qwen 3.6-35B NVFP4 · MTP-3</div><div class="model-desc">35B-A3B MoE · NVFP4 · vLLM · MTP-3</div></td><td><span class="ts-score high">86.6</span></td><td>79.5</td><td>93.9</td><td>97.0</td><td>mtp3</td><td><span class="ver-badge v64c">v6.4c</span></td></tr>
+<tr><td>6</td><td><div class="model-name">Ornith 35B</div><div class="model-desc">35B · GGUF · llama.cpp</div></td><td><span class="ts-score high">85.1</span></td><td>76.8</td><td>93.9</td><td>98.1</td><td>—</td><td><span class="ver-badge v64c">v6.4c</span></td></tr>
+<tr><td>7</td><td><div class="model-name">Qwen 3.6-27B NVFP4 · MTP</div><div class="model-desc">27B dense · NVFP4 (MTP-restored ckpt) · vLLM · MTP-3</div></td><td><span class="ts-score ok">84.1</span></td><td>80.9</td><td>84.9</td><td>93.3</td><td>mtp3</td><td><span class="ver-badge v64c">v6.4c</span></td></tr>
+<tr><td>8</td><td><div class="model-name">Grok 4.5 (cloud reference)</div><div class="model-desc">OpenRouter API · effort low · smoke run</div></td><td><span class="ts-score ok">82.6</span></td><td>79.0</td><td>—</td><td>100.0</td><td>—</td><td><span class="ver-badge v64c">v6.4c</span></td></tr>
+</table>
+
+<div class="quarantine-note">⚠ <strong>Quarantine policy:</strong> 36 additional v6.4c runs are withheld from ranking because the grader flagged degenerate score patterns (e.g. a domain scoring flat 1.0 or 0.0). We treat those as a harness symptom until a human verifies the model really behaves that way — runs get ranked only after review. Full quarantine list with reasons lives in the <a href="https://github.com/Weschera/spark-bench" target="_blank" style="color:var(--acc)">repo</a> (<code>results/spark_bench.csv</code>). Every ranked number above carries a run_id and grader git hash.</div>
+
+<!-- HISTORICAL SNAPSHOT -->
+<div class="tier-header">
+<span class="tier-badge small">Historical</span>
+<h3>v6.1 / v5c snapshot · 64 scenarios · 27 models</h3>
+<span class="tier-sub">Pre-integrity-overhaul era (June–early July 2026) — kept for context, not comparable to v6.4c</span>
+</div>
+<p class="hist-note">Scores below were produced by pre-<code>baedb94</code> graders without golden-gate checks or provenance stamping. Treat as historical record.</p>
 
 <!-- SMALL TIER -->
 <div class="tier-header">
@@ -1077,7 +1108,7 @@ footer a{color:var(--acc);text-decoration:none}
 </div>
 
 </main>
-<footer>v6.1 64-scenario mixed-capability benchmark · 27 models · 13 models on v6.1, 14 on v5c · last updated 2026-07-02 · <a href="https://wesche.com/dgx">wesche.com/dgx</a> · <a href="https://github.com/Weschera/spark-bench" style="color:var(--acc)">GitHub</a></footer>
+<footer>v6.4c 74-scenario mixed-capability benchmark · 8 ranked + 36 quarantined runs · historical v6.1/v5c snapshot included · last updated 2026-07-10 · <a href="https://wesche.com/dgx">wesche.com/dgx</a> · <a href="https://github.com/Weschera/spark-bench" style="color:var(--acc)">GitHub</a></footer>
 
 <script>
 function showTab(id){
