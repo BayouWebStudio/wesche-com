@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flappy Bird Duel — 1-bit vs 4-bit, same prompt</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin:0; background:#0d1117; color:#ebebeb; font-family:system-ui,-apple-system,sans-serif; }
+  header { text-align:center; padding:28px 16px 10px; }
+  h1 { margin:0 0 6px; font-size:clamp(20px,4vw,34px); }
+  .sub { color:#96a0aa; font-size:15px; max-width:720px; margin:0 auto; line-height:1.5; }
+  .duel { display:flex; flex-wrap:wrap; gap:20px; justify-content:center; padding:24px 12px 40px; }
+  .panel { flex:1 1 440px; max-width:560px; }
+  .panel h2 { text-align:center; font-size:18px; margin:0 0 4px; }
+  .panel .meta { text-align:center; color:#96a0aa; font-size:13px; margin-bottom:10px; }
+  .bonsai h2 { color:#34d058; } .qwen h2 { color:#58a6ff; }
+  iframe { width:100%; height:640px; border:2px solid #30363d; border-radius:12px; background:#000; }
+  footer { text-align:center; color:#96a0aa; font-size:13px; padding:0 16px 32px; line-height:1.6; }
+  a { color:#58a6ff; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🐦 Flappy Bird Duel: 1-bit vs 4-bit</h1>
+  <p class="sub">Both games below were written by AI models from one identical prompt, one attempt, zero human edits.
+  Same brain (Qwen3.6-27B) at two compression levels. Click or press space to flap.</p>
+</header>
+<div class="duel">
+  <div class="panel qwen">
+    <h2>Qwen3.6-27B NVFP4 (official 4-bit)</h2>
+    <div class="meta">15 GB · capability 83.0/100 on our 74-scenario suite</div>
+    <iframe src="qwen.html" title="Qwen NVFP4 flappy bird"></iframe>
+  </div>
+  <div class="panel bonsai">
+    <h2>Bonsai 27B (1-bit)</h2>
+    <div class="meta">3.6 GB · capability 78.4/100 — 96% of full precision in 1/15th the size</div>
+    <iframe src="bonsai.html" title="Bonsai 1-bit flappy bird"></iframe>
+  </div>
+</div>
+<footer>
+  Prompt: "Write a complete, self-contained Flappy Bird game in a single HTML file..." (identical for both, temp 0.2, thinking off, one shot).<br>
+  Served on NVIDIA DGX Spark: vLLM (NVFP4) and llama.cpp (Q1_0). Outputs published verbatim — bugs included.<br>
+  Full benchmark data: <a href="/dgx">wesche.com/dgx</a> · <a href="https://x.com/WescheNex1q">@WescheNex1q</a>
+</footer>
+</body>
+</html>
