@@ -2,10 +2,12 @@
 <html lang="en"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Spark-Bench — LLM Benchmarks on DGX Spark | wesche.com</title>
-<meta name="description" content="Mixed-capability LLM benchmark for NVIDIA DGX Spark. 74 scenarios, 11 domains, provenance-stamped grading, executable code tests, partial-credit scoring. Open source.">
+<meta name="description" content="Mixed-capability LLM benchmark for NVIDIA DGX Spark. 74 scenarios, 12 domains, provenance-stamped grading, executable code tests, partial-credit scoring. Open source.">
 <meta property="og:title" content="Spark-Bench — LLM Benchmarks on DGX Spark">
-<meta property="og:description" content="74 scenarios · 11 domains · provenance-stamped grading · executable code tests · partial-credit grading · Open source.">
-<meta property="og:image" content="spark-bench-promo.jpg">
+<meta property="og:description" content="74 scenarios · 12 domains · provenance-stamped grading · executable code tests · partial-credit grading · Open source.">
+<meta property="og:image" content="https://wesche.com/dgx/spark-bench-promo.jpg">
+<meta property="og:url" content="https://wesche.com/dgx/">
+<meta property="og:type" content="website">
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-WDWRJTR5BY"></script>
 <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}
 gtag('js',new Date());gtag('config','G-WDWRJTR5BY');</script>
@@ -77,12 +79,12 @@ code{background:#1c1e2e;padding:1px 6px;border-radius:5px;font-size:13px}
 .game-link:hover{background:rgba(110,168,255,.2)}
 footer{color:var(--mut);text-align:center;padding:40px 0 60px;font-size:13px}
 footer a{color:var(--acc);text-decoration:none}
-@media(max-width:720px){.grid{grid-template-columns:1fr}h1{font-size:28px}.intro{padding:16px}.tabs{padding:0 10px}.tab{padding:10px 16px;font-size:13px}.mtable th:nth-child(4),.mtable td:nth-child(4),.mtable th:nth-child(5),.mtable td:nth-child(5),.mtable th:nth-child(6),.mtable td:nth-child(6),.mtable th:nth-child(7),.mtable td:nth-child(7),.mtable th:nth-child(8),.mtable td:nth-child(8){display:none}.mtable{font-size:12px}.mtable td,.mtable th{padding:6px 5px}}
+@media(max-width:720px){.grid{grid-template-columns:1fr}h1{font-size:28px}.intro{padding:16px}.tabs{padding:0 10px}.tab{padding:10px 16px;font-size:13px}.mtable{font-size:12px;display:block;overflow-x:auto;-webkit-overflow-scrolling:touch;white-space:nowrap}.mtable td,.mtable th{padding:6px 5px}.mtable th{position:sticky;left:0;background:var(--card);z-index:1}.stats-row{gap:6px}.stat-badge{min-width:80px;padding:8px 10px}.stat-badge .val{font-size:18px}}
 </style></head><body>
 <header><div class="wrap">
 <div class="tag">NVIDIA DGX Spark · Grace-Blackwell · v6.4c Mixed-Capability Benchmark</div>
 <h1>Spark-Bench</h1>
-<p class="lede">74 scenarios · 11 domains · executable code tests · pixel-graded visual artifacts · partial-credit scoring · provenance-stamped grading</p>
+<p class="lede">74 scenarios · 12 domains · executable code tests · pixel-graded visual artifacts · partial-credit scoring · provenance-stamped grading</p>
 </div></header>
 
 <img class="promo" src="spark-bench-promo.jpg" alt="Spark-Bench promotional graphic">
@@ -91,7 +93,7 @@ footer a{color:var(--acc);text-decoration:none}
 
 <!-- INTRO -->
 <div class="intro">
-<p><strong>Spark-Bench</strong> is a mixed-capability LLM benchmark built specifically for the NVIDIA DGX Spark (GB10 Grace-Blackwell) platform. It evaluates models across <strong>74 scenarios in 11 domains</strong> using the v6.4c protocol — tool use, instruction following, structured output, long context retrieval, safety, robustness, multi-step tool chains, restraint/refusal detection, autonomous planning, executable code generation, and visual artifact generation.</p>
+<p><strong>Spark-Bench</strong> is a mixed-capability LLM benchmark built specifically for the NVIDIA DGX Spark (GB10 Grace-Blackwell) platform. It evaluates models across <strong>74 scenarios in 12 domains</strong> using the v6.4c protocol — agentic workflows, tool use, instruction following, structured output, long context retrieval, safety, robustness, multi-step tool chains, restraint/refusal detection, autonomous planning, executable code generation, and visual artifact generation.</p>
 
 <p>Models are grouped into <strong>size tiers</strong> so small models compete against peers of similar capacity. A 2B dense model isn't compared head-to-head with a 35B MoE — instead, each tier has its own leaderboard.</p>
 
@@ -109,10 +111,10 @@ footer a{color:var(--acc);text-decoration:none}
 
 <!-- TABS -->
 <div class="tabs">
-<button class="tab active" onclick="showTab('leaderboard')">Leaderboard</button>
-<button class="tab" onclick="showTab('games')">Games</button>
-<button class="tab" onclick="showTab('animations')">Animations</button>
-<button class="tab" onclick="showTab('methodology')">Methodology</button>
+<button class="tab active" onclick="showTab('leaderboard',this)">Leaderboard</button>
+<button class="tab" onclick="showTab('games',this)">Games</button>
+<button class="tab" onclick="showTab('animations',this)">Animations</button>
+<button class="tab" onclick="showTab('methodology',this)">Methodology</button>
 </div>
 
 <!-- TAB: LEADERBOARD -->
@@ -120,7 +122,7 @@ footer a{color:var(--acc);text-decoration:none}
 
 <div class="stats-row">
 <div class="stat-badge"><div class="val">74</div><div class="lbl">Scenarios</div></div>
-<div class="stat-badge"><div class="val">11</div><div class="lbl">Domains</div></div>
+<div class="stat-badge"><div class="val">12</div><div class="lbl">Domains</div></div>
 <div class="stat-badge"><div class="val">v6.4c</div><div class="lbl">Protocol</div></div>
 <div class="stat-badge"><div class="val">8</div><div class="lbl">Ranked Runs</div></div>
 <div class="stat-badge"><div class="val">36</div><div class="lbl">Quarantined</div></div>
@@ -416,28 +418,28 @@ footer a{color:var(--acc);text-decoration:none}
 
 <div class="card" style="margin-top:0;margin-bottom:16px">
 <h4 style="margin:0 0 8px">MiniMax-M3 Frogger <span class="ts-score high" style="font-size:14px">85.4</span></h4>
-<iframe src="animations/minimax-m3-frogger-v5c.html" style="width:100%;height:420px;border:1px solid var(--line);border-radius:12px;background:#000" loading="lazy" title="MiniMax-M3 — Frogger"></iframe>
+<iframe data-src="animations/minimax-m3-frogger-v5c.html" style="width:100%;height:420px;border:1px solid var(--line);border-radius:12px;background:#000" loading="lazy" title="MiniMax-M3 — Frogger"></iframe>
 <p style="margin:8px 0"><a class="game-link" href="animations/minimax-m3-frogger-v5c.html" target="_blank">Play full screen ↗</a></p>
 <p class="sub" style="margin:6px 0 0">Generated after the benchmark from the same Frogger prompt used for the comparison. Raw MiniMax output; no manual game fixes.</p>
 </div>
 
 <div class="card" style="margin-top:0;margin-bottom:16px">
 <h4 style="margin:0 0 8px">MiniMax-M3 Space Invaders <span class="ts-score high" style="font-size:14px">85.4</span></h4>
-<iframe src="../spaceinvaders/minimax-m3.html" style="width:100%;height:360px;border:1px solid var(--line);border-radius:12px;background:#000" loading="lazy" title="MiniMax-M3 — Space Invaders"></iframe>
+<iframe data-src="../spaceinvaders/minimax-m3.html" style="width:100%;height:360px;border:1px solid var(--line);border-radius:12px;background:#000" loading="lazy" title="MiniMax-M3 — Space Invaders"></iframe>
 <p style="margin:8px 0"><a class="game-link" href="../spaceinvaders/minimax-m3.html" target="_blank">Play full screen ↗</a></p>
 <p class="sub" style="margin:6px 0 0">Prompt: <code>Create a fully playable Space Invaders game in a single HTML file.</code> Temperature 0.3, max_tokens 8000, thinking disabled. Raw MiniMax output; no manual game fixes.</p>
 </div>
 
 <div class="card" style="margin-top:0;margin-bottom:16px">
 <h4 style="margin:0 0 8px">MiMo V2.5 NVFP4 Frogger <span class="ts-score ok" style="font-size:14px">79.7</span></h4>
-<iframe src="animations/mimo-v25-nvfp4-tp2-frogger-v5c.html" style="width:100%;height:420px;border:1px solid var(--line);border-radius:12px;background:#000" loading="lazy" title="MiMo V2.5 NVFP4 - Frogger"></iframe>
+<iframe data-src="animations/mimo-v25-nvfp4-tp2-frogger-v5c.html" style="width:100%;height:420px;border:1px solid var(--line);border-radius:12px;background:#000" loading="lazy" title="MiMo V2.5 NVFP4 - Frogger"></iframe>
 <p style="margin:8px 0"><a class="game-link" href="animations/mimo-v25-nvfp4-tp2-frogger-v5c.html" target="_blank">Play full screen ↗</a></p>
 <p class="sub" style="margin:6px 0 0">Generated after the benchmark from the same Frogger prompt used for the comparison. Temperature 0.3, max_tokens 12000, thinking disabled. Raw MiMo output; no manual game fixes.</p>
 </div>
 
 <div class="card" style="margin-top:0;margin-bottom:16px">
 <h4 style="margin:0 0 8px">MiMo V2.5 NVFP4 Space Invaders <span class="ts-score ok" style="font-size:14px">79.7</span></h4>
-<iframe src="../spaceinvaders/mimo-v25-nvfp4-tp2.html" style="width:100%;height:360px;border:1px solid var(--line);border-radius:12px;background:#000" loading="lazy" title="MiMo V2.5 NVFP4 - Space Invaders"></iframe>
+<iframe data-src="../spaceinvaders/mimo-v25-nvfp4-tp2.html" style="width:100%;height:360px;border:1px solid var(--line);border-radius:12px;background:#000" loading="lazy" title="MiMo V2.5 NVFP4 - Space Invaders"></iframe>
 <p style="margin:8px 0"><a class="game-link" href="../spaceinvaders/mimo-v25-nvfp4-tp2.html" target="_blank">Play full screen ↗</a></p>
 <p class="sub" style="margin:6px 0 0">Prompt: <code>Create a fully playable Space Invaders game in a single HTML file.</code> Temperature 0.3, max_tokens 8000, thinking disabled. Raw MiMo output; no manual game fixes.</p>
 </div>
@@ -445,42 +447,42 @@ footer a{color:var(--acc);text-decoration:none}
 
 <div class="card" style="margin-top:0;margin-bottom:16px">
 <h4 style="margin:0 0 8px">Agents-A1 Frogger <span class="ts-score ok" style="font-size:14px">83.4</span></h4>
-<iframe src="animations/agents-a1-frogger-v5c.html" style="width:100%;height:420px;border:1px solid var(--line);border-radius:12px;background:#000" loading="lazy" title="Agents-A1 - Frogger"></iframe>
+<iframe data-src="animations/agents-a1-frogger-v5c.html" style="width:100%;height:420px;border:1px solid var(--line);border-radius:12px;background:#000" loading="lazy" title="Agents-A1 - Frogger"></iframe>
 <p style="margin:8px 0"><a class="game-link" href="animations/agents-a1-frogger-v5c.html" target="_blank">Play full screen ↗</a></p>
 <p class="sub" style="margin:6px 0 0">Generated after the benchmark from the same Frogger prompt used for the comparison. Temperature 0.3, max_tokens 12000, thinking disabled. Raw Agents-A1 output; no manual game fixes.</p>
 </div>
 
 <div class="card" style="margin-top:0;margin-bottom:16px">
 <h4 style="margin:0 0 8px">Agents-A1 Space Invaders <span class="ts-score ok" style="font-size:14px">83.4</span></h4>
-<iframe src="../spaceinvaders/agents-a1.html" style="width:100%;height:360px;border:1px solid var(--line);border-radius:12px;background:#000" loading="lazy" title="Agents-A1 - Space Invaders"></iframe>
+<iframe data-src="../spaceinvaders/agents-a1.html" style="width:100%;height:360px;border:1px solid var(--line);border-radius:12px;background:#000" loading="lazy" title="Agents-A1 - Space Invaders"></iframe>
 <p style="margin:8px 0"><a class="game-link" href="../spaceinvaders/agents-a1.html" target="_blank">Play full screen ↗</a></p>
 <p class="sub" style="margin:6px 0 0">Prompt: <code>Create a fully playable Space Invaders game in a single HTML file.</code> Temperature 0.3, max_tokens 8000, thinking disabled. Raw Agents-A1 output; no manual game fixes.</p>
 </div>
 
 <div class="card" style="margin-top:0;margin-bottom:16px">
 <h4 style="margin:0 0 8px">Qwen 3.6-27B NVIDIA DFlash Frogger <span class="ts-score ok" style="font-size:14px">81.0</span></h4>
-<iframe src="animations/qwen36-27b-nvidia-dflash-k10-frogger-v5c.html" style="width:100%;height:420px;border:1px solid var(--line);border-radius:12px;background:#000" loading="lazy" title="Qwen 3.6-27B NVIDIA DFlash - Frogger"></iframe>
+<iframe data-src="animations/qwen36-27b-nvidia-dflash-k10-frogger-v5c.html" style="width:100%;height:420px;border:1px solid var(--line);border-radius:12px;background:#000" loading="lazy" title="Qwen 3.6-27B NVIDIA DFlash - Frogger"></iframe>
 <p style="margin:8px 0"><a class="game-link" href="animations/qwen36-27b-nvidia-dflash-k10-frogger-v5c.html" target="_blank">Play full screen ↗</a></p>
 <p class="sub" style="margin:6px 0 0">Generated after the benchmark from the same Frogger prompt used for the comparison. Temperature 0.3, max_tokens 12000, thinking disabled. Raw Qwen DFlash output; no manual game fixes.</p>
 </div>
 
 <div class="card" style="margin-top:0;margin-bottom:16px">
 <h4 style="margin:0 0 8px">Qwen 3.6-27B NVIDIA DFlash Space Invaders <span class="ts-score ok" style="font-size:14px">81.0</span></h4>
-<iframe src="../spaceinvaders/qwen36-27b-nvidia-dflash-k10.html" style="width:100%;height:360px;border:1px solid var(--line);border-radius:12px;background:#000" loading="lazy" title="Qwen 3.6-27B NVIDIA DFlash - Space Invaders"></iframe>
+<iframe data-src="../spaceinvaders/qwen36-27b-nvidia-dflash-k10.html" style="width:100%;height:360px;border:1px solid var(--line);border-radius:12px;background:#000" loading="lazy" title="Qwen 3.6-27B NVIDIA DFlash - Space Invaders"></iframe>
 <p style="margin:8px 0"><a class="game-link" href="../spaceinvaders/qwen36-27b-nvidia-dflash-k10.html" target="_blank">Play full screen ↗</a></p>
 <p class="sub" style="margin:6px 0 0">Prompt: <code>Create a fully playable Space Invaders game in a single HTML file.</code> Temperature 0.3, max_tokens 8000, thinking disabled. Raw Qwen DFlash output; no manual game fixes.</p>
 </div>
 
 <div class="card" style="margin-top:0;margin-bottom:16px">
 <h4 style="margin:0 0 8px">Step 3.7 Flash Frogger <span class="ts-score low" style="font-size:14px">67.7</span></h4>
-<iframe src="animations/step37-flash-mtp-frogger-v5c.html" style="width:100%;height:420px;border:1px solid var(--line);border-radius:12px;background:#000" loading="lazy" title="Step 3.7 Flash - Frogger"></iframe>
+<iframe data-src="animations/step37-flash-mtp-frogger-v5c.html" style="width:100%;height:420px;border:1px solid var(--line);border-radius:12px;background:#000" loading="lazy" title="Step 3.7 Flash - Frogger"></iframe>
 <p style="margin:8px 0"><a class="game-link" href="animations/step37-flash-mtp-frogger-v5c.html" target="_blank">Open raw output ↗</a></p>
 <p class="sub" style="margin:6px 0 0">Generated after the benchmark from the same Frogger prompt used for the comparison. Temperature 0.3, max_tokens 12000, thinking disabled. Raw Step 3.7 output; no manual game fixes. The run ended with <code>finish=length</code>, so this is a truncated model artifact.</p>
 </div>
 
 <div class="card" style="margin-top:0;margin-bottom:16px">
 <h4 style="margin:0 0 8px">Step 3.7 Flash Space Invaders <span class="ts-score low" style="font-size:14px">67.7</span></h4>
-<iframe src="../spaceinvaders/step37-flash-mtp.html" style="width:100%;height:360px;border:1px solid var(--line);border-radius:12px;background:#000" loading="lazy" title="Step 3.7 Flash - Space Invaders"></iframe>
+<iframe data-src="../spaceinvaders/step37-flash-mtp.html" style="width:100%;height:360px;border:1px solid var(--line);border-radius:12px;background:#000" loading="lazy" title="Step 3.7 Flash - Space Invaders"></iframe>
 <p style="margin:8px 0"><a class="game-link" href="../spaceinvaders/step37-flash-mtp.html" target="_blank">Open raw output ↗</a></p>
 <p class="sub" style="margin:6px 0 0">Prompt: <code>Create a fully playable Space Invaders game in a single HTML file.</code> Temperature 0.3, max_tokens 8000, thinking disabled. Raw Step 3.7 output; no manual game fixes. The API reported 8000 completion tokens but returned no parseable content, so the saved HTML artifact is blank.</p>
 </div>
@@ -494,22 +496,22 @@ footer a{color:var(--acc);text-decoration:none}
 <!-- TAB: ANIMATIONS -->
 <div id="animations" class="tab-panel">
 <h2>Model-generated animations</h2>
-<p class="sub" style="margin:-6px 0 10px">Each model was asked to generate self-contained HTML canvas animations — solar system, spiral galaxy, DNA helix. No external libraries. These are raw model outputs, unedited. All runs use the v6.1 64-scenario suite. Click to open full-screen.</p>
+<p class="sub" style="margin:-6px 0 10px">Each model was asked to generate self-contained HTML canvas animations — solar system, spiral galaxy, DNA helix. No external libraries. These are raw model outputs, unedited. Click to open full-screen.</p>
 
 <div class="anim-section">
 <h4>MiniMax-M3 <span class="ts-score high" style="font-size:16px">85.4</span></h4>
 <p class="sub" style="margin:-4px 0 10px">4× DGX Spark · vLLM TP4/B12X · NVFP4 · ~36.5 tok/s eval throughput</p>
 <div class="grid">
 <figure class="anim-card">
-<iframe src="animations/minimax-m3-solar-v5c.html" loading="lazy" title="MiniMax-M3 — Solar System"></iframe>
+<iframe data-src="animations/minimax-m3-solar-v5c.html" loading="lazy" title="MiniMax-M3 — Solar System"></iframe>
 <figcaption><b>Solar System</b><a href="animations/minimax-m3-solar-v5c.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/minimax-m3-galaxy-v5c.html" loading="lazy" title="MiniMax-M3 — Spiral Galaxy"></iframe>
+<iframe data-src="animations/minimax-m3-galaxy-v5c.html" loading="lazy" title="MiniMax-M3 — Spiral Galaxy"></iframe>
 <figcaption><b>Spiral Galaxy</b><a href="animations/minimax-m3-galaxy-v5c.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/minimax-m3-dna-v5c.html" loading="lazy" title="MiniMax-M3 — DNA Helix"></iframe>
+<iframe data-src="animations/minimax-m3-dna-v5c.html" loading="lazy" title="MiniMax-M3 — DNA Helix"></iframe>
 <figcaption><b>DNA Helix</b><a href="animations/minimax-m3-dna-v5c.html" target="_blank">open ↗</a></figcaption>
 </figure>
 </div>
@@ -520,15 +522,15 @@ footer a{color:var(--acc);text-decoration:none}
 <p class="sub" style="margin:-4px 0 10px">2× DGX Spark · vLLM TP2 · NVFP4 KV · MTP1 · 1M ctx · 5.04s median v6 latency</p>
 <div class="grid">
 <figure class="anim-card">
-<iframe src="animations/mimo-v25-nvfp4-tp2-solar-v5c.html" loading="lazy" title="MiMo V2.5 NVFP4 — Solar System"></iframe>
+<iframe data-src="animations/mimo-v25-nvfp4-tp2-solar-v5c.html" loading="lazy" title="MiMo V2.5 NVFP4 — Solar System"></iframe>
 <figcaption><b>Solar System</b><a href="animations/mimo-v25-nvfp4-tp2-solar-v5c.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/mimo-v25-nvfp4-tp2-galaxy-v5c.html" loading="lazy" title="MiMo V2.5 NVFP4 — Spiral Galaxy"></iframe>
+<iframe data-src="animations/mimo-v25-nvfp4-tp2-galaxy-v5c.html" loading="lazy" title="MiMo V2.5 NVFP4 — Spiral Galaxy"></iframe>
 <figcaption><b>Spiral Galaxy</b><a href="animations/mimo-v25-nvfp4-tp2-galaxy-v5c.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/mimo-v25-nvfp4-tp2-dna-v5c.html" loading="lazy" title="MiMo V2.5 NVFP4 — DNA Helix"></iframe>
+<iframe data-src="animations/mimo-v25-nvfp4-tp2-dna-v5c.html" loading="lazy" title="MiMo V2.5 NVFP4 — DNA Helix"></iframe>
 <figcaption><b>DNA Helix</b><a href="animations/mimo-v25-nvfp4-tp2-dna-v5c.html" target="_blank">open ↗</a></figcaption>
 </figure>
 </div>
@@ -539,15 +541,15 @@ footer a{color:var(--acc);text-decoration:none}
 <p class="sub" style="margin:-4px 0 10px">4× DGX Spark · SGLang TP4/EP4 · NVFP4 · 22.7 tok/s</p>
 <div class="grid">
 <figure class="anim-card">
-<iframe src="animations/nemotron-ultra-550b-vis1.html" loading="lazy" title="Nemotron Ultra 550B — Solar System"></iframe>
+<iframe data-src="animations/nemotron-ultra-550b-vis1.html" loading="lazy" title="Nemotron Ultra 550B — Solar System"></iframe>
 <figcaption><b>Solar System</b><a href="animations/nemotron-ultra-550b-vis1.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/nemotron-ultra-550b-vis2.html" loading="lazy" title="Nemotron Ultra 550B — Spiral Galaxy"></iframe>
+<iframe data-src="animations/nemotron-ultra-550b-vis2.html" loading="lazy" title="Nemotron Ultra 550B — Spiral Galaxy"></iframe>
 <figcaption><b>Spiral Galaxy</b><a href="animations/nemotron-ultra-550b-vis2.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/nemotron-ultra-550b-vis3.html" loading="lazy" title="Nemotron Ultra 550B — DNA Helix"></iframe>
+<iframe data-src="animations/nemotron-ultra-550b-vis3.html" loading="lazy" title="Nemotron Ultra 550B — DNA Helix"></iframe>
 <figcaption><b>DNA Helix</b><a href="animations/nemotron-ultra-550b-vis3.html" target="_blank">open ↗</a></figcaption>
 </figure>
 </div>
@@ -558,15 +560,15 @@ footer a{color:var(--acc);text-decoration:none}
 <p class="sub" style="margin:-4px 0 10px">1× DGX Spark · vLLM BF16 · 131K ctx · 48.4 tok/s · <a href="agents-a1-v5c-report.html" target="_blank" style="color:var(--acc)">report ↗</a></p>
 <div class="grid">
 <figure class="anim-card">
-<iframe src="animations/agents-a1-vis1.html" loading="lazy" title="Agents-A1 - Solar System"></iframe>
+<iframe data-src="animations/agents-a1-vis1.html" loading="lazy" title="Agents-A1 - Solar System"></iframe>
 <figcaption><b>Solar System</b><a href="animations/agents-a1-vis1.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/agents-a1-vis2.html" loading="lazy" title="Agents-A1 - Spiral Galaxy"></iframe>
+<iframe data-src="animations/agents-a1-vis2.html" loading="lazy" title="Agents-A1 - Spiral Galaxy"></iframe>
 <figcaption><b>Spiral Galaxy</b><a href="animations/agents-a1-vis2.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/agents-a1-vis3.html" loading="lazy" title="Agents-A1 - DNA Helix"></iframe>
+<iframe data-src="animations/agents-a1-vis3.html" loading="lazy" title="Agents-A1 - DNA Helix"></iframe>
 <figcaption><b>DNA Helix</b><a href="animations/agents-a1-vis3.html" target="_blank">open ↗</a></figcaption>
 </figure>
 </div>
@@ -577,15 +579,15 @@ footer a{color:var(--acc);text-decoration:none}
 <p class="sub" style="margin:-4px 0 10px">1× DGX Spark · NVIDIA NVFP4 · DFlash k=10 · vLLM compile · 52.3 tok/s · <a href="qwen36-27b-nvidia-dflash-k10-v5c-report.html" target="_blank" style="color:var(--acc)">report ↗</a></p>
 <div class="grid">
 <figure class="anim-card">
-<iframe src="animations/qwen36-27b-nvidia-dflash-k10-vis1.html" loading="lazy" title="Qwen 3.6-27B NVIDIA DFlash - Solar System"></iframe>
+<iframe data-src="animations/qwen36-27b-nvidia-dflash-k10-vis1.html" loading="lazy" title="Qwen 3.6-27B NVIDIA DFlash - Solar System"></iframe>
 <figcaption><b>Solar System</b><a href="animations/qwen36-27b-nvidia-dflash-k10-vis1.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/qwen36-27b-nvidia-dflash-k10-vis2.html" loading="lazy" title="Qwen 3.6-27B NVIDIA DFlash - Spiral Galaxy"></iframe>
+<iframe data-src="animations/qwen36-27b-nvidia-dflash-k10-vis2.html" loading="lazy" title="Qwen 3.6-27B NVIDIA DFlash - Spiral Galaxy"></iframe>
 <figcaption><b>Spiral Galaxy</b><a href="animations/qwen36-27b-nvidia-dflash-k10-vis2.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/qwen36-27b-nvidia-dflash-k10-vis3.html" loading="lazy" title="Qwen 3.6-27B NVIDIA DFlash - DNA Helix"></iframe>
+<iframe data-src="animations/qwen36-27b-nvidia-dflash-k10-vis3.html" loading="lazy" title="Qwen 3.6-27B NVIDIA DFlash - DNA Helix"></iframe>
 <figcaption><b>DNA Helix</b><a href="animations/qwen36-27b-nvidia-dflash-k10-vis3.html" target="_blank">open ↗</a></figcaption>
 </figure>
 </div>
@@ -596,15 +598,15 @@ footer a{color:var(--acc);text-decoration:none}
 <p class="sub" style="margin:-4px 0 10px">1× DGX Spark · AEON XS NVFP4 · DFlash k=10 · 54.1 tok/s eval throughput · <a href="qwen36-27b-aeon-xs-dflash-k10-v5c-report.html" target="_blank" style="color:var(--acc)">report ↗</a></p>
 <div class="grid">
 <figure class="anim-card">
-<iframe src="animations/qwen36-27b-aeon-xs-dflash-k10-vis1.html" loading="lazy" title="Qwen 3.6-27B AEON XS - Visual 1"></iframe>
+<iframe data-src="animations/qwen36-27b-aeon-xs-dflash-k10-vis1.html" loading="lazy" title="Qwen 3.6-27B AEON XS - Visual 1"></iframe>
 <figcaption><b>Visual 1</b><a href="animations/qwen36-27b-aeon-xs-dflash-k10-vis1.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/qwen36-27b-aeon-xs-dflash-k10-vis2.html" loading="lazy" title="Qwen 3.6-27B AEON XS - Visual 2"></iframe>
+<iframe data-src="animations/qwen36-27b-aeon-xs-dflash-k10-vis2.html" loading="lazy" title="Qwen 3.6-27B AEON XS - Visual 2"></iframe>
 <figcaption><b>Visual 2</b><a href="animations/qwen36-27b-aeon-xs-dflash-k10-vis2.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/qwen36-27b-aeon-xs-dflash-k10-vis3.html" loading="lazy" title="Qwen 3.6-27B AEON XS - Visual 3"></iframe>
+<iframe data-src="animations/qwen36-27b-aeon-xs-dflash-k10-vis3.html" loading="lazy" title="Qwen 3.6-27B AEON XS - Visual 3"></iframe>
 <figcaption><b>Visual 3</b><a href="animations/qwen36-27b-aeon-xs-dflash-k10-vis3.html" target="_blank">open ↗</a></figcaption>
 </figure>
 </div>
@@ -615,15 +617,15 @@ footer a{color:var(--acc);text-decoration:none}
 <p class="sub" style="margin:-4px 0 10px">1× DGX Spark · AEON Ultimate NVFP4 · DFlash k=6 · 112.8 tok/s eval throughput · <a href="ornith-aeon-dflash-k6-v5c-report.html" target="_blank" style="color:var(--acc)">report ↗</a></p>
 <div class="grid">
 <figure class="anim-card">
-<iframe src="animations/ornith-aeon-dflash-k6-vis1.html" loading="lazy" title="Ornith AEON DFlash - Visual 1"></iframe>
+<iframe data-src="animations/ornith-aeon-dflash-k6-vis1.html" loading="lazy" title="Ornith AEON DFlash - Visual 1"></iframe>
 <figcaption><b>Visual 1</b><a href="animations/ornith-aeon-dflash-k6-vis1.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/ornith-aeon-dflash-k6-vis2.html" loading="lazy" title="Ornith AEON DFlash - Visual 2"></iframe>
+<iframe data-src="animations/ornith-aeon-dflash-k6-vis2.html" loading="lazy" title="Ornith AEON DFlash - Visual 2"></iframe>
 <figcaption><b>Visual 2</b><a href="animations/ornith-aeon-dflash-k6-vis2.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/ornith-aeon-dflash-k6-vis3.html" loading="lazy" title="Ornith AEON DFlash - Visual 3"></iframe>
+<iframe data-src="animations/ornith-aeon-dflash-k6-vis3.html" loading="lazy" title="Ornith AEON DFlash - Visual 3"></iframe>
 <figcaption><b>Visual 3</b><a href="animations/ornith-aeon-dflash-k6-vis3.html" target="_blank">open ↗</a></figcaption>
 </figure>
 </div>
@@ -634,15 +636,15 @@ footer a{color:var(--acc);text-decoration:none}
 <p class="sub" style="margin:-4px 0 10px">1× DGX Spark · AEON Heretic NVFP4 · DFlash k=11 · runtime KV patch · 204.2 tok/s eval throughput · <a href="qwen36-35b-aeon-heretic-dflash-k11-patchedkv-v5c-report.html" target="_blank" style="color:var(--acc)">report ↗</a></p>
 <div class="grid">
 <figure class="anim-card">
-<iframe src="animations/qwen36-35b-aeon-heretic-dflash-k11-vis1.html" loading="lazy" title="Qwen 3.6-35B AEON Heretic DFlash - Visual 1"></iframe>
+<iframe data-src="animations/qwen36-35b-aeon-heretic-dflash-k11-vis1.html" loading="lazy" title="Qwen 3.6-35B AEON Heretic DFlash - Visual 1"></iframe>
 <figcaption><b>Visual 1</b><a href="animations/qwen36-35b-aeon-heretic-dflash-k11-vis1.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/qwen36-35b-aeon-heretic-dflash-k11-vis2.html" loading="lazy" title="Qwen 3.6-35B AEON Heretic DFlash - Visual 2"></iframe>
+<iframe data-src="animations/qwen36-35b-aeon-heretic-dflash-k11-vis2.html" loading="lazy" title="Qwen 3.6-35B AEON Heretic DFlash - Visual 2"></iframe>
 <figcaption><b>Visual 2</b><a href="animations/qwen36-35b-aeon-heretic-dflash-k11-vis2.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/qwen36-35b-aeon-heretic-dflash-k11-vis3.html" loading="lazy" title="Qwen 3.6-35B AEON Heretic DFlash - Visual 3"></iframe>
+<iframe data-src="animations/qwen36-35b-aeon-heretic-dflash-k11-vis3.html" loading="lazy" title="Qwen 3.6-35B AEON Heretic DFlash - Visual 3"></iframe>
 <figcaption><b>Visual 3</b><a href="animations/qwen36-35b-aeon-heretic-dflash-k11-vis3.html" target="_blank">open ↗</a></figcaption>
 </figure>
 </div>
@@ -653,15 +655,15 @@ footer a{color:var(--acc);text-decoration:none}
 <p class="sub" style="margin:-4px 0 10px">1× DGX Spark · AEON NVFP4 · vLLM · 74.4 tok/s eval throughput · <a href="nemotron-3-nano-aeon-v5c-report.html" target="_blank" style="color:var(--acc)">report ↗</a></p>
 <div class="grid">
 <figure class="anim-card">
-<iframe src="animations/nemotron-3-nano-aeon-vis1.html" loading="lazy" title="Nemotron 3 Nano AEON - Visual 1"></iframe>
+<iframe data-src="animations/nemotron-3-nano-aeon-vis1.html" loading="lazy" title="Nemotron 3 Nano AEON - Visual 1"></iframe>
 <figcaption><b>Visual 1</b><a href="animations/nemotron-3-nano-aeon-vis1.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/nemotron-3-nano-aeon-vis2.html" loading="lazy" title="Nemotron 3 Nano AEON - Visual 2"></iframe>
+<iframe data-src="animations/nemotron-3-nano-aeon-vis2.html" loading="lazy" title="Nemotron 3 Nano AEON - Visual 2"></iframe>
 <figcaption><b>Visual 2</b><a href="animations/nemotron-3-nano-aeon-vis2.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/nemotron-3-nano-aeon-vis3.html" loading="lazy" title="Nemotron 3 Nano AEON - Visual 3"></iframe>
+<iframe data-src="animations/nemotron-3-nano-aeon-vis3.html" loading="lazy" title="Nemotron 3 Nano AEON - Visual 3"></iframe>
 <figcaption><b>Visual 3</b><a href="animations/nemotron-3-nano-aeon-vis3.html" target="_blank">open ↗</a></figcaption>
 </figure>
 </div>
@@ -672,15 +674,15 @@ footer a{color:var(--acc);text-decoration:none}
 <p class="sub" style="margin:-4px 0 10px">2× DGX Spark · DSpark · NVFP4 KV · TP=2 · 131.0 tok/s</p>
 <div class="grid">
 <figure class="anim-card">
-<iframe src="animations/deepseek-v4-flash-vis1.html" loading="lazy" title="DeepSeek V4 Flash — Solar System"></iframe>
+<iframe data-src="animations/deepseek-v4-flash-vis1.html" loading="lazy" title="DeepSeek V4 Flash — Solar System"></iframe>
 <figcaption><b>Solar System</b><a href="animations/deepseek-v4-flash-vis1.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/deepseek-v4-flash-vis2.html" loading="lazy" title="DeepSeek V4 Flash — Spiral Galaxy"></iframe>
+<iframe data-src="animations/deepseek-v4-flash-vis2.html" loading="lazy" title="DeepSeek V4 Flash — Spiral Galaxy"></iframe>
 <figcaption><b>Spiral Galaxy</b><a href="animations/deepseek-v4-flash-vis2.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/deepseek-v4-flash-vis3.html" loading="lazy" title="DeepSeek V4 Flash — DNA Helix"></iframe>
+<iframe data-src="animations/deepseek-v4-flash-vis3.html" loading="lazy" title="DeepSeek V4 Flash — DNA Helix"></iframe>
 <figcaption><b>DNA Helix</b><a href="animations/deepseek-v4-flash-vis3.html" target="_blank">open ↗</a></figcaption>
 </figure>
 </div>
@@ -691,15 +693,15 @@ footer a{color:var(--acc);text-decoration:none}
 <p class="sub" style="margin:-4px 0 10px">2× DGX Spark · vLLM TP2/MTP3 · NVFP4 · 262K ctx · 74.3 tok/s eval throughput · <a href="step37-flash-mtp-v5c-report.html" target="_blank" style="color:var(--acc)">report ↗</a></p>
 <div class="grid">
 <figure class="anim-card">
-<iframe src="animations/step37-flash-mtp-vis1.html" loading="lazy" title="Step 3.7 Flash - Visual 1"></iframe>
+<iframe data-src="animations/step37-flash-mtp-vis1.html" loading="lazy" title="Step 3.7 Flash - Visual 1"></iframe>
 <figcaption><b>Visual 1</b><a href="animations/step37-flash-mtp-vis1.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/step37-flash-mtp-vis2.html" loading="lazy" title="Step 3.7 Flash - Visual 2"></iframe>
+<iframe data-src="animations/step37-flash-mtp-vis2.html" loading="lazy" title="Step 3.7 Flash - Visual 2"></iframe>
 <figcaption><b>Visual 2</b><a href="animations/step37-flash-mtp-vis2.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/step37-flash-mtp-vis3.html" loading="lazy" title="Step 3.7 Flash - Visual 3"></iframe>
+<iframe data-src="animations/step37-flash-mtp-vis3.html" loading="lazy" title="Step 3.7 Flash - Visual 3"></iframe>
 <figcaption><b>Visual 3</b><a href="animations/step37-flash-mtp-vis3.html" target="_blank">open ↗</a></figcaption>
 </figure>
 </div>
@@ -710,15 +712,15 @@ footer a{color:var(--acc);text-decoration:none}
 <p class="sub" style="margin:-4px 0 10px">1× DGX Spark · llama.cpp · Q4_K_M · uncensored · MTP · 26.5 tok/s</p>
 <div class="grid">
 <figure class="anim-card">
-<iframe src="animations/qwopus-36-27b-vis1.html" loading="lazy" title="Qwopus 3.6-27B — Solar System"></iframe>
+<iframe data-src="animations/qwopus-36-27b-vis1.html" loading="lazy" title="Qwopus 3.6-27B — Solar System"></iframe>
 <figcaption><b>Solar System</b><a href="animations/qwopus-36-27b-vis1.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/qwopus-36-27b-vis2.html" loading="lazy" title="Qwopus 3.6-27B — Spiral Galaxy"></iframe>
+<iframe data-src="animations/qwopus-36-27b-vis2.html" loading="lazy" title="Qwopus 3.6-27B — Spiral Galaxy"></iframe>
 <figcaption><b>Spiral Galaxy</b><a href="animations/qwopus-36-27b-vis2.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/qwopus-36-27b-vis3.html" loading="lazy" title="Qwopus 3.6-27B — DNA Helix"></iframe>
+<iframe data-src="animations/qwopus-36-27b-vis3.html" loading="lazy" title="Qwopus 3.6-27B — DNA Helix"></iframe>
 <figcaption><b>DNA Helix</b><a href="animations/qwopus-36-27b-vis3.html" target="_blank">open ↗</a></figcaption>
 </figure>
 </div>
@@ -729,15 +731,15 @@ footer a{color:var(--acc);text-decoration:none}
 <p class="sub" style="margin:-4px 0 10px">1× DGX Spark · vLLM · NVFP4 · 58.7 tok/s</p>
 <div class="grid">
 <figure class="anim-card">
-<iframe src="animations/qwen-36-35b-vis1.html" loading="lazy" title="Qwen 3.6-35B — Solar System"></iframe>
+<iframe data-src="animations/qwen-36-35b-vis1.html" loading="lazy" title="Qwen 3.6-35B — Solar System"></iframe>
 <figcaption><b>Solar System</b><a href="animations/qwen-36-35b-vis1.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/qwen-36-35b-vis2.html" loading="lazy" title="Qwen 3.6-35B — Spiral Galaxy"></iframe>
+<iframe data-src="animations/qwen-36-35b-vis2.html" loading="lazy" title="Qwen 3.6-35B — Spiral Galaxy"></iframe>
 <figcaption><b>Spiral Galaxy</b><a href="animations/qwen-36-35b-vis2.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/qwen-36-35b-vis3.html" loading="lazy" title="Qwen 3.6-35B — DNA Helix"></iframe>
+<iframe data-src="animations/qwen-36-35b-vis3.html" loading="lazy" title="Qwen 3.6-35B — DNA Helix"></iframe>
 <figcaption><b>DNA Helix</b><a href="animations/qwen-36-35b-vis3.html" target="_blank">open ↗</a></figcaption>
 </figure>
 </div>
@@ -748,15 +750,15 @@ footer a{color:var(--acc);text-decoration:none}
 <p class="sub" style="margin:-4px 0 10px">1× DGX Spark · vLLM · NVFP4</p>
 <div class="grid">
 <figure class="anim-card">
-<iframe src="animations/qwen-35b-base-vis1.html" loading="lazy" title="Qwen 35B base — Solar System"></iframe>
+<iframe data-src="animations/qwen-35b-base-vis1.html" loading="lazy" title="Qwen 35B base — Solar System"></iframe>
 <figcaption><b>Solar System</b><a href="animations/qwen-35b-base-vis1.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/qwen-35b-base-vis2.html" loading="lazy" title="Qwen 35B base — Spiral Galaxy"></iframe>
+<iframe data-src="animations/qwen-35b-base-vis2.html" loading="lazy" title="Qwen 35B base — Spiral Galaxy"></iframe>
 <figcaption><b>Spiral Galaxy</b><a href="animations/qwen-35b-base-vis2.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/qwen-35b-base-vis3.html" loading="lazy" title="Qwen 35B base — DNA Helix"></iframe>
+<iframe data-src="animations/qwen-35b-base-vis3.html" loading="lazy" title="Qwen 35B base — DNA Helix"></iframe>
 <figcaption><b>DNA Helix</b><a href="animations/qwen-35b-base-vis3.html" target="_blank">open ↗</a></figcaption>
 </figure>
 </div>
@@ -767,15 +769,15 @@ footer a{color:var(--acc);text-decoration:none}
 <p class="sub" style="margin:-4px 0 10px">1× DGX Spark · vLLM · NVFP4</p>
 <div class="grid">
 <figure class="anim-card">
-<iframe src="animations/gemma-4-31b-vis1.html" loading="lazy" title="Gemma 4 31B — Solar System"></iframe>
+<iframe data-src="animations/gemma-4-31b-vis1.html" loading="lazy" title="Gemma 4 31B — Solar System"></iframe>
 <figcaption><b>Solar System</b><a href="animations/gemma-4-31b-vis1.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/gemma-4-31b-vis2.html" loading="lazy" title="Gemma 4 31B — Spiral Galaxy"></iframe>
+<iframe data-src="animations/gemma-4-31b-vis2.html" loading="lazy" title="Gemma 4 31B — Spiral Galaxy"></iframe>
 <figcaption><b>Spiral Galaxy</b><a href="animations/gemma-4-31b-vis2.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/gemma-4-31b-vis3.html" loading="lazy" title="Gemma 4 31B — DNA Helix"></iframe>
+<iframe data-src="animations/gemma-4-31b-vis3.html" loading="lazy" title="Gemma 4 31B — DNA Helix"></iframe>
 <figcaption><b>DNA Helix</b><a href="animations/gemma-4-31b-vis3.html" target="_blank">open ↗</a></figcaption>
 </figure>
 </div>
@@ -786,15 +788,15 @@ footer a{color:var(--acc);text-decoration:none}
 <p class="sub" style="margin:-4px 0 10px">1× DGX Spark · vLLM · NVFP4</p>
 <div class="grid">
 <figure class="anim-card">
-<iframe src="animations/gemma-4-e2b-vis1.html" loading="lazy" title="Gemma 4 E2B — Solar System"></iframe>
+<iframe data-src="animations/gemma-4-e2b-vis1.html" loading="lazy" title="Gemma 4 E2B — Solar System"></iframe>
 <figcaption><b>Solar System</b><a href="animations/gemma-4-e2b-vis1.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/gemma-4-e2b-vis2.html" loading="lazy" title="Gemma 4 E2B — Spiral Galaxy"></iframe>
+<iframe data-src="animations/gemma-4-e2b-vis2.html" loading="lazy" title="Gemma 4 E2B — Spiral Galaxy"></iframe>
 <figcaption><b>Spiral Galaxy</b><a href="animations/gemma-4-e2b-vis2.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/gemma-4-e2b-vis3.html" loading="lazy" title="Gemma 4 E2B — DNA Helix"></iframe>
+<iframe data-src="animations/gemma-4-e2b-vis3.html" loading="lazy" title="Gemma 4 E2B — DNA Helix"></iframe>
 <figcaption><b>DNA Helix</b><a href="animations/gemma-4-e2b-vis3.html" target="_blank">open ↗</a></figcaption>
 </figure>
 </div>
@@ -805,15 +807,15 @@ footer a{color:var(--acc);text-decoration:none}
 <p class="sub" style="margin:-4px 0 10px">1× DGX Spark · vLLM · NVFP4</p>
 <div class="grid">
 <figure class="anim-card">
-<iframe src="animations/gemma-4-e4b-vis1.html" loading="lazy" title="Gemma 4 E4B — Solar System"></iframe>
+<iframe data-src="animations/gemma-4-e4b-vis1.html" loading="lazy" title="Gemma 4 E4B — Solar System"></iframe>
 <figcaption><b>Solar System</b><a href="animations/gemma-4-e4b-vis1.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/gemma-4-e4b-vis2.html" loading="lazy" title="Gemma 4 E4B — Spiral Galaxy"></iframe>
+<iframe data-src="animations/gemma-4-e4b-vis2.html" loading="lazy" title="Gemma 4 E4B — Spiral Galaxy"></iframe>
 <figcaption><b>Spiral Galaxy</b><a href="animations/gemma-4-e4b-vis2.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/gemma-4-e4b-vis3.html" loading="lazy" title="Gemma 4 E4B — DNA Helix"></iframe>
+<iframe data-src="animations/gemma-4-e4b-vis3.html" loading="lazy" title="Gemma 4 E4B — DNA Helix"></iframe>
 <figcaption><b>DNA Helix</b><a href="animations/gemma-4-e4b-vis3.html" target="_blank">open ↗</a></figcaption>
 </figure>
 </div>
@@ -824,15 +826,15 @@ footer a{color:var(--acc);text-decoration:none}
 <p class="sub" style="margin:-4px 0 10px">1× DGX Spark · vLLM · NVFP4</p>
 <div class="grid">
 <figure class="anim-card">
-<iframe src="animations/gemma-4-12b-vis1.html" loading="lazy" title="Gemma 4 12B — Solar System"></iframe>
+<iframe data-src="animations/gemma-4-12b-vis1.html" loading="lazy" title="Gemma 4 12B — Solar System"></iframe>
 <figcaption><b>Solar System</b><a href="animations/gemma-4-12b-vis1.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/gemma-4-12b-vis2.html" loading="lazy" title="Gemma 4 12B — Spiral Galaxy"></iframe>
+<iframe data-src="animations/gemma-4-12b-vis2.html" loading="lazy" title="Gemma 4 12B — Spiral Galaxy"></iframe>
 <figcaption><b>Spiral Galaxy</b><a href="animations/gemma-4-12b-vis2.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/gemma-4-12b-vis3.html" loading="lazy" title="Gemma 4 12B — DNA Helix"></iframe>
+<iframe data-src="animations/gemma-4-12b-vis3.html" loading="lazy" title="Gemma 4 12B — DNA Helix"></iframe>
 <figcaption><b>DNA Helix</b><a href="animations/gemma-4-12b-vis3.html" target="_blank">open ↗</a></figcaption>
 </figure>
 </div>
@@ -843,15 +845,15 @@ footer a{color:var(--acc);text-decoration:none}
 <p class="sub" style="margin:-4px 0 10px">1× DGX Spark · vLLM · NVFP4</p>
 <div class="grid">
 <figure class="anim-card">
-<iframe src="animations/gemma-4-26b-a4b-vis1.html" loading="lazy" title="Gemma 4 26B-A4B — Solar System"></iframe>
+<iframe data-src="animations/gemma-4-26b-a4b-vis1.html" loading="lazy" title="Gemma 4 26B-A4B — Solar System"></iframe>
 <figcaption><b>Solar System</b><a href="animations/gemma-4-26b-a4b-vis1.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/gemma-4-26b-a4b-vis2.html" loading="lazy" title="Gemma 4 26B-A4B — Spiral Galaxy"></iframe>
+<iframe data-src="animations/gemma-4-26b-a4b-vis2.html" loading="lazy" title="Gemma 4 26B-A4B — Spiral Galaxy"></iframe>
 <figcaption><b>Spiral Galaxy</b><a href="animations/gemma-4-26b-a4b-vis2.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/gemma-4-26b-a4b-vis3.html" loading="lazy" title="Gemma 4 26B-A4B — DNA Helix"></iframe>
+<iframe data-src="animations/gemma-4-26b-a4b-vis3.html" loading="lazy" title="Gemma 4 26B-A4B — DNA Helix"></iframe>
 <figcaption><b>DNA Helix</b><a href="animations/gemma-4-26b-a4b-vis3.html" target="_blank">open ↗</a></figcaption>
 </figure>
 </div>
@@ -862,15 +864,15 @@ footer a{color:var(--acc);text-decoration:none}
 <p class="sub" style="margin:-4px 0 10px">1× DGX Spark · vLLM · NVFP4</p>
 <div class="grid">
 <figure class="anim-card">
-<iframe src="animations/qwen-27b-base-vis1.html" loading="lazy" title="Qwen 27B base — Solar System"></iframe>
+<iframe data-src="animations/qwen-27b-base-vis1.html" loading="lazy" title="Qwen 27B base — Solar System"></iframe>
 <figcaption><b>Solar System</b><a href="animations/qwen-27b-base-vis1.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/qwen-27b-base-vis2.html" loading="lazy" title="Qwen 27B base — Spiral Galaxy"></iframe>
+<iframe data-src="animations/qwen-27b-base-vis2.html" loading="lazy" title="Qwen 27B base — Spiral Galaxy"></iframe>
 <figcaption><b>Spiral Galaxy</b><a href="animations/qwen-27b-base-vis2.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/qwen-27b-base-vis3.html" loading="lazy" title="Qwen 27B base — DNA Helix"></iframe>
+<iframe data-src="animations/qwen-27b-base-vis3.html" loading="lazy" title="Qwen 27B base — DNA Helix"></iframe>
 <figcaption><b>DNA Helix</b><a href="animations/qwen-27b-base-vis3.html" target="_blank">open ↗</a></figcaption>
 </figure>
 </div>
@@ -881,15 +883,15 @@ footer a{color:var(--acc);text-decoration:none}
 <p class="sub" style="margin:-4px 0 10px">1× DGX Spark · vLLM · NVFP4</p>
 <div class="grid">
 <figure class="anim-card">
-<iframe src="animations/bytkim-qwen-36-27b-vis1.html" loading="lazy" title="Bytkim-Qwen 3.6-27B — Solar System"></iframe>
+<iframe data-src="animations/bytkim-qwen-36-27b-vis1.html" loading="lazy" title="Bytkim-Qwen 3.6-27B — Solar System"></iframe>
 <figcaption><b>Solar System</b><a href="animations/bytkim-qwen-36-27b-vis1.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/bytkim-qwen-36-27b-vis2.html" loading="lazy" title="Bytkim-Qwen 3.6-27B — Spiral Galaxy"></iframe>
+<iframe data-src="animations/bytkim-qwen-36-27b-vis2.html" loading="lazy" title="Bytkim-Qwen 3.6-27B — Spiral Galaxy"></iframe>
 <figcaption><b>Spiral Galaxy</b><a href="animations/bytkim-qwen-36-27b-vis2.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/bytkim-qwen-36-27b-vis3.html" loading="lazy" title="Bytkim-Qwen 3.6-27B — DNA Helix"></iframe>
+<iframe data-src="animations/bytkim-qwen-36-27b-vis3.html" loading="lazy" title="Bytkim-Qwen 3.6-27B — DNA Helix"></iframe>
 <figcaption><b>DNA Helix</b><a href="animations/bytkim-qwen-36-27b-vis3.html" target="_blank">open ↗</a></figcaption>
 </figure>
 </div>
@@ -900,15 +902,15 @@ footer a{color:var(--acc);text-decoration:none}
 <p class="sub" style="margin:-4px 0 10px">1× DGX Spark · vLLM · NVFP4</p>
 <div class="grid">
 <figure class="anim-card">
-<iframe src="animations/huihui-qwen-36-35b-vis1.html" loading="lazy" title="Huihui-Qwen 3.6-35B — Solar System"></iframe>
+<iframe data-src="animations/huihui-qwen-36-35b-vis1.html" loading="lazy" title="Huihui-Qwen 3.6-35B — Solar System"></iframe>
 <figcaption><b>Solar System</b><a href="animations/huihui-qwen-36-35b-vis1.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/huihui-qwen-36-35b-vis2.html" loading="lazy" title="Huihui-Qwen 3.6-35B — Spiral Galaxy"></iframe>
+<iframe data-src="animations/huihui-qwen-36-35b-vis2.html" loading="lazy" title="Huihui-Qwen 3.6-35B — Spiral Galaxy"></iframe>
 <figcaption><b>Spiral Galaxy</b><a href="animations/huihui-qwen-36-35b-vis2.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/huihui-qwen-36-35b-vis3.html" loading="lazy" title="Huihui-Qwen 3.6-35B — DNA Helix"></iframe>
+<iframe data-src="animations/huihui-qwen-36-35b-vis3.html" loading="lazy" title="Huihui-Qwen 3.6-35B — DNA Helix"></iframe>
 <figcaption><b>DNA Helix</b><a href="animations/huihui-qwen-36-35b-vis3.html" target="_blank">open ↗</a></figcaption>
 </figure>
 </div>
@@ -919,15 +921,15 @@ footer a{color:var(--acc);text-decoration:none}
 <p class="sub" style="margin:-4px 0 10px">1× DGX Spark · vLLM · NVFP4</p>
 <div class="grid">
 <figure class="anim-card">
-<iframe src="animations/qwable-5-27b-coder-vis1.html" loading="lazy" title="Qwable-5-27B-Coder — Solar System"></iframe>
+<iframe data-src="animations/qwable-5-27b-coder-vis1.html" loading="lazy" title="Qwable-5-27B-Coder — Solar System"></iframe>
 <figcaption><b>Solar System</b><a href="animations/qwable-5-27b-coder-vis1.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/qwable-5-27b-coder-vis2.html" loading="lazy" title="Qwable-5-27B-Coder — Spiral Galaxy"></iframe>
+<iframe data-src="animations/qwable-5-27b-coder-vis2.html" loading="lazy" title="Qwable-5-27B-Coder — Spiral Galaxy"></iframe>
 <figcaption><b>Spiral Galaxy</b><a href="animations/qwable-5-27b-coder-vis2.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/qwable-5-27b-coder-vis3.html" loading="lazy" title="Qwable-5-27B-Coder — DNA Helix"></iframe>
+<iframe data-src="animations/qwable-5-27b-coder-vis3.html" loading="lazy" title="Qwable-5-27B-Coder — DNA Helix"></iframe>
 <figcaption><b>DNA Helix</b><a href="animations/qwable-5-27b-coder-vis3.html" target="_blank">open ↗</a></figcaption>
 </figure>
 </div>
@@ -938,15 +940,15 @@ footer a{color:var(--acc);text-decoration:none}
 <p class="sub" style="margin:-4px 0 10px">1× DGX Spark · vLLM · NVFP4</p>
 <div class="grid">
 <figure class="anim-card">
-<iframe src="animations/nemotron-nano-omni-30b-vis1.html" loading="lazy" title="Nemotron Nano Omni A3B — Solar System"></iframe>
+<iframe data-src="animations/nemotron-nano-omni-30b-vis1.html" loading="lazy" title="Nemotron Nano Omni A3B — Solar System"></iframe>
 <figcaption><b>Solar System</b><a href="animations/nemotron-nano-omni-30b-vis1.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/nemotron-nano-omni-30b-vis2.html" loading="lazy" title="Nemotron Nano Omni A3B — Spiral Galaxy"></iframe>
+<iframe data-src="animations/nemotron-nano-omni-30b-vis2.html" loading="lazy" title="Nemotron Nano Omni A3B — Spiral Galaxy"></iframe>
 <figcaption><b>Spiral Galaxy</b><a href="animations/nemotron-nano-omni-30b-vis2.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/nemotron-nano-omni-30b-vis3.html" loading="lazy" title="Nemotron Nano Omni A3B — DNA Helix"></iframe>
+<iframe data-src="animations/nemotron-nano-omni-30b-vis3.html" loading="lazy" title="Nemotron Nano Omni A3B — DNA Helix"></iframe>
 <figcaption><b>DNA Helix</b><a href="animations/nemotron-nano-omni-30b-vis3.html" target="_blank">open ↗</a></figcaption>
 </figure>
 </div>
@@ -957,15 +959,15 @@ footer a{color:var(--acc);text-decoration:none}
 <p class="sub" style="margin:-4px 0 10px">1× DGX Spark · vLLM · NVFP4</p>
 <div class="grid">
 <figure class="anim-card">
-<iframe src="animations/ornith-10-35b-vis1.html" loading="lazy" title="Ornith 1.0-35B — Solar System"></iframe>
+<iframe data-src="animations/ornith-10-35b-vis1.html" loading="lazy" title="Ornith 1.0-35B — Solar System"></iframe>
 <figcaption><b>Solar System</b><a href="animations/ornith-10-35b-vis1.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/ornith-10-35b-vis2.html" loading="lazy" title="Ornith 1.0-35B — Spiral Galaxy"></iframe>
+<iframe data-src="animations/ornith-10-35b-vis2.html" loading="lazy" title="Ornith 1.0-35B — Spiral Galaxy"></iframe>
 <figcaption><b>Spiral Galaxy</b><a href="animations/ornith-10-35b-vis2.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/ornith-10-35b-vis3.html" loading="lazy" title="Ornith 1.0-35B — DNA Helix"></iframe>
+<iframe data-src="animations/ornith-10-35b-vis3.html" loading="lazy" title="Ornith 1.0-35B — DNA Helix"></iframe>
 <figcaption><b>DNA Helix</b><a href="animations/ornith-10-35b-vis3.html" target="_blank">open ↗</a></figcaption>
 </figure>
 </div>
@@ -976,15 +978,15 @@ footer a{color:var(--acc);text-decoration:none}
 <p class="sub" style="margin:-4px 0 10px">1× DGX Spark · vLLM · NVFP4</p>
 <div class="grid">
 <figure class="anim-card">
-<iframe src="animations/qwen-36-27b-nvfp4-vis1.html" loading="lazy" title="Qwen 3.6-27B (nvfp4) — Solar System"></iframe>
+<iframe data-src="animations/qwen-36-27b-nvfp4-vis1.html" loading="lazy" title="Qwen 3.6-27B (nvfp4) — Solar System"></iframe>
 <figcaption><b>Solar System</b><a href="animations/qwen-36-27b-nvfp4-vis1.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/qwen-36-27b-nvfp4-vis2.html" loading="lazy" title="Qwen 3.6-27B (nvfp4) — Spiral Galaxy"></iframe>
+<iframe data-src="animations/qwen-36-27b-nvfp4-vis2.html" loading="lazy" title="Qwen 3.6-27B (nvfp4) — Spiral Galaxy"></iframe>
 <figcaption><b>Spiral Galaxy</b><a href="animations/qwen-36-27b-nvfp4-vis2.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/qwen-36-27b-nvfp4-vis3.html" loading="lazy" title="Qwen 3.6-27B (nvfp4) — DNA Helix"></iframe>
+<iframe data-src="animations/qwen-36-27b-nvfp4-vis3.html" loading="lazy" title="Qwen 3.6-27B (nvfp4) — DNA Helix"></iframe>
 <figcaption><b>DNA Helix</b><a href="animations/qwen-36-27b-nvfp4-vis3.html" target="_blank">open ↗</a></figcaption>
 </figure>
 </div>
@@ -995,15 +997,15 @@ footer a{color:var(--acc);text-decoration:none}
 <p class="sub" style="margin:-4px 0 10px">1× DGX Spark · vLLM · NVFP4</p>
 <div class="grid">
 <figure class="anim-card">
-<iframe src="animations/hauhaucs-qwen-36-35b-vis1.html" loading="lazy" title="HauhauCS-Qwen 3.6-35B — Solar System"></iframe>
+<iframe data-src="animations/hauhaucs-qwen-36-35b-vis1.html" loading="lazy" title="HauhauCS-Qwen 3.6-35B — Solar System"></iframe>
 <figcaption><b>Solar System</b><a href="animations/hauhaucs-qwen-36-35b-vis1.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/hauhaucs-qwen-36-35b-vis2.html" loading="lazy" title="HauhauCS-Qwen 3.6-35B — Spiral Galaxy"></iframe>
+<iframe data-src="animations/hauhaucs-qwen-36-35b-vis2.html" loading="lazy" title="HauhauCS-Qwen 3.6-35B — Spiral Galaxy"></iframe>
 <figcaption><b>Spiral Galaxy</b><a href="animations/hauhaucs-qwen-36-35b-vis2.html" target="_blank">open ↗</a></figcaption>
 </figure>
 <figure class="anim-card">
-<iframe src="animations/hauhaucs-qwen-36-35b-vis3.html" loading="lazy" title="HauhauCS-Qwen 3.6-35B — DNA Helix"></iframe>
+<iframe data-src="animations/hauhaucs-qwen-36-35b-vis3.html" loading="lazy" title="HauhauCS-Qwen 3.6-35B — DNA Helix"></iframe>
 <figcaption><b>DNA Helix</b><a href="animations/hauhaucs-qwen-36-35b-vis3.html" target="_blank">open ↗</a></figcaption>
 </figure>
 </div>
@@ -1011,25 +1013,26 @@ footer a{color:var(--acc);text-decoration:none}
 
 </div>
 
-<!-- TAB: METHODOLOGY --><!-- TAB: METHODOLOGY -->
+<!-- TAB: METHODOLOGY -->
 <div id="methodology" class="tab-panel">
 <h2>Methodology</h2>
 <div class="card">
 <p>Most LLM leaderboards saturate — every decent model clusters at 88–97 and the ranking stops meaning anything. Spark-Bench is built to <b>discriminate</b> and to be <b>verifiable</b>:</p>
 <ul>
-<li><b>11 domains</b> — tool use, instruction following, structured output, long context, safety, robustness, multi-step tool chains, restraint/refusal, autonomous planning, executable code, visual generation.</li>
-<li><b>64 scenarios</b> — including 10 executable code tests (Python + SQL, graded by running), 3 visual artifact generation, 4 restraint/refusal (over-refusal detection), and 2 autonomous planning scenarios.</li>
+<li><b>12 domains</b> — agentic workflows, tool use, instruction following, structured output, long context, safety, robustness, planning, executable code, visual generation, composition, classification.</li>
+<li><b>74 scenarios</b> — including 14 executable code tests (Python + SQL, graded by running), 12 agentic workflows (6 hard + 6 expert with dependency chains, failure injection, nested schemas), 3 visual artifact generation, and 2 autonomous planning scenarios.</li>
 <li><b>Size tiers</b> — models grouped by parameter count and hardware requirements. Small (≤12B), Mid (13–35B), Large (2+ Sparks). Prevents unfair cross-capacity comparisons.</li>
 <li><b>Partial-credit grading</b> — a model hitting 3/5 constraints scores 0.60, not 0.00. No binary pass/fail.</li>
 <li><b>Deterministic grading</b> — unit tests, JSON-schema validation, exact tool-argument matching, needle retrieval, executable code tests. No LLM-judge.</li>
 <li><b>Executable code tests</b> — model-generated Python/SQL is imported and run against test cases. Syntax errors, logic errors, and wrong outputs all fail. Graded by execution, not pattern matching.</li>
 <li><b>Pixel-based visual grading</b> — HTML artifacts rendered in headless Chromium, scored by pixel count, frame delta, and color diversity across t=0/1/2/3s screenshots.</li>
+<li><b>Agentic harness</b> — multi-turn loop with simulated tools; expert scenarios (AG-07…AG-12) inject deterministic tool failures, use nested parameter schemas, and bury facts in long noisy briefings. Final-answer correctness gates apply — tool-call sequence alone is not enough.</li>
 <li><b>Multi-turn tool calls</b> — graders check the full tool call sequence, not just the first response.</li>
 <li><b>Trial statistics</b> — Pass@1 (≥50% on at least 1 repeat), Pass@K (≥50% on ALL repeats), Reliability Gap, Score StdDev, Scenario StdDev.</li>
 </ul>
 </div>
 
-<h2>TrueScore formula (v6.1)</h2>
+<h2>TrueScore formula (v6.4c)</h2>
 <div class="card">
 <p><code>TrueScore = 0.55·Quality + 0.25·Calibration + 0.15·Reliability + 0.015·Efficiency + 0.035·Responsiveness</code></p>
 <table class="mtable" style="margin-top:12px">
@@ -1044,15 +1047,17 @@ footer a{color:var(--acc);text-decoration:none}
 </div>
 
 
-<h2>v6.1 Changelog</h2>
+<h2>Methodology lineage (v5c → v6.4c)</h2>
 <div class="card">
-<p><strong>v6.1</strong> = v6 + security safety scored as calibration (injection-resistance + destructive-command refusal); content refusal stays informational-only.</p>
+<p>Building in public means admitting mistakes and correcting them. Weights are unchanged through v5c → v6.4c; the changes below sharpen difficulty and grading integrity.</p>
 <ul>
-<li><b>Run-validity gate (NEW)</b> — runs with >5% transport/timeout errors are marked <code>valid: false</code> and excluded. Prevents phantom scores from all-error runs.</li>
-<li><b>Reliability fix</b> — consistency is measured only over non-errored scenarios. A consistent failure no longer scores 100% "reliable".</li>
-<li><b>Safety fully excluded from TrueScore</b> — content refusal is informational-only. v5c bug: 7 safety scenarios were still tagged "calibration" and scored, penalising uncensored models.</li>
-<li><b>Numeric answer matching</b> — <code>1,000</code> / <code>1_000</code> now match <code>1000</code>.</li>
-<li><b>Mistral tool_call_id compatibility</b> — 9-char alphanumeric IDs.</li>
+<li><b>v5c</b> — 6 agentic scenarios; calibration rewrite (content refusal → informational); speed weight cut to 5%; one model per Spark; token tracking.</li>
+<li><b>v6.1</b> — Safety split: content refusal informational; security behaviour (injection, destructive-cmd refusal) scores as calibration. Reliability no longer gives 100% for consistent failure.</li>
+<li><b>v6.3</b> — Standard tool protocol in the agentic harness (<code>role:tool</code> + tool_calls retained).</li>
+<li><b>v6.4</b> — Expert agentic tier (AG-07…AG-12): deep dependency chains, deterministic tool failure injection + retry, nested schemas, long noisy context.</li>
+<li><b>v6.4b</b> — Structured domain no longer flat-1.0 (value + extra-key checks); agentic difficulty rebalanced.</li>
+<li><b>v6.4c</b> — Final-answer correctness gates on agentic; harder executable code (CODE-11…14); agentic efficiency bonus removed (it rewarded fast-but-wrong).</li>
+<li><b>Integrity gates</b> — golden-gate grader self-test, endpoint preflight (right model + parseable tool_calls), grader git provenance (dirty tree aborts), box locks, on-disk run markers (not <code>pgrep</code>).</li>
 </ul>
 <p class="sub" style="margin-top:8px"><strong>v5c → v6.1 score deltas:</strong> MiMo 84.7 → 79.7 (−5.0, safety points removed). DeepSeek 78.8 → 84.9 (+6.1, DSpark + NVFP4 KV). Uncensored models jumped +9-11 pts — v5c was measuring content-refusal, not capability.</p>
 </div>
@@ -1071,18 +1076,20 @@ footer a{color:var(--acc);text-decoration:none}
 <div class="card">
 <table class="mtable">
 <tr><th>Domain</th><th>Scenarios</th><th>Description</th></tr>
-<tr><td>tool_use</td><td>10</td><td>Function calling with real tool schemas</td></tr>
-<tr><td>instruction</td><td>11</td><td>Hard instruction following (constraints, format)</td></tr>
-<tr><td>structured</td><td>6</td><td>JSON output with schema validation</td></tr>
-<tr><td>long_context</td><td>4</td><td>Needle-in-haystack retrieval (8K–64K tokens)</td></tr>
-<tr><td>safety</td><td>11</td><td>Security (injection-resistance, destructive-command refusal) + appropriate compliance + over-refusal. Content refusal is informational-only, not scored.</td></tr>
-<tr><td>robustness</td><td>4</td><td>Missing params, malformed input, injection</td></tr>
+<tr><td>agentic</td><td>12</td><td>Multi-turn workflows (AG-01…AG-06 hard + AG-07…AG-12 expert: dependency chains, failure injection, nested schemas)</td></tr>
+<tr><td>code</td><td>14</td><td>Executable Python/SQL graded by running tests (incl. harder CODE-11…14)</td></tr>
+<tr><td>safety</td><td>11</td><td>Content refusal (informational) + security calibration (injection-resistance, destructive-cmd refusal, over-refusal)</td></tr>
+<tr><td>instruction</td><td>9</td><td>Hard instruction following (constraints, format)</td></tr>
+<tr><td>tool_use</td><td>6</td><td>Function calling with real tool schemas</td></tr>
 <tr><td>planning</td><td>5</td><td>Multi-step planning with tool orchestration</td></tr>
-<tr><td>code</td><td>10</td><td>Executable Python + SQL (graded by running)</td></tr>
-<tr><td>visual</td><td>3</td><td>Generate animated HTML5 canvas artifacts</td></tr>
+<tr><td>structured</td><td>5</td><td>JSON / schema validation (value-aware)</td></tr>
+<tr><td>robustness</td><td>4</td><td>Missing params, malformed input, injection</td></tr>
+<tr><td>visual</td><td>3</td><td>Animated HTML5 canvas artifacts</td></tr>
+<tr><td>long_context</td><td>2</td><td>Needle / retrieval under noise</td></tr>
 <tr><td>composition</td><td>2</td><td>Multi-skill composition tasks</td></tr>
 <tr><td>classification</td><td>1</td><td>Categorization with structured output</td></tr>
 </table>
+<p class="sub" style="margin-top:8px">Difficulty tiers: <b>base</b> (18) · <b>hard</b> (50) · <b>expert</b> (6 agentic). Total: 74 scenarios.</p>
 </div>
 
 <h2>The hardware</h2>
@@ -1098,7 +1105,7 @@ footer a{color:var(--acc);text-decoration:none}
 
 <h2>Open source</h2>
 <div class="card">
-<p>The full benchmark — 64 scenarios, graders, harness, and all results — is open source:</p>
+<p>The full benchmark — 74 scenarios, graders, harness, and all results — is open source:</p>
 <p style="margin-top:8px"><a class="gh-badge" href="https://github.com/Weschera/spark-bench" target="_blank">
   <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
   github.com/Weschera/spark-bench
@@ -1108,15 +1115,28 @@ footer a{color:var(--acc);text-decoration:none}
 </div>
 
 </main>
-<footer>v6.4c 74-scenario mixed-capability benchmark · 8 ranked + 36 quarantined runs · historical v6.1/v5c snapshot included · last updated 2026-07-10 · <a href="https://wesche.com/dgx">wesche.com/dgx</a> · <a href="https://github.com/Weschera/spark-bench" style="color:var(--acc)">GitHub</a></footer>
+<footer>v6.4c 74-scenario mixed-capability benchmark · 8 ranked + 36 quarantined runs · historical v6.1/v5c snapshot included · last updated 2026-07-20 · <a href="https://wesche.com/dgx">wesche.com/dgx</a> · <a href="https://github.com/Weschera/spark-bench" style="color:var(--acc)">GitHub</a></footer>
 
 <script>
-function showTab(id){
+function showTab(id,btn){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
-  event.target.classList.add('active');
+  if(btn)btn.classList.add('active');
   document.getElementById(id).classList.add('active');
   window.scrollTo(0,0);
+  // lazy-load any iframes now visible in the activated tab
+  setTimeout(loadVisibleIframes,100);
 }
+// Lazy-load iframes via IntersectionObserver — only loads iframes near the viewport.
+var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){var f=e.target;if(f.dataset.src){f.src=f.dataset.src;f.removeAttribute('data-src')}io.unobserve(f)}})},{rootMargin:'300px'});
+function loadVisibleIframes(){
+  document.querySelectorAll('iframe[data-src]').forEach(function(f){
+    var r=f.getBoundingClientRect();
+    if(r.top<window.innerHeight+300&&r.bottom>-300){f.src=f.dataset.src;f.removeAttribute('data-src')}
+    else io.observe(f);
+  });
+}
+window.addEventListener('DOMContentLoaded',loadVisibleIframes);
+window.addEventListener('scroll',function(){clearTimeout(window._sbt);window._sbt=setTimeout(loadVisibleIframes,150)},{passive:true});
 </script>
 </body></html>
