@@ -47,6 +47,8 @@ h1{font-size:36px;margin:0 0 6px;letter-spacing:-.02em}h2{font-size:22px;margin:
 .ver-badge.v4{background:rgba(76,217,100,.15);color:#4cd964}
 .ver-badge.v5c{background:rgba(139,144,168,.15);color:#8b90a8}
 .ver-badge.v64c{background:rgba(76,217,100,.15);color:#4cd964}
+.ver-badge.v65{background:rgba(110,168,255,.15);color:var(--acc)}
+.quar-flag{display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;background:rgba(255,165,0,.12);color:#ffa500;white-space:nowrap}
 .ver-badge.v1{background:rgba(139,144,168,.15);color:#8b90a8}
 .quarantine-note{background:rgba(255,165,0,.08);border:1px solid rgba(255,165,0,.25);border-radius:10px;padding:12px 16px;font-size:13px;color:var(--mut);margin:14px 0 26px}
 .hist-note{color:var(--mut);font-size:13px;margin:6px 0 18px}
@@ -82,9 +84,9 @@ footer a{color:var(--acc);text-decoration:none}
 @media(max-width:720px){.grid{grid-template-columns:1fr}h1{font-size:28px}.intro{padding:16px}.tabs{padding:0 10px}.tab{padding:10px 16px;font-size:13px}.mtable{font-size:12px;display:block;overflow-x:auto;-webkit-overflow-scrolling:touch;white-space:nowrap}.mtable td,.mtable th{padding:6px 5px}.mtable th{position:sticky;left:0;background:var(--card);z-index:1}.stats-row{gap:6px}.stat-badge{min-width:80px;padding:8px 10px}.stat-badge .val{font-size:18px}}
 </style></head><body>
 <header><div class="wrap">
-<div class="tag">NVIDIA DGX Spark · Grace-Blackwell · v6.4c Mixed-Capability Benchmark</div>
+<div class="tag">NVIDIA DGX Spark · Grace-Blackwell · v6.5 Mixed-Capability Benchmark</div>
 <h1>Spark-Bench</h1>
-<p class="lede">74 scenarios · 12 domains · executable code tests · pixel-graded visual artifacts · partial-credit scoring · provenance-stamped grading</p>
+<p class="lede">76 scenarios · 12 domains · executable code tests · pixel-graded rendered-3D visuals · partial-credit scoring · provenance-stamped grading</p>
 </div></header>
 
 <img class="promo" src="spark-bench-promo.jpg" alt="Spark-Bench promotional graphic">
@@ -93,7 +95,7 @@ footer a{color:var(--acc);text-decoration:none}
 
 <!-- INTRO -->
 <div class="intro">
-<p><strong>Spark-Bench</strong> is a mixed-capability LLM benchmark built specifically for the NVIDIA DGX Spark (GB10 Grace-Blackwell) platform. It evaluates models across <strong>74 scenarios in 12 domains</strong> using the v6.4c protocol — agentic workflows, tool use, instruction following, structured output, long context retrieval, safety, robustness, multi-step tool chains, restraint/refusal detection, autonomous planning, executable code generation, and visual artifact generation.</p>
+<p><strong>Spark-Bench</strong> is a mixed-capability LLM benchmark built specifically for the NVIDIA DGX Spark (GB10 Grace-Blackwell) platform. It evaluates models across <strong>76 scenarios in 12 domains</strong> using the v6.5 protocol — agentic workflows, tool use, instruction following, structured output, long context retrieval, safety, robustness, multi-step tool chains, restraint/refusal detection, autonomous planning, executable code generation, and visual artifact generation including <strong>rendered 3D scenarios graded by pixels</strong> (headless render, no text proxies).</p>
 
 <p>Models are grouped into <strong>size tiers</strong> so small models compete against peers of similar capacity. A 2B dense model isn't compared head-to-head with a 35B MoE — instead, each tier has its own leaderboard.</p>
 
@@ -121,20 +123,50 @@ footer a{color:var(--acc);text-decoration:none}
 <div id="leaderboard" class="tab-panel active">
 
 <div class="stats-row">
-<div class="stat-badge"><div class="val">74</div><div class="lbl">Scenarios</div></div>
+<div class="stat-badge"><div class="val">76</div><div class="lbl">Scenarios</div></div>
 <div class="stat-badge"><div class="val">12</div><div class="lbl">Domains</div></div>
-<div class="stat-badge"><div class="val">v6.4c</div><div class="lbl">Protocol</div></div>
+<div class="stat-badge"><div class="val">v6.5</div><div class="lbl">Protocol</div></div>
 <div class="stat-badge"><div class="val">8</div><div class="lbl">Ranked Runs</div></div>
-<div class="stat-badge"><div class="val">36</div><div class="lbl">Quarantined</div></div>
+<div class="stat-badge"><div class="val">67</div><div class="lbl">Quarantined</div></div>
 <div class="stat-badge"><div class="val">10</div><div class="lbl">Code Tests</div></div>
 <div class="stat-badge"><div class="val">K=2</div><div class="lbl">Repeats</div></div>
 </div>
 
-<!-- CURRENT BOARD: v6.4c -->
+<!-- CURRENT BOARD: v6.5 (published with quarantine flags visible) -->
 <div class="tier-header">
 <span class="tier-badge mid">Current</span>
+<h3>TrueScore v6.5 · 76 scenarios · pixel-graded visuals · think-OFF</h3>
+<span class="tier-sub">Every v6.5 run to date carries an auto-quarantine flag (see note below) — scores shown with flags visible, pending human review</span>
+</div>
+<table class="mtable" style="background:var(--card);border:1px solid var(--line);border-radius:14px">
+<tr><th>#</th><th>Model</th><th>TrueScore</th><th>Capability</th><th>Cal</th><th>Rel</th><th>Auto-flag ⚠</th><th>Ver</th></tr>
+<tr><td>1</td><td><div class="model-name">GLM-5.2 (local)</div><div class="model-desc">QuantTrio quant · 4× DGX Spark · vLLM · 200K ctx</div></td><td><span class="ts-score high">91.1</span></td><td>85.9</td><td>100.0</td><td>97.2</td><td><span class="quar-flag">structured flat</span></td><td><span class="ver-badge v65">v6.5</span></td></tr>
+<tr><td>2</td><td><div class="model-name">Inkling-Small NVFP4</div><div class="model-desc">276B-A12B MoE · official Thinking Machines NVFP4 · 4× DGX Spark · vLLM TP4</div></td><td><span class="ts-score high">87.9</span></td><td>79.3</td><td>—</td><td>97.7</td><td><span class="quar-flag">agentic + structured flat</span></td><td><span class="ver-badge v65">v6.5</span></td></tr>
+<tr><td>3</td><td><div class="model-name">KAT-Coder V2.5 Dev (BF16)</div><div class="model-desc">official BF16 · 1× DGX Spark · vLLM</div></td><td><span class="ts-score high">87.7</span></td><td>82.9</td><td>93.9</td><td>95.3</td><td><span class="quar-flag">structured flat</span></td><td><span class="ver-badge v65">v6.5</span></td></tr>
+<tr><td>4</td><td><div class="model-name">Laguna S-2.1 GGUF</div><div class="model-desc">Q4_K_M · vcruz305 llama.cpp fork · 1× DGX Spark · agentic 100 (ties record)</div></td><td><span class="ts-score high">87.5</span></td><td>81.9</td><td>93.9</td><td>98.7</td><td><span class="quar-flag">agentic + structured flat</span></td><td><span class="ver-badge v65">v6.5</span></td></tr>
+<tr><td>5</td><td><div class="model-name">KAT-Coder V2.5 Dev (NVFP4)</div><div class="model-desc">community NVFP4 · 1× DGX Spark · vLLM · 65 tok/s</div></td><td><span class="ts-score ok">85.1</span></td><td>80.9</td><td>87.6</td><td>93.5</td><td><span class="quar-flag">structured flat</span></td><td><span class="ver-badge v65">v6.5</span></td></tr>
+</table>
+
+<div class="quarantine-note">⚠ <strong>Why every v6.5 run is flagged:</strong> the grader auto-quarantines any run where a whole domain scores perfectly flat across both repeats. The structured domain is only 5 scenarios, so a model that goes 5/5 twice trips the flag — frontier cloud references (Claude, Grok) trip it too. We publish these scores <em>with the flag visible</em> rather than silently ranking or silently hiding them; a human structured-domain audit is pending. Every number carries a run_id in <code>results/spark_bench.csv</code> (grader <code>1ea15f0</code>).</div>
+
+<!-- LOCAL VS CLOUD SERIES -->
+<div class="tier-header">
+<span class="tier-badge large">Series</span>
+<h3>Local vs cloud · same model, same 74 tasks, same grader, same day</h3>
+<span class="tier-sub">2026-07-20/21 · cloud = OpenRouter API (7 different providers observed serving the "same" models in one day) · grader <code>dac4e10</code> · not comparable to v6.5</span>
+</div>
+<table class="mtable" style="background:var(--card);border:1px solid var(--line);border-radius:14px">
+<tr><th>Model</th><th>🏠 Local TrueScore</th><th>☁️ Cloud TrueScore</th><th>Gap</th><th>Local rig</th><th>Auto-flag ⚠</th></tr>
+<tr><td><div class="model-name">GLM-5.2</div></td><td><span class="ts-score high">91.5</span></td><td>86.8</td><td>+4.7</td><td>4× DGX Spark · vLLM · 200K ctx</td><td><span class="quar-flag">structured flat (both)</span></td></tr>
+<tr><td><div class="model-name">Laguna S-2.1</div></td><td><span class="ts-score high">86.5</span></td><td>80.9</td><td>+5.6</td><td>1× DGX Spark · NVFP4 · vLLM</td><td><span class="quar-flag">structured/visual flat</span></td></tr>
+<tr><td><div class="model-name">DeepSeek V4 Flash</div></td><td><span class="ts-score high">86.7</span></td><td>85.0</td><td>+1.7</td><td>2× DGX Spark · DSpark recipe</td><td><span class="quar-flag">structured flat (both)</span></td></tr>
+</table>
+<div class="quarantine-note">🏠 <strong>Local swept 3–0.</strong> Not because local is smarter — because it's consistent. Cloud repeat-consistency was the main gap: every API request can land on a different provider with a different quant and config. All six runs carry the same auto-quarantine flags as above and are shown with flags visible.</div>
+
+<div class="tier-header">
+<span class="tier-badge small">Ranked</span>
 <h3>TrueScore v6.4c · 74 scenarios · think-OFF</h3>
-<span class="tier-sub">1× DGX Spark unless marked · grader-provenance stamped</span>
+<span class="tier-sub">1× DGX Spark unless marked · grader-provenance stamped · clean (unflagged) runs only · not comparable to v6.5</span>
 </div>
 <table class="mtable" style="background:var(--card);border:1px solid var(--line);border-radius:14px">
 <tr><th>#</th><th>Model</th><th>TrueScore</th><th>Capability</th><th>Cal</th><th>Rel</th><th>Spec decode</th><th>Ver</th></tr>
@@ -146,9 +178,10 @@ footer a{color:var(--acc);text-decoration:none}
 <tr><td>6</td><td><div class="model-name">Ornith 35B</div><div class="model-desc">35B · GGUF · llama.cpp</div></td><td><span class="ts-score high">85.1</span></td><td>76.8</td><td>93.9</td><td>98.1</td><td>—</td><td><span class="ver-badge v64c">v6.4c</span></td></tr>
 <tr><td>7</td><td><div class="model-name">Qwen 3.6-27B NVFP4 · MTP</div><div class="model-desc">27B dense · NVFP4 (MTP-restored ckpt) · vLLM · MTP-3</div></td><td><span class="ts-score ok">84.1</span></td><td>80.9</td><td>84.9</td><td>93.3</td><td>mtp3</td><td><span class="ver-badge v64c">v6.4c</span></td></tr>
 <tr><td>8</td><td><div class="model-name">Grok 4.5 (cloud reference)</div><div class="model-desc">OpenRouter API · effort low · smoke run</div></td><td><span class="ts-score ok">82.6</span></td><td>79.0</td><td>—</td><td>100.0</td><td>—</td><td><span class="ver-badge v64c">v6.4c</span></td></tr>
+<tr><td>9</td><td><div class="model-name">GLM-5.2 (cloud)</div><div class="model-desc">OpenRouter API · early cloud run — provider-lottery caveat; see local 91.x runs above</div></td><td><span class="ts-score ok">71.2</span></td><td>62.3</td><td>90.1</td><td>74.6</td><td>—</td><td><span class="ver-badge v64c">v6.4c</span></td></tr>
 </table>
 
-<div class="quarantine-note">⚠ <strong>Quarantine policy:</strong> 36 additional v6.4c runs are withheld from ranking because the grader flagged degenerate score patterns (e.g. a domain scoring flat 1.0 or 0.0). We treat those as a harness symptom until a human verifies the model really behaves that way — runs get ranked only after review. Full quarantine list with reasons lives in the <a href="https://github.com/Weschera/spark-bench" target="_blank" style="color:var(--acc)">repo</a> (<code>results/spark_bench.csv</code>). Every ranked number above carries a run_id and grader git hash.</div>
+<div class="quarantine-note">⚠ <strong>Quarantine policy:</strong> 67 runs across suite versions carry auto-quarantine flags for degenerate score patterns (e.g. a domain scoring flat 1.0 or 0.0). We treat those as a harness symptom until a human verifies the model really behaves that way. The flagged v6.5 and local-vs-cloud runs above are shown <em>with their flags visible</em>; the rest stay unlisted. Full quarantine list with reasons lives in the <a href="https://github.com/Weschera/spark-bench" target="_blank" style="color:var(--acc)">repo</a> (<code>results/spark_bench.csv</code>). Every number on this page carries a run_id and grader git hash.</div>
 
 <!-- HISTORICAL SNAPSHOT -->
 <div class="tier-header">
@@ -1020,7 +1053,7 @@ footer a{color:var(--acc);text-decoration:none}
 <p>Most LLM leaderboards saturate — every decent model clusters at 88–97 and the ranking stops meaning anything. Spark-Bench is built to <b>discriminate</b> and to be <b>verifiable</b>:</p>
 <ul>
 <li><b>12 domains</b> — agentic workflows, tool use, instruction following, structured output, long context, safety, robustness, planning, executable code, visual generation, composition, classification.</li>
-<li><b>74 scenarios</b> — including 14 executable code tests (Python + SQL, graded by running), 12 agentic workflows (6 hard + 6 expert with dependency chains, failure injection, nested schemas), 3 visual artifact generation, and 2 autonomous planning scenarios.</li>
+<li><b>76 scenarios</b> — including 14 executable code tests (Python + SQL, graded by running), 12 agentic workflows (6 hard + 6 expert with dependency chains, failure injection, nested schemas), 5 visual artifact generation (incl. two rendered-3D scenarios graded by pixels), and 2 autonomous planning scenarios.</li>
 <li><b>Size tiers</b> — models grouped by parameter count and hardware requirements. Small (≤12B), Mid (13–35B), Large (2+ Sparks). Prevents unfair cross-capacity comparisons.</li>
 <li><b>Partial-credit grading</b> — a model hitting 3/5 constraints scores 0.60, not 0.00. No binary pass/fail.</li>
 <li><b>Deterministic grading</b> — unit tests, JSON-schema validation, exact tool-argument matching, needle retrieval, executable code tests. No LLM-judge.</li>
@@ -1032,7 +1065,7 @@ footer a{color:var(--acc);text-decoration:none}
 </ul>
 </div>
 
-<h2>TrueScore formula (v6.4c)</h2>
+<h2>TrueScore formula (v6.4c / v6.5 — weights unchanged)</h2>
 <div class="card">
 <p><code>TrueScore = 0.55·Quality + 0.25·Calibration + 0.15·Reliability + 0.015·Efficiency + 0.035·Responsiveness</code></p>
 <table class="mtable" style="margin-top:12px">
@@ -1047,9 +1080,9 @@ footer a{color:var(--acc);text-decoration:none}
 </div>
 
 
-<h2>Methodology lineage (v5c → v6.4c)</h2>
+<h2>Methodology lineage (v5c → v6.5)</h2>
 <div class="card">
-<p>Building in public means admitting mistakes and correcting them. Weights are unchanged through v5c → v6.4c; the changes below sharpen difficulty and grading integrity.</p>
+<p>Building in public means admitting mistakes and correcting them. Weights are unchanged through v5c → v6.5; the changes below sharpen difficulty and grading integrity.</p>
 <ul>
 <li><b>v5c</b> — 6 agentic scenarios; calibration rewrite (content refusal → informational); speed weight cut to 5%; one model per Spark; token tracking.</li>
 <li><b>v6.1</b> — Safety split: content refusal informational; security behaviour (injection, destructive-cmd refusal) scores as calibration. Reliability no longer gives 100% for consistent failure.</li>
@@ -1057,6 +1090,7 @@ footer a{color:var(--acc);text-decoration:none}
 <li><b>v6.4</b> — Expert agentic tier (AG-07…AG-12): deep dependency chains, deterministic tool failure injection + retry, nested schemas, long noisy context.</li>
 <li><b>v6.4b</b> — Structured domain no longer flat-1.0 (value + extra-key checks); agentic difficulty rebalanced.</li>
 <li><b>v6.4c</b> — Final-answer correctness gates on agentic; harder executable code (CODE-11…14); agentic efficiency bonus removed (it rewarded fast-but-wrong).</li>
+<li><b>v6.5</b> — Rendered 3D visual scenarios (VIS-04 two-car overtake race, VIS-05 stand→walk→run locomotion): model-generated HTML rendered headless and <b>graded by pixels</b> (shape-based phase analysis, impulse-spike detection, blank-page down-weighting). Replaces the v6.4c text-proxy visual grading that let everyone score 100. 76 scenarios total; v6.5 scores are not comparable to v6.4c.</li>
 <li><b>Integrity gates</b> — golden-gate grader self-test, endpoint preflight (right model + parseable tool_calls), grader git provenance (dirty tree aborts), box locks, on-disk run markers (not <code>pgrep</code>).</li>
 </ul>
 <p class="sub" style="margin-top:8px"><strong>v5c → v6.1 score deltas:</strong> MiMo 84.7 → 79.7 (−5.0, safety points removed). DeepSeek 78.8 → 84.9 (+6.1, DSpark + NVFP4 KV). Uncensored models jumped +9-11 pts — v5c was measuring content-refusal, not capability.</p>
@@ -1084,7 +1118,7 @@ footer a{color:var(--acc);text-decoration:none}
 <tr><td>planning</td><td>5</td><td>Multi-step planning with tool orchestration</td></tr>
 <tr><td>structured</td><td>5</td><td>JSON / schema validation (value-aware)</td></tr>
 <tr><td>robustness</td><td>4</td><td>Missing params, malformed input, injection</td></tr>
-<tr><td>visual</td><td>3</td><td>Animated HTML5 canvas artifacts</td></tr>
+<tr><td>visual</td><td>5</td><td>Animated HTML5 canvas artifacts + rendered 3D scenarios (VIS-04 overtake race, VIS-05 locomotion) graded by pixels</td></tr>
 <tr><td>long_context</td><td>2</td><td>Needle / retrieval under noise</td></tr>
 <tr><td>composition</td><td>2</td><td>Multi-skill composition tasks</td></tr>
 <tr><td>classification</td><td>1</td><td>Categorization with structured output</td></tr>
@@ -1115,7 +1149,7 @@ footer a{color:var(--acc);text-decoration:none}
 </div>
 
 </main>
-<footer>v6.4c 74-scenario mixed-capability benchmark · 8 ranked + 36 quarantined runs · historical v6.1/v5c snapshot included · last updated 2026-07-20 · <a href="https://wesche.com/dgx">wesche.com/dgx</a> · <a href="https://github.com/Weschera/spark-bench" style="color:var(--acc)">GitHub</a></footer>
+<footer>v6.5 76-scenario mixed-capability benchmark · 9 ranked (v6.4c) + 5 flagged v6.5 + local-vs-cloud series · 67 quarantined runs total · historical v6.1/v5c snapshot included · last updated 2026-07-30 · <a href="https://wesche.com/dgx">wesche.com/dgx</a> · <a href="https://github.com/Weschera/spark-bench" style="color:var(--acc)">GitHub</a></footer>
 
 <script>
 function showTab(id,btn){
