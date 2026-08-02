@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Running Man</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #111; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+<script type="module">
+    import * as THREE from './three.module.js';
+
+    // --- 1. Scene Setup ---
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x202025);
+    
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(0, 1.5, 4);
+    camera.lookAt(0, 1, 0);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    document.body.appendChild(renderer.domElement);
+
+    // --- 2. Lighting ---
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    scene.add(ambientLight);
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+    dirLight.position.set(2, 5, 4);
+    dirLight.castShadow = true;
+    scene.add(dirLight);
+
+    // --- 3. The Humanoid ---
+    const human = new THREE.Group();
+    scene.add(human);
+
+    const skinMat = new THREE.MeshLambertMaterial({ color: 0xffaa88 });
+    const shirtMat = new THREE.MeshLambertMaterial({ color: 0x3366ff });
+    const pantsMat = new THREE.MeshLambertMaterial({ color: 0x222222 });
+
+    // Helper to create limbs
+    function createLimb(w, h, d, mat, x, y, z) {
+        const geo = new THREE.BoxGeometry(w, h, d);
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.set(x, y, z);
+        mesh.castShadow = true;
+        return mesh;
+    }
+
+    // Body
+    const torso = createLimb(0.3, 0.5, 0.2, shirtMat, 0, 1.1, 0);
+    human.add(torso);
+
+    // Head
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.2), skinMat);
+    head.position.set(0, 1.5, 0);
+    human.add(head);
+
+    // Arms
+    const lArm = createLimb(0.1, 0.4, 0.1, shirtMat, -0.2, 1.2, 0);
+    const rArm = createLimb(0.1, 0.4, 0.1, shirtMat, 0.2, 1.2, 0);
+    human.add(lArm, rArm);
+
+    // Legs
+    const lLeg = createLimb(0.12, 0.5, 0.12, pantsMat, -0.1, 0.65, 0);
+    const rLeg = createLimb(0.12, 0.5, 0.12, pantsMat, 0.1, 0.65, 0);
+    human.add(lLeg, rLeg);
+
+    // --- 4. The Ground (Treadmill) ---
+    // A simple box that will move texture or position to simulate motion
+    const groundGeo = new THREE.PlaneGeometry(10, 10);
+    // Create a texture using canvas to avoid external assets
+    const canvas = document.createElement('canvas');
+    canvas.width = 64;
+    canvas.height = 64;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#444';
+    ctx.fillRect(0,0,64,64);
+    ctx.fillStyle = '#666';
+    ctx.fillRect(0,0,32,64); // Stripes
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(10, 1);
+
+    const groundMat = new THREE.MeshStandardMaterial({ map: texture });
+    const ground = new THREE.Mesh(groundGeo, groundMat);
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    // --- 5. Animation Logic ---
+    
+    // State 0: Idle (2s)
+    // State 1: Walk (3s)
+    // State 2: Run (3s)
+    // State 3: Idle (2s)
+    // Total: 10s
+    
+    const CYCLE_TIME = 10;
+    
+    function getAnimationParams(t) {
+        // Normalize t to 0..10
+        t = t % CYCLE_TIME;
+        
+        // Phase 1: Idle (0 - 2)
+        if (t < 2) return { type: 'idle' };
+        
+        // Phase 2: Walk (2 - 5)
+        if (t < 5) return { type: 'walk', t: t - 2 };
+        
+        // Phase 3: Run (5 - 8)
+        if (t < 8) return { type: 'run', t: t - 5 };
+        
+        // Phase 4: Idle (8 - 10)
+        return { type: 'idle' };
+    }
+
+    const clock = new THREE.Clock();
+
+    function animate() {
+        requestAnimationFrame(animate);
+        
+        const time = clock.getElapsedTime();
+        const params = getAnimationParams(time);
+        
+        let legAngle = 0;
+        let armAngle = 0;
+        let bodyLean = 0;
+        let bob = 0;
+        let textureSpeed = 0;
+
+        if (params.type === 'idle') {
+            legAngle = 0;
+            armAngle = 0;
+            bodyLean = 0;
+            bob = 0;
+            textureSpeed = 0;
+        } 
+        else if (params.type === 'walk') {
+            // 3 seconds for a walk cycle. 2 full steps in 1.5s.
+            // Freq: 2 cycles per 1.5s. 4 cycles per 3s.
+            const walkCycle = (params.t / 3) * 4 * Math.PI; 
+            
+            legAngle = Math.sin(walkCycle) * 0.5; // 30 deg
+            armAngle = Math.sin(walkCycle + Math.PI) * 0.5; // Opposite
+            bodyLean = 0;
+            bob = Math.abs(Math.sin(walkCycle)) * 0.05;
+            textureSpeed = 0.2;
+        } 
+        else if (params.type === 'run') {
+            // 3 seconds for run cycle. 4 full steps in 1.5s.
+            // Freq: 4 cycles per 1.5s. 8 cycles per 3s.
+            const runCycle = (params.t / 3) * 8 * Math.PI;
+            
+            legAngle = Math.sin(runCycle) * 1.2; // 70 deg (big swings)
+            armAngle = Math.sin(runCycle + Math.PI) * 1.0; // 60 deg
+            bodyLean = 0.2; // 10 deg forward
+            bob = Math.abs(Math.sin(runCycle)) * 0.15; // Big bounces
+            textureSpeed = 0.8;
+        }
+
+        // Apply rotations
+        // L is sin, R is -sin (or sin + PI)
+        lLeg.rotation.x = -legAngle;
+        rLeg.rotation.x = legAngle;
+        
+        lArm.rotation.x = -armAngle;
+        rArm.rotation.x = armAngle;
+        
+        // Body
+        torso.rotation.x = bodyLean;
+        head.rotation.x = bodyLean;
+        
+        // Bobbing
+        human.position.y = bob;
+
+        // Move Ground
+        texture.offset.x -= textureSpeed * 0.01;
+
+        renderer.render(scene, camera);
+    }
+
+    // Start
+    animate();
+
+    // Handle Resize
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+</script>
+</body>
+</html>

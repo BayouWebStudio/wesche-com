@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Humanoid Animation</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #1a1a1a;
+            font-family: sans-serif;
+        }
+        canvas {
+            display: block;
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <strong>3D Humanoid Animation</strong><br>
+        <span id="status">Loading...</span>
+    </div>
+
+    <script type="module">
+        import * as THREE from './three.module.js';
+
+        // --- Scene Setup ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87CEEB); // Sky blue
+        scene.fog = new THREE.Fog(0x87CEEB, 10, 50);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(0, 2, 8); // Side-on camera, slightly elevated
+        camera.lookAt(0, 1, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+
+        // --- Lighting ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+        dirLight.position.set(5, 10, 7);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 2048;
+        dirLight.shadow.mapSize.height = 2048;
+        scene.add(dirLight);
+
+        // --- Materials ---
+        const skinMaterial = new THREE.MeshStandardMaterial({ color: 0xffccaa });
+        const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x3366cc });
+        const pantsMaterial = new THREE.MeshStandardMaterial({ color: 0x222222 });
+        const shoeMaterial = new THREE.MeshStandardMaterial({ color: 0x888888 });
+        const treadmillMaterial = new THREE.MeshStandardMaterial({ color: 0x444444 });
+        const beltMaterial = new THREE.MeshStandardMaterial({ color: 0x111111 });
+
+        // --- Humanoid Construction ---
+        const humanoid = new THREE.Group();
+        scene.add(humanoid);
+
+        // Helper to create limbs with pivot at top
+        function createLimb(width, height, depth, material, pivotY = 0) {
+            const geo = new THREE.BoxGeometry(width, height, depth);
+            geo.translate(0, -height / 2, 0); // Pivot at top
+            const mesh = new THREE.Mesh(geo, material);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            return mesh;
+        }
+
+        // Torso
+        const torso = createLimb(0.6, 0.8, 0.3, bodyMaterial);
+        torso.position.y = 1.4;
+        humanoid.add(torso);
+
+        // Head
+        const headGeo = new THREE.BoxGeometry(0.35, 0.35, 0.35);
+        const head = new THREE.Mesh(headGeo, skinMaterial);
+        head.position.y = 0.55; // Relative to torso top
+        head.castShadow = true;
+        torso.add(head);
+
+        // Pelvis (Hip joint)
+        const pelvis = new THREE.Group();
+        pelvis.position.y = 1.0; // Relative to torso bottom (1.4 - 0.4)
+        torso.add(pelvis);
+
+        // Upper Legs
+        const upperLegL = createLimb(0.25, 0.5, 0.25, pantsMaterial);
+        upperLegL.position.x = -0.2;
+        pelvis.add(upperLegL);
+
+        const upperLegR = createLimb(0.25, 0.5, 0.25, pantsMaterial);
+        upperLegR.position.x = 0.2;
+        pelvis.add(upperLegR);
+
+        // Knees
+        function createKnee(upperLeg) {
+            const knee = new THREE.Group();
+            knee.position.y = -0.5; // Bottom of upper leg
+            upperLeg.add(knee);
+
+            // Lower leg
+            const lowerLeg = createLimb(0.22, 0.5, 0.22, pantsMaterial);
+            lowerLeg.position.y = -0.25; // Pivot adjustment
+            knee.add(lowerLeg);
+
+            // Foot
+            const footGeo = new THREE.BoxGeometry(0.25, 0.1, 0.4);
+            footGeo.translate(0, 0, 0.1); // Pivot at top-back of foot
+            const foot = new THREE.Mesh(footGeo, shoeMaterial);
+            foot.position.y = -0.5;
+            lowerLeg.add(foot);
+
+            return { knee, lowerLeg, foot };
+        }
+
+        const leftLeg = createKnee(upperLegL);
+        const rightLeg = createKnee(upperLegR);
+
+        // Arms
+        function createArm(shoulderX) {
+            const shoulder = new THREE.Group();
+            shoulder.position.set(shoulderX, 0.3, 0); // Relative to torso top
+            torso.add(shoulder);
+
+            // Upper arm
+            const upperArm = createLimb(0.2, 0.4, 0.2, skinMaterial);
+            upperArm.position.y = -0.2;
+            shoulder.add(upperArm);
+
+            // Elbow
+            const elbow = new THREE.Group();
+            elbow.position.y = -0.4;
+            upperArm.add(elbow);
+
+            // Lower arm
+            const lowerArm = createLimb(0.18, 0.35, 0.18, skinMaterial);
+            lowerArm.position.y = -0.175;
+            elbow.add(lowerArm);
+
+            // Hand
+            const handGeo = new THREE.BoxGeometry(0.15, 0.15, 0.15);
+            const hand = new THREE.Mesh(handGeo, skinMaterial);
+            hand.position.y = -0.35;
+            lowerArm.add(hand);
+
+            return { shoulder, upperArm, elbow, lowerArm, hand };
+        }
+
+        const leftArm = createArm(-0.4);
+        const rightArm = createArm(0.4);
+
+        // --- Treadmill ---
+        const treadmillGroup = new THREE.Group();
+        scene.add(treadmillGroup);
+
+        // Base
+        const baseGeo = new THREE.BoxGeometry(1.5, 0.5, 3);
+        const base = new THREE.Mesh(baseGeo, new THREE.MeshStandardMaterial({ color: 0x333333 }));
+        base.position.y = -0.25;
+        base.receiveShadow = true;
+        treadmillGroup.add(base);
+
+        // Belt
+        const beltGeo = new THREE.BoxGeometry(1.4, 0.05, 2.8);
+        const belt = new THREE.Mesh(beltGeo, treadmillMaterial);
+        belt.position.y = 0;
+        belt.receiveShadow = true;
+        treadmillGroup.add(belt);
+
+        // Side rails
+        const railGeo = new THREE.BoxGeometry(0.1, 0.6, 3);
+        const railL = new THREE.Mesh(railGeo, beltMaterial);
+        railL.position.set(-0.8, 0.3, 0);
+        railL.castShadow = true;
+        treadmillGroup.add(railL);
+
+        const railR = new THREE.Mesh(railGeo, beltMaterial);
+        railR.position.set(0.8, 0.3, 0);
+        railR.castShadow = true;
+        treadmillGroup.add(railR);
+
+        // Front console
+        const consoleGeo = new THREE.BoxGeometry(0.5, 1.2, 0.2);
+        const console = new THREE.Mesh(consoleGeo, beltMaterial);
+        console.position.set(0, 0.6, 1.5);
+        console.castShadow = true;
+        treadmillGroup.add(console);
+
+        // --- Animation Logic ---
+        const clock = new THREE.Clock();
+        const statusEl = document.getElementById('status');
+        
+        // Animation parameters
+        const CYCLE_DURATION = 10.0; // seconds
+        const WALK_DURATION = 3.0;
+        const RUN_DURATION = 3.0;
+        const STAND_DURATION = 2.0;
+        
+        // Walking/Running parameters
+        const WALK_SPEED = 4.0; // rad/s
+        const RUN_SPEED = 8.0;  // rad/s
+        const WALK_SWING = 0.4; // radians
+        const RUN_SWING = 0.8;  // radians
+        
+        // Humanoid initial state
+        humanoid.position.set(0, 0, 0);
+        humanoid.rotation.y = 0; // Facing side (camera is at x=0, z=8 looking at origin, so humanoid faces camera? No, camera is at z=8, looking at 0,1,0. Humanoid should face -z or +z. Let's say humanoid faces +z (away from camera) or -z (towards camera). Standard side view: humanoid faces -z (towards camera) or +z (away). Let's assume facing +z (away from camera) for side view.
+        
+        // Actually, let's adjust camera to be strictly side-on.
+        // Camera at (0, 2, 8) looking at (0, 1, 0).
+        // Humanoid at (0, 0, 0).
+        // If humanoid faces +z, we see its back. If -z, we see its front.
+        // Let's make it face -z (towards camera) for better limb visibility.
+        humanoid.rotation.y = Math.PI / 2; // Face +x? No.
+        // Standard Three.js: X right, Y up, Z out of screen.
+        // Camera at Z=8, looking at Z=0.
+        // Humanoid at Z=0.
+        // If humanoid rotation.y = 0, it faces +Z (away from camera).
+        // If humanoid rotation.y = PI, it faces -Z (towards camera).
+        // Let's use rotation.y = PI (facing camera).
+        humanoid.rotation.y = Math.PI;
+
+        // Reset function for idle state
+        function resetPose() {
+            // Reset all rotations to 0
+            torso.rotation.x = 0;
+            torso.rotation.z = 0;
+            head.rotation.x = 0;
+            head.rotation.z = 0;
+            
+            pelvis.rotation.x = 0;
+            pelvis.rotation.z = 0;
+            
+            leftLeg.knee.rotation.x = 0;
+            leftLeg.lowerLeg.rotation.x = 0;
+            leftLeg.foot.rotation.x = 0;
+            
+            rightLeg.knee.rotation.x = 0;
+            rightLeg.lowerLeg.rotation.x = 0;
+            rightLeg.foot.rotation.x = 0;
+            
+            leftArm.shoulder.rotation.x = 0;
+            leftArm.upperArm.rotation.x = 0;
+            leftArm.elbow.rotation.x = 0;
+            leftArm.lowerArm.rotation.x = 0;
+            leftArm.hand.rotation.x = 0;
+            
+            rightArm.shoulder.rotation.x = 0;
+            rightArm.upperArm.rotation.x = 0;
+            rightArm.elbow.rotation.x = 0;
+            rightArm.lowerArm.rotation.x = 0;
+            rightArm.hand.rotation.x = 0;
+            
+            // Reset lean
+            humanoid.rotation.x = 0;
+            humanoid.rotation.z = 0;
+            
+            // Reset position
+            humanoid.position.y = 0;
+        }
+
+        // State variables
+        let phase = 'stand'; // stand, walk, run, stand
+        let phaseTime = 0;
+        let cycleTime = 0;
+
+        // Initial stand
+        resetPose();
+
+        function updateAnimation(time) {
+            // time is in seconds since start
+            cycleTime = time % CYCLE_DURATION;
+            
+            let statusText = '';
+            
+            if (cycleTime < STAND_DURATION) {
+                // Stand still (first 2 seconds)
+                phase = 'stand';
+                phaseTime = cycleTime;
+                statusText = 'Standing still';
+                
+                // Idle breathing animation
+                torso.rotation.x = Math.sin(time * 2) * 0.01;
+                head.rotation.x = Math.sin(time * 2) * 0.01;
+                
+            } else if (cycleTime < STAND_DURATION + WALK_DURATION) {
+                // Walk in place (next 3 seconds)
+                phase = 'walk';
+                phaseTime = cycleTime - STAND_DURATION;
+                statusText = 'Walking';
+                
+                const speed = WALK_SPEED;
+                const swing = WALK_SWING;
+                const phase = phaseTime * speed;
+                
+                // Torso lean
+                torso.rotation.x = -0.05;
+                head.rotation.x = -0.05;
+                
+                // Walking gait
+                // Left leg
+                leftLeg.knee.rotation.x = Math.max(0, Math.sin(phase) * 0.5);
+                leftLeg.lowerLeg.rotation.x = 0; // Simple knee bend
+                
+                // Right leg
+                rightLeg.knee.rotation.x = Math.max(0, Math.sin(phase + Math.PI) * 0.5);
+                rightLeg.lowerLeg.rotation.x = 0;
+                
+                // Arm swing (opposite to legs)
+                leftArm.shoulder.rotation.x = -Math.sin(phase) * swing;
+                leftArm.elbow.rotation.x = Math.max(0, Math.sin(phase) * 0.5);
+                
+                rightArm.shoulder.rotation.x = -Math.sin(phase + Math.PI) * swing;
+                rightArm.elbow.rotation.x = Math.max(0, Math.sin(phase + Math.PI) * 0.5);
+                
+                // Slight vertical bounce
+                humanoid.position.y = Math.abs(Math.sin(phase)) * 0.02;
+                
+            } else if (cycleTime < STAND_DURATION + WALK_DURATION + RUN_DURATION) {
+                // Run in place (next 3 seconds)
+                phase = 'run';
+                phaseTime = cycleTime - STAND_DURATION - WALK_DURATION;
+                statusText = 'Running';
+                
+                const speed = RUN_SPEED;
+                const swing = RUN_SWING;
+                const phase = phaseTime * speed;
+                
+                // Forward lean
+                torso.rotation.x = -0.15;
+                head.rotation.x = -0.15;
+                
+                // Running gait (higher knees, more extension)
+                // Left leg
+                leftLeg.knee.rotation.x = Math.max(0, Math.sin(phase) * 1.0);
+                leftLeg.lowerLeg.rotation.x = Math.max(0, Math.sin(phase + Math.PI) * 0.5);
+                
+                // Right leg
+                rightLeg.knee.rotation.x = Math.max(0, Math.sin(phase + Math.PI) * 1.0);
+                rightLeg.lowerLeg.rotation.x = Math.max(0, Math.sin(phase) * 0.5);
+                
+                // Arm swing (more aggressive)
+                leftArm.shoulder.rotation.x = -Math.sin(phase) * swing;
+                leftArm.elbow.rotation.x = Math.max(0, Math.sin(phase) * 0.8);
+                
+                rightArm.shoulder.rotation.x = -Math.sin(phase + Math.PI) * swing;
+                rightArm.elbow.rotation.x = Math.max(0, Math.sin(phase + Math.PI) * 0.8);
+                
+                // Bounce
+                humanoid.position.y = Math.abs(Math.sin(phase)) * 0.05;
+                
+            } else {
+                // Stand still (last 2 seconds)
+                phase = 'stand';
+                phaseTime = cycleTime - STAND_DURATION - WALK_DURATION - RUN_DURATION;
+                statusText = 'Standing still';
+                
+                // Smooth transition to idle
+                const t = phaseTime / STAND_DURATION;
+                torso.rotation.x = THREE.MathUtils.lerp(torso.rotation.x, 0, t);
+                head.rotation.x = THREE.MathUtils.lerp(head.rotation.x, 0, t);
+                
+                leftLeg.knee.rotation.x = THREE.MathUtils.lerp(leftLeg.knee.rotation.x, 0, t);
+                leftLeg.lowerLeg.rotation.x = THREE.MathUtils.lerp(leftLeg.lowerLeg.rotation.x, 0, t);
+                rightLeg.knee.rotation.x = THREE.MathUtils.lerp(rightLeg.knee.rotation.x, 0, t);
+                rightLeg.lowerLeg.rotation.x = THREE.MathUtils.lerp(rightLeg.lowerLeg.rotation.x, 0, t);
+                
+                leftArm.shoulder.rotation.x = THREE.MathUtils.lerp(leftArm.shoulder.rotation.x, 0, t);
+                leftArm.elbow.rotation.x = THREE.MathUtils.lerp(leftArm.elbow.rotation.x, 0, t);
+                rightArm.shoulder.rotation.x = THREE.MathUtils.lerp(rightArm.shoulder.rotation.x, 0, t);
+                rightArm.elbow.rotation.x = THREE.MathUtils.lerp(rightArm.elbow.rotation.x, 0, t);
+                
+                humanoid.position.y = THREE.MathUtils.lerp(humanoid.position.y, 0, t);
+                statusText = 'Standing still';
+            }
+            
+            statusEl.textContent = statusText;
+        }
+
+        // --- Render Loop ---
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            const time = clock.getElapsedTime();
+            updateAnimation(time);
+            
+            // Animate treadmill belt
+            belt.position.x = (time * 2) % 1.4 - 0.7;
+            
+            renderer.render(scene, camera);
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Start animation immediately
+        animate();
+    </script>
+</body>
+</html>

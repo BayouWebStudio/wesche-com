@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Low-poly humanoid walk/run cycle</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #1a1a2e;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+        canvas {
+            display: block;
+        }
+        .info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #eee;
+            background: rgba(0,0,0,0.5);
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            pointer-events: none;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+    <div class="info">10s loop: idle 2s → walk 3s → run 3s → idle 2s</div>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "./three.module.js"
+            }
+        }
+    </script>
+    <script type="module">
+        import * as THREE from './three.module.js';
+
+        // --- Setup scene, camera, renderer ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x1a1a2e);
+        scene.fog = new THREE.Fog(0x1a1a2e, 20, 40);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(6, 2.5, 8);
+        camera.lookAt(0, 1.5, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+
+        // --- Lights ---
+        const ambient = new THREE.AmbientLight(0x404060, 0.8);
+        scene.add(ambient);
+
+        const dirLight = new THREE.DirectionalLight(0xffeedd, 1.2);
+        dirLight.position.set(5, 8, 5);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 1024;
+        dirLight.shadow.mapSize.height = 1024;
+        dirLight.shadow.camera.near = 0.5;
+        dirLight.shadow.camera.far = 20;
+        dirLight.shadow.camera.left = -5;
+        dirLight.shadow.camera.right = 5;
+        dirLight.shadow.camera.top = 5;
+        dirLight.shadow.camera.bottom = -5;
+        scene.add(dirLight);
+
+        const fillLight = new THREE.PointLight(0x4466aa, 0.5);
+        fillLight.position.set(-3, 3, -3);
+        scene.add(fillLight);
+
+        // --- Ground (treadmill-style) ---
+        const groundMat = new THREE.MeshStandardMaterial({ color: 0x2e3a4a, roughness: 0.8 });
+        const ground = new THREE.Mesh(new THREE.PlaneGeometry(12, 4), groundMat);
+        ground.rotation.x = -Math.PI / 2;
+        ground.position.y = -0.05;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        // treadmill belt lines
+        const lineMat = new THREE.MeshBasicMaterial({ color: 0x5a6a7a });
+        for (let i = -3; i <= 3; i++) {
+            const line = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.02, 3.5), lineMat);
+            line.position.set(i * 1.2, 0.02, 0);
+            line.rotation.x = -Math.PI / 2;
+            line.receiveShadow = true;
+            scene.add(line);
+        }
+
+        // side rails
+        const railMat = new THREE.MeshStandardMaterial({ color: 0x4a5a6a, roughness: 0.6 });
+        const leftRail = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 4.2), railMat);
+        leftRail.position.set(-2.2, 0.1, 0);
+        leftRail.rotation.x = -Math.PI / 2;
+        scene.add(leftRail);
+
+        const rightRail = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 4.2), railMat);
+        rightRail.position.set(2.2, 0.1, 0);
+        rightRail.rotation.x = -Math.PI / 2;
+        scene.add(rightRail);
+
+        // --- Humanoid figure (low-poly) ---
+        const humanoid = new THREE.Group();
+        humanoid.position.y = 0.8;
+
+        // materials
+        const skinMat = new THREE.MeshStandardMaterial({ color: 0x8a6a4a, roughness: 0.7 });
+        const pantsMat = new THREE.MeshStandardMaterial({ color: 0x3a4a5a, roughness: 0.8 });
+        const shirtMat = new THREE.MeshStandardMaterial({ color: 0x4a6a8a, roughness: 0.7 });
+        const shoeMat = new THREE.MeshStandardMaterial({ color: 0x2a2a3a, roughness: 0.9 });
+        const headMat = new THREE.MeshStandardMaterial({ color: 0x7a5a3a, roughness: 0.6 });
+
+        // torso
+        const torso = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.0, 0.5), shirtMat);
+        torso.position.y = 0.9;
+        torso.castShadow = true;
+        humanoid.add(torso);
+
+        // head
+        const head = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.6), headMat);
+        head.position.y = 1.7;
+        head.castShadow = true;
+        humanoid.add(head);
+
+        // hat / hair
+        const hair = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.25, 0.65), new THREE.MeshStandardMaterial({ color: 0x2a2a3a }));
+        hair.position.y = 1.95;
+        hair.castShadow = true;
+        humanoid.add(hair);
+
+        // arms (left and right) - pivot groups
+        const leftArmGroup = new THREE.Group();
+        leftArmGroup.position.set(-0.55, 1.25, 0);
+        const rightArmGroup = new THREE.Group();
+        rightArmGroup.position.set(0.55, 1.25, 0);
+
+        const armMat = skinMat;
+        const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.8, 0.25), armMat);
+        leftArm.position.y = -0.4;
+        leftArm.castShadow = true;
+        leftArmGroup.add(leftArm);
+        const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.8, 0.25), armMat);
+        rightArm.position.y = -0.4;
+        rightArm.castShadow = true;
+        rightArmGroup.add(rightArm);
+
+        // hands (small cubes)
+        const handMat = skinMat;
+        const leftHand = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.22, 0.22), handMat);
+        leftHand.position.y = -0.8;
+        leftHand.castShadow = true;
+        leftArmGroup.add(leftHand);
+        const rightHand = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.22, 0.22), handMat);
+        rightHand.position.y = -0.8;
+        rightHand.castShadow = true;
+        rightArmGroup.add(rightHand);
+
+        humanoid.add(leftArmGroup);
+        humanoid.add(rightArmGroup);
+
+        // legs (left and right) - pivot groups
+        const leftLegGroup = new THREE.Group();
+        leftLegGroup.position.set(-0.25, 0.5, 0);
+        const rightLegGroup = new THREE.Group();
+        rightLegGroup.position.set(0.25, 0.5, 0);
+
+        const legMat = pantsMat;
+        const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.9, 0.3), legMat);
+        leftLeg.position.y = -0.45;
+        leftLeg.castShadow = true;
+        leftLegGroup.add(leftLeg);
+        const rightLeg = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.9, 0.3), legMat);
+        rightLeg.position.y = -0.45;
+        rightLeg.castShadow = true;
+        rightLegGroup.add(rightLeg);
+
+        // shoes
+        const leftShoe = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.2, 0.6), shoeMat);
+        leftShoe.position.y = -0.9;
+        leftShoe.position.z = 0.1;
+        leftShoe.castShadow = true;
+        leftLegGroup.add(leftShoe);
+        const rightShoe = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.2, 0.6), shoeMat);
+        rightShoe.position.y = -0.9;
+        rightShoe.position.z = 0.1;
+        rightShoe.castShadow = true;
+        rightLegGroup.add(rightShoe);
+
+        humanoid.add(leftLegGroup);
+        humanoid.add(rightLegGroup);
+
+        // --- Head lean group for running forward lean ---
+        // We'll rotate the whole humanoid slightly in run phase
+        scene.add(humanoid);
+
+        // --- Animation state ---
+        const clock = new THREE.Clock();
+        let totalTime = 0;
+
+        // animation parameters
+        let phase = 0; // 0 idle, 1 walk, 2 run, 3 idle
+        let phaseStartTime = 0;
+        const idleDuration = 2.0;
+        const walkDuration = 3.0;
+        const runDuration = 3.0;
+        const cycleDuration = idleDuration + walkDuration + runDuration + idleDuration; // 10s
+
+        // limb angles
+        let leftArmAngle = 0;
+        let rightArmAngle = 0;
+        let leftLegAngle = 0;
+        let rightLegAngle = 0;
+        let torsoLean = 0;
+
+        // --- Update function ---
+        function updateAnimation(delta) {
+            totalTime += delta;
+            const cycleTime = totalTime % cycleDuration;
+
+            // Determine phase
+            let phaseType = 0; // 0 idle, 1 walk, 2 run, 3 idle
+            let phaseLocal = 0;
+            if (cycleTime < idleDuration) {
+                phaseType = 0;
+                phaseLocal = cycleTime / idleDuration;
+            } else if (cycleTime < idleDuration + walkDuration) {
+                phaseType = 1;
+                phaseLocal = (cycleTime - idleDuration) / walkDuration;
+            } else if (cycleTime < idleDuration + walkDuration + runDuration) {
+                phaseType = 2;
+                phaseLocal = (cycleTime - idleDuration - walkDuration) / runDuration;
+            } else {
+                phaseType = 3;
+                phaseLocal = (cycleTime - idleDuration - walkDuration - runDuration) / idleDuration;
+            }
+
+            // Idle: all angles zero, no lean
+            if (phaseType === 0 || phaseType === 3) {
+                leftArmAngle = 0;
+                rightArmAngle = 0;
+                leftLegAngle = 0;
+                rightLegAngle = 0;
+                torsoLean = 0;
+            }
+            // Walk: moderate swing, frequency ~1.5 Hz (3s -> ~4.5 steps)
+            else if (phaseType === 1) {
+                const t = phaseLocal * Math.PI * 2 * 1.5; // ~4.5 strides in 3s
+                leftArmAngle = Math.sin(t) * 0.6;
+                rightArmAngle = Math.sin(t + Math.PI) * 0.6;
+                leftLegAngle = Math.sin(t + Math.PI) * 0.5;
+                rightLegAngle = Math.sin(t) * 0.5;
+                torsoLean = 0.03;
+            }
+            // Run: faster, larger swings, forward lean
+            else if (phaseType === 2) {
+                const t = phaseLocal * Math.PI * 2 * 2.5; // ~7.5 strides in 3s
+                leftArmAngle = Math.sin(t) * 1.1;
+                rightArmAngle = Math.sin(t + Math.PI) * 1.1;
+                leftLegAngle = Math.sin(t + Math.PI) * 0.9;
+                rightLegAngle = Math.sin(t) * 0.9;
+                torsoLean = 0.25;
+            }
+
+            // Apply to limbs
+            leftArmGroup.rotation.z = leftArmAngle;
+            rightArmGroup.rotation.z = rightArmAngle;
+            leftLegGroup.rotation.z = leftLegAngle;
+            rightLegGroup.rotation.z = rightLegAngle;
+
+            // Torso lean (forward = negative x rotation)
+            humanoid.rotation.x = torsoLean;
+
+            // Slight bounce for walk/run
+            let bounceY = 0;
+            if (phaseType === 1) {
+                const t = phaseLocal * Math.PI * 2 * 1.5;
+                bounceY = Math.abs(Math.sin(t)) * 0.05;
+            } else if (phaseType === 2) {
+                const t = phaseLocal * Math.PI * 2 * 2.5;
+                bounceY = Math.abs(Math.sin(t)) * 0.1;
+            }
+            humanoid.position.y = 0.8 + bounceY;
+        }
+
+        // --- Animate loop ---
+        function animate() {
+            const delta = Math.min(clock.getDelta(), 0.1);
+            updateAnimation(delta);
+            renderer.render(scene, camera);
+            requestAnimationFrame(animate);
+        }
+
+        // Start animation immediately
+        animate();
+
+        // --- Resize handler ---
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>

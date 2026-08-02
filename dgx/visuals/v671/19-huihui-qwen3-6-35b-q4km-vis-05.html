@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Humanoid Treadmill Animation</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #1a1a1a; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <script type="module">
+        import * as THREE from './three.module.js';
+
+        // --- Scene Setup ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87CEEB); // Sky blue
+        scene.fog = new THREE.Fog(0x87CEEB, 10, 50);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(5, 3, 8); // Side-on view
+        camera.lookAt(0, 1, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+
+        // --- Lighting ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+        dirLight.position.set(5, 10, 7);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 1024;
+        dirLight.shadow.mapSize.height = 1024;
+        scene.add(dirLight);
+
+        // --- Materials ---
+        const skinMaterial = new THREE.MeshStandardMaterial({ color: 0xffdbac, roughness: 0.5 });
+        const clothMaterial = new THREE.MeshStandardMaterial({ color: 0x4169E1, roughness: 0.7 }); // Blue shirt
+        const shoeMaterial = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.9 });
+        const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.8 });
+
+        // --- Geometry Helpers ---
+        function createLimb(radiusTop, radiusBottom, height) {
+            const geometry = new THREE.CylinderGeometry(radiusTop, radiusBottom, height, 8);
+            // Pivot point adjustment: Move geometry so top is at origin
+            geometry.translate(0, height / 2, 0); 
+            return geometry;
+        }
+
+        // --- Build Character ---
+        const characterGroup = new THREE.Group();
+        
+        // Torso
+        const torsoGeo = new THREE.BoxGeometry(1.2, 1.5, 0.8);
+        const torso = new THREE.Mesh(torsoGeo, clothMaterial);
+        torso.position.y = 2.25; // Center of torso
+        torso.castShadow = true;
+        characterGroup.add(torso);
+
+        // Head
+        const headGeo = new THREE.SphereGeometry(0.4, 16, 16);
+        const head = new THREE.Mesh(headGeo, skinMaterial);
+        head.position.y = 3.3;
+        head.castShadow = true;
+        characterGroup.add(head);
+
+        // Limbs Configuration
+        const limbConfigs = [
+            { name: 'leftArm', parent: torso, pos: { x: -0.7, y: 0.5, z: 0 }, rot: { x: 0.2, y: 0, z: 0 }, geo: createLimb(0.15, 0.12, 1.2) },
+            { name: 'rightArm', parent: torso, pos: { x: 0.7, y: 0.5, z: 0 }, rot: { x: 0.2, y: 0, z: 0 }, geo: createLimb(0.15, 0.12, 1.2) },
+            { name: 'leftLeg', parent: torso, pos: { x: -0.3, y: -0.75, z: 0 }, rot: { x: 0, y: 0, z: 0 }, geo: createLimb(0.2, 0.15, 1.4) },
+            { name: 'rightLeg', parent: torso, pos: { x: 0.3, y: -0.75, z: 0 }, rot: { x: 0, y: 0, z: 0 }, geo: createLimb(0.2, 0.15, 1.4) },
+        ];
+
+        const limbs = {};
+        limbConfigs.forEach(cfg => {
+            const mesh = new THREE.Mesh(cfg.geo, skinMaterial);
+            mesh.position.set(cfg.pos.x, cfg.pos.y, cfg.pos.z);
+            mesh.rotation.set(cfg.rot.x, cfg.rot.y, cfg.rot.z);
+            mesh.castShadow = true;
+            cfg.parent.add(mesh);
+            limbs[cfg.name] = mesh;
+        });
+
+        // Add shoes
+        const shoeGeo = new THREE.BoxGeometry(0.3, 0.2, 0.6);
+        const leftShoe = new THREE.Mesh(shoeGeo, shoeMaterial);
+        leftShoe.position.set(0, -0.6, 0.1); // Relative to leg pivot
+        const rightShoe = new THREE.Mesh(shoeGeo, shoeMaterial);
+        rightShoe.position.set(0, -0.6, 0.1);
+        
+        // Attach shoes to legs
+        limbs.leftLeg.add(leftShoe);
+        limbs.rightLeg.add(rightShoe);
+
+        scene.add(characterGroup);
+
+        // --- Ground / Treadmill ---
+        const groundGeo = new THREE.PlaneGeometry(20, 20);
+        const ground = new THREE.Mesh(groundGeo, groundMaterial);
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        // --- Animation Logic ---
+        const cycleDuration = 10; // seconds
+        const walkStart = 2;      // seconds
+        const walkEnd = 5;        // seconds
+        const runStart = 5;       // seconds
+        const runEnd = 8;         // seconds
+
+        // Animation Parameters
+        const params = {
+            walk: { speed: 10, swing: 0.6, lean: 0 },
+            run:  { speed: 20, swing: 1.2, lean: 0.3 }
+        };
+
+        function getAnimationState(time) {
+            const t = time % cycleDuration;
+            
+            if (t < walkStart) return 'stand';
+            if (t >= walkStart && t < walkEnd) return 'walk';
+            if (t >= runStart && t < runEnd) return 'run';
+            return 'stand';
+        }
+
+        // Helper to interpolate values
+        function lerp(start, end, t) {
+            return start + (end - start) * t;
+        }
+
+        // --- Render Loop ---
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const time = clock.getElapsedTime();
+            const state = getAnimationState(time);
+            
+            // Determine current parameters based on state
+            let currentSpeed, currentSwing, currentLean;
+
+            if (state === 'stand') {
+                currentSpeed = 0;
+                currentSwing = 0;
+                currentLean = 0;
+            } else if (state === 'walk') {
+                // Smooth transition into walk
+                const progress = (time - walkStart) / (walkEnd - walkStart);
+                currentSpeed = lerp(0, params.walk.speed, Math.min(progress * 2, 1));
+                currentSwing = lerp(0, params.walk.swing, Math.min(progress * 2, 1));
+                currentLean = lerp(0, params.walk.lean, Math.min(progress * 2, 1));
+            } else if (state === 'run') {
+                // Smooth transition into run
+                const progress = (time - runStart) / (runEnd - runStart);
+                currentSpeed = lerp(params.walk.speed, params.run.speed, Math.min(progress * 2, 1));
+                currentSwing = lerp(params.walk.swing, params.run.swing, Math.min(progress * 2, 1));
+                currentLean = lerp(params.walk.lean, params.run.lean, Math.min(progress * 2, 1));
+            }
+
+            // Apply Lean to whole character
+            // Target lean is positive (forward), we interpolate from 0
+            // Note: In Three.js rotation, positive X is forward tilt
+            const targetLean = currentLean;
+            // Smoothly rotate the character group towards the lean
+            // We use a simple lerp on rotation for smoothness
+            characterGroup.rotation.x = lerp(characterGroup.rotation.x, targetLean, 0.1);
+
+            // Calculate Swing Values
+            // Walking: Opposite arm/leg
+            // Running: Same arm/leg (usually) or larger opposite, let's do larger opposite for clarity
+            const swingVal = Math.sin(time * currentSpeed);
+            
+            // Limb Swings
+            // Legs swing in Z axis (forward/back)
+            // Arms swing in Z axis (forward/back)
+            
+            // Left Leg
+            limbs.leftLeg.rotation.z = swingVal * currentSwing;
+            // Right Leg
+            limbs.rightLeg.rotation.z = -swingVal * currentSwing;
+
+            // Arms
+            limbs.leftArm.rotation.z = -swingVal * (currentSwing * 0.8); // Arms swing less than legs usually
+            limbs.rightArm.rotation.z = swingVal * (currentSwing * 0.8);
+
+            // Add a slight bounce to the body
+            const bounce = Math.abs(swingVal) * 0.05 * currentSwing;
+            characterGroup.position.y = bounce;
+
+            renderer.render(scene, camera);
+        }
+
+        // Handle Resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>

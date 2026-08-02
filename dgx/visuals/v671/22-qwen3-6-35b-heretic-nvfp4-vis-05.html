@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Humanoid Animation</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #1a1a1a; }
+        canvas { display: block; }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-family: monospace;
+            font-size: 14px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 5px 10px;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <div id="status">Initializing...</div>
+        <div id="timer">0.0s</div>
+    </div>
+
+    <script type="module">
+        import * as THREE from './three.module.js';
+
+        // --- Configuration ---
+        const CYCLE_DURATION = 10; // Total seconds
+        const PHASES = {
+            STAND_STILL: 2,
+            WALK: 3,
+            RUN: 3,
+            STAND_STILL: 2
+        };
+
+        // --- Setup Scene ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x222222);
+        scene.fog = new THREE.Fog(0x222222, 5, 15);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(4, 3, 4);
+        camera.lookAt(0, 1, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+
+        // --- Lights ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(5, 10, 5);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 1024;
+        dirLight.shadow.mapSize.height = 1024;
+        scene.add(dirLight);
+
+        // --- Materials ---
+        const skinMaterial = new THREE.MeshStandardMaterial({ color: 0xffccaa, roughness: 0.4 });
+        const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x3366ff, roughness: 0.6 });
+        const pantsMaterial = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.7 });
+        const shoeMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 });
+        const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.8 });
+
+        // --- Humanoid Class ---
+        class Humanoid {
+            constructor() {
+                this.group = new THREE.Group();
+                
+                // Hips (Main Pivot)
+                this.hips = new THREE.Group();
+                this.hips.position.set(0, 1.0, 0);
+                this.group.add(this.hips);
+
+                // Legs
+                this.leftLeg = new THREE.Group();
+                this.leftLeg.position.set(-0.15, 0, 0);
+                this.hips.add(this.leftLeg);
+
+                this.rightLeg = new THREE.Group();
+                this.rightLeg.position.set(0.15, 0, 0);
+                this.hips.add(this.rightLeg);
+
+                // Create Meshes for Legs
+                const legGeo = new THREE.BoxGeometry(0.15, 0.6, 0.15);
+                const leftThigh = new THREE.Mesh(legGeo, pantsMaterial);
+                leftThigh.position.y = -0.3;
+                leftThigh.castShadow = true;
+                this.leftLeg.add(leftThigh);
+
+                const leftShin = new THREE.Mesh(legGeo, pantsMaterial);
+                leftShin.position.y = -0.6;
+                leftShin.castShadow = true;
+                this.leftLeg.add(leftShin);
+
+                const leftShoe = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.1, 0.25), shoeMaterial);
+                leftShoe.position.set(0, -0.65, 0.05);
+                leftShoe.castShadow = true;
+                this.leftLeg.add(leftShoe);
+
+                const rightThigh = new THREE.Mesh(legGeo, pantsMaterial);
+                rightThigh.position.y = -0.3;
+                rightThigh.castShadow = true;
+                this.rightLeg.add(rightThigh);
+
+                const rightShin = new THREE.Mesh(legGeo, pantsMaterial);
+                rightShin.position.y = -0.6;
+                rightShin.castShadow = true;
+                this.rightLeg.add(rightShin);
+
+                const rightShoe = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.1, 0.25), shoeMaterial);
+                rightShoe.position.set(0, -0.65, 0.05);
+                rightShoe.castShadow = true;
+                this.rightLeg.add(rightShoe);
+
+                // Torso
+                const torsoGeo = new THREE.BoxGeometry(0.35, 0.5, 0.25);
+                this.torso = new THREE.Mesh(torsoGeo, bodyMaterial);
+                this.torso.position.y = 0.35;
+                this.torso.castShadow = true;
+                this.hips.add(this.torso);
+
+                // Head
+                const headGeo = new THREE.BoxGeometry(0.25, 0.25, 0.25);
+                this.head = new THREE.Mesh(headGeo, skinMaterial);
+                this.head.position.y = 0.7;
+                this.head.castShadow = true;
+                this.hips.add(this.head);
+
+                // Arms
+                const armGeo = new THREE.BoxGeometry(0.12, 0.5, 0.12);
+                
+                // Left Arm
+                this.leftArm = new THREE.Group();
+                this.leftArm.position.set(-0.25, 0.5, 0);
+                this.hips.add(this.leftArm);
+                
+                const lUpperArm = new THREE.Mesh(armGeo, skinMaterial);
+                lUpperArm.position.y = -0.25;
+                this.leftArm.add(lUpperArm);
+                
+                const lForearm = new THREE.Mesh(armGeo, skinMaterial);
+                lForearm.position.y = -0.5;
+                this.leftArm.add(lForearm);
+
+                // Right Arm
+                this.rightArm = new THREE.Group();
+                this.rightArm.position.set(0.25, 0.5, 0);
+                this.hips.add(this.rightArm);
+
+                const rUpperArm = new THREE.Mesh(armGeo, skinMaterial);
+                rUpperArm.position.y = -0.25;
+                this.rightArm.add(rUpperArm);
+
+                const rForearm = new THREE.Mesh(armGeo, skinMaterial);
+                rForearm.position.y = -0.5;
+                this.rightArm.add(rForearm);
+            }
+
+            update(time, phase) {
+                const { stand, walk, run } = phase;
+                
+                // 1. Calculate Lean
+                let targetLeanX = 0;
+                if (phase.current === 'walk') targetLeanX = 0.1;
+                if (phase.current === 'run') targetLeanX = 0.25;
+                
+                // Smoothly interpolate lean
+                this.hips.rotation.x += (targetLeanX - this.hips.rotation.x) * 0.05;
+
+                // 2. Calculate Limb Angles
+                let leftLegRot, rightLegRot, leftArmRot, rightArmRot;
+
+                if (phase.current === 'stand') {
+                    // Standing Still
+                    leftLegRot = 0;
+                    rightLegRot = 0;
+                    leftArmRot = 0;
+                    rightArmRot = 0;
+                } else if (phase.current === 'walk') {
+                    // Walking
+                    const speed = 1.5; // radians per second
+                    const angle = Math.sin(time * speed) * 0.4; // Max swing ~23 degrees
+                    
+                    // Inverse kinematics logic (simplified): 
+                    // If leg moves back, arm moves forward
+                    leftLegRot = angle;
+                    rightLegRot = -angle;
+                    leftArmRot = -angle;
+                    rightArmRot = angle;
+                } else if (phase.current === 'run') {
+                    // Running
+                    const speed = 4.0; // radians per second
+                    const angle = Math.sin(time * speed) * 0.8; // Max swing ~45 degrees
+                    
+                    leftLegRot = angle;
+                    rightLegRot = -angle;
+                    leftArmRot = -angle;
+                    rightArmRot = angle;
+                }
+
+                // Apply rotations (using Euler for simplicity in this context)
+                // Note: Local rotation order matters. We assume standard order.
+                this.leftLeg.rotation.x = leftLegRot;
+                this.rightLeg.rotation.x = rightLegRot;
+                this.leftArm.rotation.x = leftArmRot;
+                this.rightArm.rotation.x = rightArmRot;
+            }
+        }
+
+        const humanoid = new Humanoid();
+        scene.add(humanoid.group);
+
+        // --- Ground ---
+        const ground = new THREE.Mesh(
+            new THREE.PlaneGeometry(20, 20),
+            groundMaterial
+        );
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        // --- UI Elements ---
+        const statusEl = document.getElementById('status');
+        const timerEl = document.getElementById('timer');
+
+        // --- Animation Loop ---
+        const clock = new THREE.Clock();
+        
+        function getPhase(time) {
+            const t = time % CYCLE_DURATION;
+            let current = 'stand';
+            
+            if (t < PHASES.STAND_STILL) current = 'stand';
+            else if (t < PHASES.STAND_STILL + PHASES.WALK) current = 'walk';
+            else if (t < PHASES.STAND_STILL + PHASES.WALK + PHASES.RUN) current = 'run';
+            else current = 'stand';
+
+            return {
+                current: current,
+                stand: current === 'stand',
+                walk: current === 'walk',
+                run: current === 'run'
+            };
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const time = clock.getElapsedTime();
+            const phase = getPhase(time);
+
+            // Update Humanoid
+            humanoid.update(time, phase);
+
+            // Update UI
+            statusEl.innerText = `Phase: ${phase.current.toUpperCase()}`;
+            timerEl.innerText = `${(time % CYCLE_DURATION).toFixed(1)}s / ${CYCLE_DURATION}s`;
+
+            // Render
+            renderer.render(scene, camera);
+        }
+
+        // Handle Window Resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Start
+        animate();
+
+    </script>
+</body>
+</html>

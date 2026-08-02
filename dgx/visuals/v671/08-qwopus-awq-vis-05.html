@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Low-Poly Humanoid on Treadmill</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #1a1a2e; overflow: hidden; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<script type="module">
+import * as THREE from './three.module.js';
+
+// --- Setup ---
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1a1a2e);
+scene.fog = new THREE.Fog(0x1a1a2e, 20, 50);
+
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+camera.position.set(0, 2.5, 8);
+camera.lookAt(0, 2, 0);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
+document.body.appendChild(renderer.domElement);
+
+// --- Lights ---
+const ambientLight = new THREE.AmbientLight(0x404060, 0.5);
+scene.add(ambientLight);
+
+const dirLight = new THREE.DirectionalLight(0xffeedd, 1.5);
+dirLight.position.set(5, 10, 5);
+dirLight.castShadow = true;
+dirLight.shadow.mapSize.set(1024, 1024);
+dirLight.shadow.camera.near = 0.5;
+dirLight.shadow.camera.far = 30;
+dirLight.shadow.camera.left = -8;
+dirLight.shadow.camera.right = 8;
+dirLight.shadow.camera.top = 8;
+dirLight.shadow.camera.bottom = -8;
+scene.add(dirLight);
+
+const rimLight = new THREE.DirectionalLight(0x4488ff, 0.4);
+rimLight.position.set(-3, 5, -5);
+scene.add(rimLight);
+
+// --- Materials ---
+const skinMat = new THREE.MeshStandardMaterial({ color: 0xf4c28f, roughness: 0.8, flatShading: true });
+const shirtMat = new THREE.MeshStandardMaterial({ color: 0x3366cc, roughness: 0.7, flatShading: true });
+const pantsMat = new THREE.MeshStandardMaterial({ color: 0x333366, roughness: 0.8, flatShading: true });
+const shoeMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9, flatShading: true });
+const groundMat = new THREE.MeshStandardMaterial({ color: 0x444455, roughness: 0.9, flatShading: true });
+const beltMat = new THREE.MeshStandardMaterial({ color: 0x663333, roughness: 0.7, flatShading: true });
+
+// --- Create Humanoid ---
+const humanoid = new THREE.Group();
+scene.add(humanoid);
+
+// Helper to create low-poly box
+function createBox(w, h, d, mat, x, y, z) {
+  const geo = new THREE.BoxGeometry(w, h, d, 1, 1, 1);
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(x, y, z);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  return mesh;
+}
+
+// --- Body Parts ---
+// Torso
+const torso = createBox(0.8, 1.0, 0.45, shirtMat, 0, 2.0, 0);
+humanoid.add(torso);
+
+// Chest/upper torso
+const chest = createBox(0.85, 0.4, 0.5, shirtMat, 0, 2.5, 0);
+humanoid.add(chest);
+
+// Head
+const headGroup = new THREE.Group();
+headGroup.position.set(0, 2.95, 0);
+const head = createBox(0.5, 0.55, 0.5, skinMat, 0, 0, 0);
+headGroup.add(head);
+// Nose
+const nose = createBox(0.08, 0.1, 0.15, skinMat, 0.26, -0.05, 0);
+headGroup.add(nose);
+// Eyes (small dark boxes)
+const eyeGeo = new THREE.BoxGeometry(0.06, 0.06, 0.02);
+const eyeMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.3, flatShading: true });
+const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+leftEye.position.set(0.1, 0.08, 0.25);
+headGroup.add(leftEye);
+const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+rightEye.position.set(-0.1, 0.08, 0.25);
+headGroup.add(rightEye);
+humanoid.add(headGroup);
+
+// --- Arms ---
+// Right arm (viewer's side)
+const rightUpperArmPivot = new THREE.Group();
+rightUpperArmPivot.position.set(0.45, 2.6, 0);
+const rightUpperArm = createBox(0.2, 0.5, 0.2, shirtMat, 0, -0.25, 0);
+rightUpperArmPivot.add(rightUpperArm);
+
+const rightLowerArmPivot = new THREE.Group();
+rightLowerArmPivot.position.set(0, -0.5, 0);
+const rightLowerArm = createBox(0.18, 0.45, 0.18, skinMat, 0, -0.225, 0);
+rightLowerArmPivot.add(rightLowerArm);
+
+// Right hand
+const rightHand = createBox(0.15, 0.15, 0.12, skinMat, 0, -0.5, 0);
+rightLowerArmPivot.add(rightHand);
+
+rightUpperArmPivot.add(rightLowerArmPivot);
+humanoid.add(rightUpperArmPivot);
+
+// Left arm (far side)
+const leftUpperArmPivot = new THREE.Group();
+leftUpperArmPivot.position.set(-0.45, 2.6, 0);
+const leftUpperArm = createBox(0.2, 0.5, 0.2, shirtMat, 0, -0.25, 0);
+leftUpperArmPivot.add(leftUpperArm);
+
+const leftLowerArmPivot = new THREE.Group();
+leftLowerArmPivot.position.set(0, -0.5, 0);
+const leftLowerArm = createBox(0.18, 0.45, 0.18, skinMat, 0, -0.225, 0);
+leftLowerArmPivot.add(leftLowerArm);
+
+const leftHand = createBox(0.15, 0.15, 0.12, skinMat, 0, -0.5, 0);
+leftLowerArmPivot.add(leftHand);
+
+leftUpperArmPivot.add(leftLowerArmPivot);
+humanoid.add(leftUpperArmPivot);
+
+// --- Legs ---
+// Right leg
+const rightUpperLegPivot = new THREE.Group();
+rightUpperLegPivot.position.set(0.2, 1.4, 0);
+const rightUpperLeg = createBox(0.28, 0.55, 0.28, pantsMat, 0, -0.275, 0);
+rightUpperLegPivot.add(rightUpperLeg);
+
+const rightLowerLegPivot = new THREE.Group();
+rightLowerLegPivot.position.set(0, -0.55, 0);
+const rightLowerLeg = createBox(0.22, 0.55, 0.22, pantsMat, 0, -0.275, 0);
+rightLowerLegPivot.add(rightLowerLeg);
+
+const rightFoot = createBox(0.25, 0.12, 0.4, shoeMat, 0, -0.6, 0.08);
+rightLowerLegPivot.add(rightFoot);
+
+rightUpperLegPivot.add(rightLowerLegPivot);
+humanoid.add(rightUpperLegPivot);
+
+// Left leg
+const leftUpperLegPivot = new THREE.Group();
+leftUpperLegPivot.position.set(-0.2, 1.4, 0);
+const leftUpperLeg = createBox(0.28, 0.55, 0.28, pantsMat, 0, -0.275, 0);
+leftUpperLegPivot.add(leftUpperLeg);
+
+const leftLowerLegPivot = new THREE.Group();
+leftLowerLegPivot.position.set(0, -0.55, 0);
+const leftLowerLeg = createBox(0.22, 0.55, 0.22, pantsMat, 0, -0.275, 0);
+leftLowerLegPivot.add(leftLowerLeg);
+
+const leftFoot = createBox(0.25, 0.12, 0.4, shoeMat, 0, -0.6, 0.08);
+leftLowerLegPivot.add(leftFoot);
+
+leftUpperLegPivot.add(leftLowerLegPivot);
+humanoid.add(leftUpperLegPivot);
+
+// --- Treadmill/Ground ---
+const treadmillGroup = new THREE.Group();
+scene.add(treadmillGroup);
+
+// Main platform
+const platform = createBox(6, 0.15, 2.5, groundMat, 0, 0.075, 0);
+treadmillGroup.add(platform);
+
+// Side rails
+const railMat = new THREE.MeshStandardMaterial({ color: 0x555566, roughness: 0.6, flatShading: true });
+const leftRail = createBox(0.08, 0.6, 2.5, railMat, -3.05, 0.375, 0);
+treadmillGroup.add(leftRail);
+const rightRail = createBox(0.08, 0.6, 2.5, railMat, 3.05, 0.375, 0);
+treadmillGroup.add(rightRail);
+
+// Front bar
+const frontBar = createBox(6.1, 0.06, 0.06, railMat, 0, 0.61, 1.25);
+treadmillGroup.add(frontBar);
+
+// Back bar
+const backBar = createBox(6.1, 0.06, 0.06, railMat, 0, 0.61, -1.25);
+treadmillGroup.add(backBar);
+
+// Belt lines (to suggest movement)
+const lineMat = new THREE.MeshStandardMaterial({ color: 0x555566, roughness: 0.8, flatShading: true });
+for (let i = -2.5; i < 3; i += 0.5) {
+  const line = createBox(0.02, 0.01, 0.02, lineMat, i, 0.155, 0);
+  treadmillGroup.add(line);
+}
+
+// Ground plane below
+const groundGeo = new THREE.PlaneGeometry(50, 50);
+const groundMesh = new THREE.Mesh(groundGeo, groundMat);
+groundMesh.rotation.x = -Math.PI / 2;
+groundMesh.position.y = -0.01;
+groundMesh.receiveShadow = true;
+scene.add(groundMesh);
+
+// --- Animation ---
+const CYCLE_DURATION = 10; // seconds
+const STAND_START = 0;
+const STAND_END = 2;
+const WALK_START = 2;
+const WALK_END = 5;
+const RUN_START = 5;
+const RUN_END = 8;
+const STAND_START2 = 8;
+
+function lerp(a, b, t) { return a + (b - a) * t; }
+
+function smoothStep(t) {
+  return t * t * (3 - 2 * t);
+}
+
+function easeInOut(t) {
+  return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+}
+
+function sinWave(t, amplitude, phase) {
+  return Math.sin(t * Math.PI * 2 + phase) * amplitude;
+}
+
+function resetPose() {
+  rightUpperArmPivot.rotation.z = 0;
+  rightUpperArmPivot.rotation.x = 0;
+  rightLowerArmPivot.rotation.x = 0;
+  leftUpperArmPivot.rotation.z = 0;
+  leftUpperArmPivot.rotation.x = 0;
+  leftLowerArmPivot.rotation.x = 0;
+  rightUpperLegPivot.rotation.z = 0;
+  rightLowerLegPivot.rotation.x = 0;
+  leftUpperLegPivot.rotation.z = 0;
+  leftLowerLegPivot.rotation.x = 0;
+  torso.rotation.x = 0;
+  headGroup.rotation.x = 0;
+  headGroup.rotation.z = 0;
+}
+
+function updateAnimation(time) {
+  resetPose();
+  
+  const cycleTime = time % CYCLE_DURATION;
+  
+  if (cycleTime < STAND_END) {
+    // Standing still - slight idle breathing
+    const breath = Math.sin(time * 2) * 0.02;
+    chest.position.y = 2.5 + breath;
+    torso.position.y = 2.0 + breath * 0.5;
+    
+    // Subtle sway
+    torso.rotation.z = Math.sin(time * 0.8) * 0.01;
+    headGroup.rotation.z = Math.sin(time * 0.8 + 0.5) * 0.01;
+    
+  } else if (cycleTime < WALK_END) {
+    // Walking
+    const walkPhase = (cycleTime - WALK_START) / (WALK_END - WALK_START); // 0 to 1 over 3 seconds
+    const walkSpeed = 1.2; // steps per cycle
+    const phase = walkPhase * Math.PI * 2 * walkSpeed;
+    
+    // Body bob
+    const bob = Math.abs(Math.sin(phase)) * 0.06;
+    chest.position.y = 2.5 + bob;
+    torso.position.y = 2.0 + bob * 0.7;
+    
+    // Slight forward lean
+    torso.rotation.x = -0.05;
+    headGroup.rotation.x = -0.02;
+    
+    // Legs - opposite phase
+    const legSwing = 0.35;
+    rightUpperLegPivot.rotation.z = sinWave(phase, legSwing, 0);
+    leftUpperLegPivot.rotation.z = sinWave(phase, legSwing, Math.PI);
+    
+    // Knee bend - bend when leg is back
+    const rightKnee = Math.max(0, -Math.sin(phase)) * 0.4;
+    const leftKnee = Math.max(0, -Math.sin(phase + Math.PI)) * 0.4;
+    rightLowerLegPivot.rotation.x = -rightKnee;
+    leftLowerLegPivot.rotation.x = -leftKnee;
+    
+    // Arms - opposite to legs
+    const armSwing = 0.25;
+    rightUpperArmPivot.rotation.x = sinWave(phase, armSwing, Math.PI);
+    leftUpperArmPivot.rotation.x = sinWave(phase, armSwing, 0);
+    
+    // Elbow bend
+    const rightElbow = Math.max(0, Math.sin(phase + Math.PI)) * 0.3;
+    const leftElbow = Math.max(0, Math.sin(phase)) * 0.3;
+    rightLowerArmPivot.rotation.x = -rightElbow;
+    leftLowerArmPivot.rotation.x = -leftElbow;
+    
+    // Subtle torso sway
+    torso.rotation.z = Math.sin(phase) * 0.03;
+    headGroup.rotation.z = Math.sin(phase + 0.5) * 0.02;
+    
+  } else if (cycleTime < RUN_END) {
+    // Running
+    const runPhase = (cycleTime - RUN_START) / (RUN_END - RUN_START); // 0 to 1 over 3 seconds
+    const runSpeed = 2.0; // faster steps per cycle
+    const phase = runPhase * Math.PI * 2 * runSpeed;
+    
+    // Body bob - more pronounced
+    const bob = Math.abs(Math.sin(phase)) * 0.12;
+    chest.position.y = 2.5 + bob;
+    torso.position.y = 2.0 + bob * 0.7;
+    
+    // Forward lean
+    torso.rotation.x = -0.12;
+    headGroup.rotation.x = -0.05;
+    
+    // Legs - larger swings
+    const legSwing = 0.6;
+    rightUpperLegPivot.rotation.z = sinWave(phase, legSwing, 0);
+    leftUpperLegPivot.rotation.z = sinWave(phase, legSwing, Math.PI);
+    
+    // Knee bend - more pronounced
+    const rightKnee = Math.max(0, -Math.sin(phase)) * 0.7;
+    const leftKnee = Math.max(0, -Math.sin(phase + Math.PI)) * 0.7;
+    rightLowerLegPivot.rotation.x = -rightKnee;
+    leftLowerLegPivot.rotation.x = -leftKnee;
+    
+    // Arms - larger swings, more bent
+    const armSwing = 0.5;
+    rightUpperArmPivot.rotation.x = sinWave(phase, armSwing, Math.PI);
+    leftUpperArmPivot.rotation.x = sinWave(phase, armSwing, 0);
+    
+    // Elbow bend - more pronounced
+    const rightElbow = Math.max(0, Math.sin(phase + Math.PI)) * 0.6;
+    const leftElbow = Math.max(0, Math.sin(phase)) * 0.6;
+    rightLowerArmPivot.rotation.x = -rightElbow;
+    leftLowerArmPivot.rotation.x = -leftElbow;
+    
+    // Torso sway - more pronounced
+    torso.rotation.z = Math.sin(phase) * 0.06;
+    headGroup.rotation.z = Math.sin(phase + 0.5) * 0.04;
+    
+  } else {
+    // Standing still again
+    const breath = Math.sin(time * 2) * 0.02;
+    chest.position.y = 2.5 + breath;
+    torso.position.y = 2.0 + breath * 0.5;
+    
+    torso.rotation.z = Math.sin(time * 0.8) * 0.01;
+    headGroup.rotation.z = Math.sin(time * 0.8 + 0.5) * 0.01;
+  }
+}
+
+// --- Belt texture animation ---
+const beltLineCount = 20;
+const beltLines = [];
+for (let i = 0; i < beltLineCount; i++) {
+  const line = createBox(0.02, 0.005, 0.02, lineMat, 0, 0.155, 0);
+  treadmillGroup.add(line);
+  beltLines.push(line);
+}
+
+function updateBelt(time) {
+  const cycleTime = time % CYCLE_DURATION;
+  let speed = 0;
+  
+  if (cycleTime >= WALK_START && cycleTime < WALK_END) {
+    speed = 0.3;
+  } else if (cycleTime >= RUN_START && cycleTime < RUN_END) {
+    speed = 0.8;
+  }
+  
+  beltLines.forEach((line, i) => {
+    const offset = ((time * speed + i * 0.3) % 3) - 1.5;
+    line.position.x = offset;
+  });
+}
+
+// --- Transition smoothing ---
+let prevTime = 0;
+const transitionDuration = 0.15;
+
+// --- Render Loop ---
+const clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+  
+  const time = clock.getElapsedTime();
+  const delta = time - prevTime;
+  prevTime = time;
+  
+  updateAnimation(time);
+  updateBelt(time);
+  
+  renderer.render(scene, camera);
+}
+
+animate();
+
+// --- Resize ---
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+</body>
+</html>

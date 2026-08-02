@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Humanoid Treadmill Animation</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #222;
+            font-family: sans-serif;
+        }
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            background: rgba(0,0,0,0.5);
+            padding: 10px;
+            border-radius: 5px;
+            pointer-events: none;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <strong>Humanoid Treadmill</strong><br>
+        Cycle: Stand (2s) -> Walk (3s) -> Run (3s) -> Loop
+    </div>
+    
+    <script type="module">
+        import * as THREE from './three.module.js';
+
+        // --- SCENE SETUP ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x202025);
+        scene.fog = new THREE.Fog(0x202025, 10, 50);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        // Side-on camera position
+        camera.position.set(0, 2, 8);
+        camera.lookAt(0, 1.5, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document.body.appendChild(renderer.domElement);
+
+        // --- LIGHTING ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+        dirLight.position.set(-5, 10, 5);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 1024;
+        dirLight.shadow.mapSize.height = 1024;
+        scene.add(dirLight);
+
+        // --- MATERIALS ---
+        const skinMat = new THREE.MeshStandardMaterial({ color: 0xffccaa, roughness: 0.5 });
+        const shirtMat = new THREE.MeshStandardMaterial({ color: 0x3366cc, roughness: 0.4 });
+        const pantsMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.6 });
+        const shoeMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.7 });
+
+        // --- HIERARCHY BUILDING ---
+        // Root group for positioning the whole character
+        const root = new THREE.Group();
+        scene.add(root);
+
+        // 1. Pelvis (Center of gravity)
+        const pelvis = new THREE.Group();
+        pelvis.position.y = 1.1;
+        root.add(pelvis);
+
+        // Pelvis Mesh
+        const pelvisMesh = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.2, 0.3), skinMat);
+        pelvisMesh.castShadow = true;
+        pelvis.add(pelvisMesh);
+
+        // 2. Spine (Torso)
+        const spine = new THREE.Group();
+        spine.position.y = 0.15;
+        pelvis.add(spine);
+
+        const torsoMesh = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.6, 0.25), shirtMat);
+        torsoMesh.position.y = 0.3; // Offset so spine pivot is at bottom of torso
+        torsoMesh.castShadow = true;
+        spine.add(torsoMesh);
+
+        // Head
+        const head = new THREE.Group();
+        head.position.y = 0.65; // Top of torso
+        spine.add(head);
+        const headMesh = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.35, 0.3), skinMat);
+        headMesh.castShadow = true;
+        head.add(headMesh);
+
+        // Shoulders
+        const shoulders = new THREE.Group();
+        shoulders.position.y = 0.55;
+        spine.add(shoulders);
+
+        // --- ARMS ---
+        function createArm(side) {
+            const armGroup = new THREE.Group();
+            const xPos = side === 'left' ? -0.35 : 0.35;
+            armGroup.position.set(xPos, 0, 0);
+            shoulders.add(armGroup);
+
+            // Upper Arm
+            const upperArm = new THREE.Group();
+            armGroup.add(upperArm);
+            const uArmMesh = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.35, 0.12), shirtMat);
+            uArmMesh.position.y = -0.175;
+            uArmMesh.castShadow = true;
+            upperArm.add(uArmMesh);
+
+            // Elbow
+            const elbow = new THREE.Group();
+            elbow.position.y = -0.35;
+            upperArm.add(elbow);
+
+            // Forearm
+            const forearm = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.3, 0.1), skinMat);
+            forearm.position.y = -0.15;
+            forearm.castShadow = true;
+            elbow.add(forearm);
+
+            return { group: armGroup, elbow: elbow };
+        }
+
+        const leftArm = createArm('left');
+        const rightArm = createArm('right');
+
+        // --- LEGS ---
+        function createLeg(side) {
+            const legGroup = new THREE.Group();
+            const xPos = side === 'left' ? -0.12 : 0.12;
+            legGroup.position.set(xPos, 0, 0);
+            pelvis.add(legGroup);
+
+            // Upper Leg
+            const upperLeg = new THREE.Group();
+            legGroup.add(upperLeg);
+            const uLegMesh = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.4, 0.14), pantsMat);
+            uLegMesh.position.y = -0.2;
+            uLegMesh.castShadow = true;
+            upperLeg.add(uLegMesh);
+
+            // Knee
+            const knee = new THREE.Group();
+            knee.position.y = -0.4;
+            upperLeg.add(knee);
+
+            // Lower Leg
+            const lowerLeg = new THREE.Group();
+            knee.add(lowerLeg);
+            const lLegMesh = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.4, 0.12), pantsMat);
+            lLegMesh.position.y = -0.2;
+            lLegMesh.castShadow = true;
+            lowerLeg.add(lLegMesh);
+
+            // Ankle
+            const ankle = new THREE.Group();
+            ankle.position.y = -0.4;
+            lowerLeg.add(ankle);
+
+            // Foot
+            const foot = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.1, 0.25), shoeMat);
+            foot.position.set(0, -0.05, 0.05); // Slight forward offset
+            foot.castShadow = true;
+            ankle.add(foot);
+
+            return { group: legGroup, knee: knee, ankle: ankle };
+        }
+
+        const leftLeg = createLeg('left');
+        const rightLeg = createLeg('right');
+
+        // --- GROUND / TREADMILL ---
+        const groundGeo = new THREE.PlaneGeometry(20, 20);
+        const groundMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.8 });
+        const ground = new THREE.Mesh(groundGeo, groundMat);
+        ground.rotation.x = -Math.PI / 2;
+        ground.position.y = -0.05;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        // Treadmill Belt (Visual indicator of speed)
+        const beltGeo = new THREE.PlaneGeometry(2, 10);
+        const beltMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.5 });
+        const belt = new THREE.Mesh(beltGeo, beltMat);
+        belt.rotation.x = -Math.PI / 2;
+        belt.position.y = 0.01;
+        belt.receiveShadow = true;
+        scene.add(belt);
+
+        // --- ANIMATION LOGIC ---
+        const clock = new THREE.Clock();
+        const CYCLE_DURATION = 10.0; // seconds
+        
+        // State definitions
+        // Walk: 3s (0 to 3)
+        // Run: 3s (3 to 6)
+        // Stand: 2s (6 to 8)
+        // Buffer/Loop: 2s (8 to 10) - actually the prompt says stand 2s, walk 3s, run 3s, stand 2s.
+        // Let's map strictly:
+        // 0.0 - 2.0: Stand (Still)
+        // 2.0 - 5.0: Walk (3s)
+        // 5.0 - 8.0: Run (3s)
+        // 8.0 - 10.0: Stand (Still) -> Loop back to 0
+
+        function getAnimationState(time) {
+            const t = time % CYCLE_DURATION;
+            if (t < 2.0) return 'stand';
+            if (t < 5.0) return 'walk';
+            if (t < 8.0) return 'run';
+            return 'stand';
+        }
+
+        // Helper for smooth easing
+        function easeInOutSine(t) {
+            return -(Math.cos(Math.PI * t) - 1) / 2;
+        }
+
+        // Limb Swing Configuration
+        const config = {
+            stand: {
+                hipSwing: 0.05, // Slight natural sway
+                kneeBend: 0.1,
+                shoulderSwing: 0.05,
+                elbowBend: 0.2,
+                torsoLean: 0.0,
+                bobHeight: 0.02,
+                speed: 1.0
+            },
+            walk: {
+                hipSwing: 0.5, // Radians
+                kneeBend: 0.6,
+                shoulderSwing: 0.3,
+                elbowBend: 0.4,
+                torsoLean: 0.05,
+                bobHeight: 0.08,
+                speed: 2.0
+            },
+            run: {
+                hipSwing: 0.9,
+                kneeBend: 1.1,
+                shoulderSwing: 0.6,
+                elbowBend: 0.8,
+                torsoLean: 0.2,
+                bobHeight: 0.15,
+                speed: 3.5
+            }
+        };
+
+        // Smooth transition helper
+        function lerpVector3(v1, v2, alpha) {
+            return v1.lerp(v2, alpha);
+        }
+
+        // --- MAIN LOOP ---
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const delta = clock.getDelta();
+            const elapsed = clock.getElapsedTime();
+
+            const state = getAnimationState(elapsed);
+            const cfg = config[state];
+
+            // Calculate phase for limbs (0 to 1 cycle)
+            // We want the phase to be continuous across state changes for smoothness
+            // Phase = time * speed_factor
+            let phase = elapsed * cfg.speed;
+
+            // Normalize phase to 0-2PI for sin/cos
+            const phaseRad = phase * Math.PI * 2;
+
+            // --- LEGS ANIMATION ---
+            // Left Leg
+            const lHipAngle = Math.sin(phaseRad) * cfg.hipSwing;
+            leftLeg.group.rotation.x = lHipAngle;
+            
+            // Knee bends when leg goes back (sin < 0) or forward depending on gait
+            // Simplified: Knee bends more when hip is extended back
+            const lKneeAngle = Math.max(0, Math.sin(phaseRad + Math.PI/2)) * cfg.kneeBend;
+            leftLeg.knee.rotation.x = lKneeAngle;
+
+            // Right Leg (Offset by PI)
+            const rHipAngle = Math.sin(phaseRad + Math.PI) * cfg.hipSwing;
+            rightLeg.group.rotation.x = rHipAngle;
+            const rKneeAngle = Math.max(0, Math.sin(phaseRad + Math.PI + Math.PI/2)) * cfg.kneeBend;
+            rightLeg.knee.rotation.x = rKneeAngle;
+
+            // --- ARMS ANIMATION ---
+            // Arms swing opposite to legs
+            const lShoulderAngle = Math.sin(phaseRad + Math.PI) * cfg.shoulderSwing;
+            leftArm.group.rotation.x = lShoulderAngle;
+            const lElbowAngle = Math.max(0, Math.sin(phaseRad + Math.PI)) * cfg.elbowBend;
+            leftArm.elbow.rotation.x = lElbowAngle;
+
+            const rShoulderAngle = Math.sin(phaseRad) * cfg.shoulderSwing;
+            rightArm.group.rotation.x = rShoulderAngle;
+            const rElbowAngle = Math.max(0, Math.sin(phaseRad)) * cfg.elbowBend;
+            rightArm.elbow.rotation.x = rElbowAngle;
+
+            // --- BODY BOB AND LEAN ---
+            // Bob: Vertical movement
+            const bob = Math.abs(Math.sin(phaseRad)) * cfg.bobHeight;
+            root.position.y = bob;
+
+            // Lean: Forward lean increases with speed
+            root.rotation.x = cfg.torsoLean;
+
+            // --- TREADMILL VISUALS ---
+            // Move belt texture or mesh to simulate speed
+            // Simple way: move the belt mesh texture offset if we had one, 
+            // or just move the belt mesh position if it was a loop.
+            // Let's just move the belt mesh position to simulate continuous movement
+            // We'll reset it when it goes too far
+            const beltSpeed = cfg.speed * 0.1;
+            belt.position.z += beltSpeed * delta;
+            if (belt.position.z > 5) belt.position.z = 0;
+
+            renderer.render(scene, camera);
+        }
+
+        // Handle Window Resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Start
+        animate();
+    </script>
+</body>
+</html>

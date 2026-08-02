@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Three.js Treadmill Animation</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #1a1a1a; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+<script type="module">
+import * as THREE from './three.module.js';
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87CEEB);
+scene.fog = new THREE.Fog(0x87CEEB, 20, 50);
+
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+camera.position.set(0, 3, 12);
+camera.lookAt(0, 1.5, 0);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+// Lighting
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+scene.add(ambientLight);
+
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+dirLight.position.set(5, 8, 5);
+dirLight.castShadow = true;
+dirLight.shadow.mapSize.set(2048, 2048);
+scene.add(dirLight);
+
+const pointLight = new THREE.PointLight(0xff9966, 0.3, 20);
+pointLight.position.set(-3, 4, 2);
+scene.add(pointLight);
+
+// Treadmill ground
+const groundGeo = new THREE.PlaneGeometry(30, 10);
+const groundMat = new THREE.MeshStandardMaterial({ 
+    color: 0x333333, 
+    roughness: 0.8,
+    metalness: 0.2
+});
+const ground = new THREE.Mesh(groundGeo, groundMat);
+ground.rotation.x = -Math.PI / 2;
+ground.position.y = -0.01;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// Treadmill belt lines
+for (let i = -4; i <= 4; i++) {
+    const lineGeo = new THREE.PlaneGeometry(0.05, 10);
+    const lineMat = new THREE.MeshBasicMaterial({ color: 0x555555 });
+    const line = new THREE.Mesh(lineGeo, lineMat);
+    line.rotation.x = -Math.PI / 2;
+    line.position.set(i * 1.2, 0, 0);
+    scene.add(line);
+}
+
+// Treadmill side rails
+const railGeo = new THREE.BoxGeometry(0.1, 0.3, 10);
+const railMat = new THREE.MeshStandardMaterial({ color: 0x666666, metalness: 0.6 });
+const leftRail = new THREE.Mesh(railGeo, railMat);
+leftRail.position.set(-5.1, 0.15, 0);
+leftRail.castShadow = true;
+scene.add(leftRail);
+const rightRail = new THREE.Mesh(railGeo, railMat);
+rightRail.position.set(5.1, 0.15, 0);
+rightRail.castShadow = true;
+scene.add(rightRail);
+
+// Helper function to create a limb with two segments
+function createLimb(color, thicknessTop, thicknessBottom) {
+    const group = new THREE.Group();
+    
+    // Upper segment
+    const topGeo = new THREE.BoxGeometry(thicknessTop, 1.0, thicknessTop);
+    const mat = new THREE.MeshStandardMaterial({ 
+        color: color, 
+        roughness: 0.7,
+        metalness: 0.1
+    });
+    const top = new THREE.Mesh(topGeo, mat);
+    top.castShadow = true;
+    group.add(top);
+    
+    // Lower segment (attached to bottom of upper)
+    const bottomGeo = new THREE.BoxGeometry(thicknessBottom, 1.0, thicknessBottom);
+    const bottom = new THREE.Mesh(bottomGeo, mat);
+    bottom.position.y = -0.9;
+    bottom.castShadow = true;
+    group.add(bottom);
+    
+    return group;
+}
+
+// Build humanoid figure
+const figure = new THREE.Group();
+scene.add(figure);
+
+// Body (torso)
+const torsoGeo = new THREE.BoxGeometry(0.7, 1.2, 0.4);
+const bodyMat = new THREE.MeshStandardMaterial({ color: 0x2196F3, roughness: 0.5 });
+const torso = new THREE.Mesh(torsoGeo, bodyMat);
+torso.position.y = 2.0;
+torso.castShadow = true;
+figure.add(torso);
+
+// Head
+const headGeo = new THREE.SphereGeometry(0.25, 8, 8);
+const headMat = new THREE.MeshStandardMaterial({ color: 0xFFCCAA, roughness: 0.6 });
+const head = new THREE.Mesh(headGeo, headMat);
+head.position.y = 2.9;
+head.castShadow = true;
+figure.add(head);
+
+// Right arm (front in side view)
+const rightArm = createLimb(0xFFCCAA, 0.15, 0.12);
+rightArm.position.set(0.45, 2.3, 0.25);
+figure.add(rightArm);
+
+// Left arm (back in side view)
+const leftArm = createLimb(0xFFCCAA, 0.15, 0.12);
+leftArm.position.set(0.45, 2.3, -0.25);
+figure.add(leftArm);
+
+// Right leg (front)
+const rightLeg = createLimb(0x333333, 0.18, 0.14);
+rightLeg.position.set(0.15, 1.4, 0.25);
+figure.add(rightLeg);
+
+// Left leg (back)
+const leftLeg = createLimb(0x333333, 0.18, 0.14);
+leftLeg.position.set(0.15, 1.4, -0.25);
+figure.add(leftLeg);
+
+// Animation state
+const CYCLE_DURATION = 10.0;
+let startTime = null;
+
+// Animation parameters
+const WALK = { 
+    phase: Math.PI * 0.5, 
+    speed: 1.5, 
+    range: 0.6,
+    lean: 0.0,
+    armRange: 0.5
+};
+
+const RUN = { 
+    phase: Math.PI * 1.5, 
+    speed: 3.5, 
+    range: 1.2,
+    lean: 0.15,
+    armRange: 1.0
+};
+
+function animateFigure(time) {
+    const elapsed = time;
+    
+    // Determine phase
+    let state, phase, speed, range, lean, armRange;
+    
+    if (elapsed < 2.0) {
+        // Standing still
+        state = 'stand';
+    } else if (elapsed < 5.0) {
+        // Walking
+        state = 'walk';
+        phase = WALK.phase;
+        speed = WALK.speed;
+        range = WALK.range;
+        lean = WALK.lean;
+        armRange = WALK.armRange;
+    } else if (elapsed < 8.0) {
+        // Running
+        state = 'run';
+        phase = RUN.phase;
+        speed = RUN.speed;
+        range = RUN.range;
+        lean = RUN.lean;
+        armRange = RUN.armRange;
+    } else {
+        // Standing still again
+        state = 'stand';
+    }
+    
+    if (state === 'stand') {
+        // Reset all positions
+        rightArm.rotation.x = 0;
+        leftArm.rotation.x = 0;
+        rightLeg.rotation.x = 0;
+        leftLeg.rotation.x = 0;
+        figure.rotation.x = 0;
+        torso.position.y = 2.0;
+        head.position.y = 2.9;
+    } else {
+        const t = elapsed * speed + phase;
+        
+        // Right limb (front)
+        const rightAngle = Math.sin(t) * range;
+        rightArm.rotation.x = rightAngle * (armRange / range);
+        rightLeg.rotation.x = -rightAngle;
+        
+        // Left limb (back) - opposite phase
+        const leftAngle = Math.sin(t + Math.PI) * range;
+        leftArm.rotation.x = leftAngle * (armRange / range);
+        leftLeg.rotation.x = -leftAngle;
+        
+        // Forward lean
+        figure.rotation.x = -lean;
+        
+        // Slight up/down bobbing
+        const bobAmount = state === 'run' ? 0.15 : 0.05;
+        const bob = Math.abs(Math.sin(t * 2)) * bobAmount;
+        torso.position.y = 2.0 + bob;
+        head.position.y = 2.9 + bob;
+    }
+}
+
+// Loop the animation
+function loop() {
+    requestAnimationFrame(loop);
+    
+    const time = performance.now() / 1000;
+    
+    if (!startTime) {
+        startTime = time;
+    }
+    
+    const elapsed = (time - startTime) % CYCLE_DURATION;
+    
+    animateFigure(elapsed);
+    
+    renderer.render(scene, camera);
+}
+
+loop();
+
+// Handle window resize
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+</body>
+</html>

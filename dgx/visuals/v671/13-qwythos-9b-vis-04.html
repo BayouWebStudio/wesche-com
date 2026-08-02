@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Three.js Car Race</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: #000;
+      font-family: sans-serif;
+    }
+    canvas {
+      display: block;
+    }
+    #status {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #fff;
+      font-size: 24px;
+      font-weight: bold;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="status">Red vs Blue — Race Start!</div>
+
+  <script type="module">
+    import * as THREE from './three.module.js';
+
+    // Scene setup
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x87CEEB); // Sky blue
+    scene.fog = new THREE.Fog(0x87CEEB, 100, 1200);
+
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 5000);
+    camera.position.set(0, 120, 360);
+    camera.lookAt(0, 0, 0);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    document.body.appendChild(renderer.domElement);
+
+    // Lights
+    const ambient = new THREE.AmbientLight(0xffffff, 0.5);
+    scene.add(ambient);
+
+    const sun = new THREE.DirectionalLight(0xffffff, 1);
+    sun.position.set(200, 300, 100);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(1024, 1024);
+    scene.add(sun);
+
+    // Ground
+    const groundGeo = new THREE.PlaneGeometry(2000, 2000);
+    const groundMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.8 });
+    const ground = new THREE.Mesh(groundGeo, groundMat);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.z = 100;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    // Track (asphalt)
+    const trackGeo = new THREE.PlaneGeometry(800, 2000);
+    const trackMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.7 });
+    const track = new THREE.Mesh(trackGeo, trackMat);
+    track.rotation.x = -Math.PI / 2;
+    track.position.z = 100;
+    track.receiveShadow = true;
+    scene.add(track);
+
+    // Finish line
+    const finishGeo = new THREE.PlaneGeometry(100, 200);
+    const finishMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const finishLine = new THREE.Mesh(finishGeo, finishMat);
+    finishLine.rotation.x = -Math.PI / 2;
+    finishLine.position.set(0, 0.1, -1500);
+    scene.add(finishLine);
+
+    const finishStripes = new THREE.Group();
+    const stripeGeo = new THREE.PlaneGeometry(100, 80);
+    const stripeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+    for (let i = 0; i < 6; i++) {
+      const stripe = new THREE.Mesh(stripeGeo, stripeMat);
+      stripe.position.z = -1500 + (i + 1) * 80;
+      stripe.rotation.x = -Math.PI / 2;
+      finishStripes.add(stripe);
+    }
+    scene.add(finishStripes);
+
+    // Helper: create a simple car mesh
+    function createCar(color, x, z) {
+      const car = new THREE.Group();
+
+      const bodyGeo = new THREE.BoxGeometry(40, 12, 24);
+      const bodyMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.4, metalness: 0.3 });
+      const body = new THREE.Mesh(bodyGeo, bodyMat);
+      body.position.y = 8;
+      body.castShadow = true;
+      car.add(body);
+
+      const cabinGeo = new THREE.BoxGeometry(32, 10, 16);
+      const cabinMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.5 });
+      const cabin = new THREE.Mesh(cabinGeo, cabinMat);
+      cabin.position.y = 17;
+      cabin.position.z = -2;
+      cabin.castShadow = true;
+      car.add(cabin);
+
+      const wheelGeo = new THREE.CylinderGeometry(7, 7, 4, 16);
+      const wheelMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9 });
+      const wheelRot = new THREE.Mesh(wheelGeo, wheelMat);
+      wheelRot.rotation.z = Math.PI / 2;
+      const positions = [
+        { x: -18, z: -8 }, { x: 18, z: -8 },
+        { x: -18, z: 8 },  { x: 18, z: 8 }
+      ];
+      positions.forEach(p => {
+        const w = wheelRot.clone();
+        w.position.set(p.x, 2, p.z);
+        w.castShadow = true;
+        car.add(w);
+      });
+
+      // Headlights
+      const headGeo = new THREE.BoxGeometry(6, 2, 1);
+      const headMat = new THREE.MeshBasicMaterial({ color: 0xffffcc });
+      const leftHead = new THREE.Mesh(headGeo, headMat);
+      leftHead.position.set(-12, 7, 12);
+      car.add(leftHead);
+      const rightHead = leftHead.clone();
+      rightHead.position.set(12, 7, 12);
+      car.add(rightHead);
+
+      // Tail lights
+      const tailGeo = new THREE.BoxGeometry(6, 2, 1);
+      const tailMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+      const leftTail = new THREE.Mesh(tailGeo, tailMat);
+      leftTail.position.set(-12, 7, -12);
+      car.add(leftTail);
+      const rightTail = leftTail.clone();
+      rightTail.position.set(12, 7, -12);
+      car.add(rightTail);
+
+      // Brake lights (hidden by default)
+      const brakeGeo = new THREE.BoxGeometry(6, 2, 1);
+      const brakeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+      const leftBrake = new THREE.Mesh(brakeGeo, brakeMat);
+      leftBrake.position.set(-12, 7, -12);
+      leftBrake.visible = false;
+      car.add(leftBrake);
+      const rightBrake = leftBrake.clone();
+      rightBrake.position.set(12, 7, -12);
+      rightBrake.visible = false;
+      car.add(rightBrake);
+
+      car.position.set(x, 0, z);
+      return car;
+    }
+
+    const redCar = createCar(0xff0000, -60, 200);
+    const blueCar = createCar(0x0000ff, 60, 200);
+    scene.add(redCar);
+    scene.add(blueCar);
+
+    // Track markers
+    const markerGeo = new THREE.BoxGeometry(180, 4, 10);
+    const markerMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const markers = [];
+    for (let i = 0; i < 7; i++) {
+      const m = new THREE.Mesh(markerGeo, markerMat);
+      m.position.set(0, 2, -1500 + i * 250);
+      m.rotation.x = -Math.PI / 2;
+      scene.add(m);
+      markers.push(m);
+    }
+
+    // Animation variables
+    let raceState = 'start'; // start, racing, reset
+    let t = 0;
+    const finishZ = -1500;
+    const trackLength = 1800; // from z=200 to z=-1500
+
+    function resetRace() {
+      raceState = 'start';
+      redCar.position.z = 200;
+      redCar.rotation.x = 0;
+      redCar.rotation.z = 0;
+      redCar.userData.speed = 0;
+      redCar.userData.maxSpeed = 140;
+
+      blueCar.position.z = 200;
+      blueCar.rotation.x = 0;
+      blueCar.rotation.z = 0;
+      blueCar.userData.speed = 0;
+      blueCar.userData.maxSpeed = 150;
+
+      document.getElementById('status').textContent = 'Red vs Blue — Race Start!';
+
+      markers.forEach(m => {
+        m.visible = false;
+        m.material.color.setHex(0xffffff);
+      });
+      markers[0].visible = true;
+      markers[0].material.color.setHex(0xff3333);
+    }
+
+    function startRace() {
+      raceState = 'racing';
+      document.getElementById('status').textContent = 'Red vs Blue — Race on!';
+    }
+
+    function finishRace() {
+      raceState = 'reset';
+      document.getElementById('status').textContent = 'Red Wins! — Restarting...';
+
+      // Show all markers as white
+      markers.forEach(m => {
+        m.visible = true;
+        m.material.color.setHex(0xffffff);
+      });
+
+      setTimeout(resetRace, 2000);
+    }
+
+    // Animation loop
+    let lastTime = performance.now();
+    function animate(now) {
+      const dt = Math.min((now - lastTime) / 1000, 0.05);
+      lastTime = now;
+
+      // Update track markers based on camera Z (simple scrolling effect)
+      const camZ = camera.position.z;
+      const offsetZ = camZ - 360;
+      markers.forEach((m, i) => {
+        const worldZ = -1500 + i * 250;
+        const dist = worldZ - offsetZ;
+        m.position.z = dist;
+        m.rotation.x = -Math.PI / 2;
+        if (dist < 30 && dist > -30) {
+          m.visible = true;
+          m.material.color.setHex(0xff3333);
+        } else {
+          m.visible = false;
+        }
+      });
+
+      // Car physics
+      redCar.userData.speed += redCar.userData.speed < redCar.userData.maxSpeed ? 12 : -8;
+      blueCar.userData.speed += blueCar.userData.speed < blueCar.userData.maxSpeed ? 15 : -10;
+
+      // Blue leads initially
+      if (raceState === 'racing') {
+        blueCar.position.z = 200 - blueCar.userData.speed * dt;
+        redCar.position.z = 200 - redCar.userData.speed * dt;
+
+        // Blue brakes if too far ahead (simple overtaking rule)
+        if (blueCar.position.z < redCar.position.z + 40) {
+          blueCar.userData.speed = Math.max(blueCar.userData.speed - 20, 0);
+          blueCar.rotation.z = Math.PI - blueCar.rotation.z; // flip
+          blueCar.rotation.x = Math.PI / 4;
+        } else {
+          blueCar.rotation.z = 0;
+          blueCar.rotation.x = 0;
+        }
+
+        // Red overtakes if ahead
+        if (redCar.position.z < blueCar.position.z + 40) {
+          redCar.userData.speed = Math.max(redCar.userData.speed + 20, 0);
+          redCar.rotation.z = Math.PI - redCar.rotation.z;
+          redCar.rotation.x = Math.PI / 4;
+        } else {
+          redCar.rotation.z = 0;
+          redCar.rotation.x = 0;
+        }
+
+        // Finish line detection
+        if (redCar.position.z <= finishZ) finishRace();
+        if (blueCar.position.z <= finishZ) finishRace();
+
+        // Update status text
+        const redPos = Math.round(200 - redCar.position.z);
+        const bluePos = Math.round(200 - blueCar.position.z);
+        if (redPos > 0 && bluePos > 0) {
+          document.getElementById('status').textContent = `Red: ${redPos}m | Blue: ${bluePos}m`;
+        }
+      } else {
+        // Start and reset states
+        if (raceState === 'start') startRace();
+        else if (raceState === 'reset') resetRace();
+      }
+
+      // Camera follows the leading car slightly
+      const leadCar = blueCar.position.z < redCar.position.z ? blueCar : redCar;
+      const targetX = leadCar.position.x * 0.8;
+      const targetZ = leadCar.position.z + 260;
+      camera.position.x += (targetX - camera.position.x) * 0.03;
+      camera.position.z += (targetZ - camera.position.z) * 0.03;
+      camera.lookAt(leadCar.position.x * 0.6, 0, leadCar.position.z + 100);
+
+      renderer.render(scene, camera);
+      requestAnimationFrame(animate);
+    }
+
+    resetRace();
+    requestAnimationFrame(animate);
+
+    // Resize handler
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>

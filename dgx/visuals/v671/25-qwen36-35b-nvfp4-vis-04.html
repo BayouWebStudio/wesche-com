@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Car Race</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #87CEEB; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+
+<script type="module">
+    import * as THREE from './three.module.js';
+
+    // --- Configuration ---
+    const TRACK_LENGTH = 200;
+    const FINISH_LINE_Z = -TRACK_LENGTH;
+    const START_Z = 10;
+    const LANE_WIDTH = 6;
+
+    // --- Scene Setup ---
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x87CEEB); // Sky Blue
+    scene.fog = new THREE.Fog(0x87CEEB, 50, 250);
+
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    document.body.appendChild(renderer.domElement);
+
+    // --- Lighting ---
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    scene.add(ambientLight);
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    dirLight.position.set(50, 100, 50);
+    dirLight.castShadow = true;
+    dirLight.shadow.mapSize.width = 2048;
+    dirLight.shadow.mapSize.height = 2048;
+    dirLight.shadow.camera.near = 0.5;
+    dirLight.shadow.camera.far = 500;
+    dirLight.shadow.camera.left = -100;
+    dirLight.shadow.camera.right = 100;
+    dirLight.shadow.camera.top = 100;
+    dirLight.shadow.camera.bottom = -300;
+    scene.add(dirLight);
+
+    // --- Environment (Ground & Track) ---
+    const groundGeo = new THREE.PlaneGeometry(1000, 1000);
+    const groundMat = new THREE.MeshStandardMaterial({ color: 0x228B22 }); // Forest Green
+    const ground = new THREE.Mesh(groundGeo, groundMat);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -0.1;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    // Road
+    const roadGeo = new THREE.PlaneGeometry(20, TRACK_LENGTH + 100);
+    const roadMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+    const road = new THREE.Mesh(roadGeo, roadMat);
+    road.rotation.x = -Math.PI / 2;
+    road.position.z = -TRACK_LENGTH / 2 + 10;
+    road.receiveShadow = true;
+    scene.add(road);
+
+    // Finish Line (Stripes)
+    const finishGroup = new THREE.Group();
+    finishGroup.position.z = FINISH_LINE_Z;
+    finishGroup.rotation.x = -Math.PI / 2;
+    
+    const checkSize = 1;
+    const checkRows = 10;
+    const checkCols = 20;
+    const checkGeo = new THREE.PlaneGeometry(checkSize, checkSize);
+    const whiteMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const blackMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+
+    for (let r = 0; r < checkRows; r++) {
+        for (let c = 0; c < checkCols; c++) {
+            const mat = (r + c) % 2 === 0 ? whiteMat : blackMat;
+            const square = new THREE.Mesh(checkGeo, mat);
+            square.rotation.x = -Math.PI / 2; // Lay flat
+            square.position.set(- (checkCols/2)*checkSize + c*checkSize + checkSize/2, 0.01, (checkRows/2)*checkSize - r*checkSize - checkSize/2);
+            finishGroup.add(square);
+        }
+    }
+    scene.add(finishGroup);
+
+    // --- Car Creation ---
+    function createCar(colorHex) {
+        const carGroup = new THREE.Group();
+
+        // Main Body
+        const bodyGeo = new THREE.BoxGeometry(2.2, 0.8, 4.5);
+        const bodyMat = new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.3, metalness: 0.2 });
+        const body = new THREE.Mesh(bodyGeo, bodyMat);
+        body.position.y = 0.6;
+        body.castShadow = true;
+        carGroup.add(body);
+
+        // Cabin
+        const cabinGeo = new THREE.BoxGeometry(1.8, 0.6, 2.5);
+        const cabinMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.1 }); // Dark glass
+        const cabin = new THREE.Mesh(cabinGeo, cabinMat);
+        cabin.position.set(0, 1.2, -0.2);
+        cabin.castShadow = true;
+        carGroup.add(cabin);
+
+        // Wheels
+        const wheelGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.3, 16);
+        const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+        
+        const positions = [
+            { x: -1.1, z: 1.2 }, { x: 1.1, z: 1.2 },
+            { x: -1.1, z: -1.2 }, { x: 1.1, z: -1.2 }
+        ];
+
+        positions.forEach(pos => {
+            const wheel = new THREE.Mesh(wheelGeo, wheelMat);
+            wheel.rotation.z = Math.PI / 2;
+            wheel.position.set(pos.x, 0.4, pos.z);
+            wheel.castShadow = true;
+            carGroup.add(wheel);
+        });
+
+        return carGroup;
+    }
+
+    const redCar = createCar(0xff0000);
+    redCar.position.set(-LANE_WIDTH, 0, START_Z);
+    scene.add(redCar);
+
+    const blueCar = createCar(0x0000ff);
+    blueCar.position.set(LANE_WIDTH, 0, START_Z);
+    scene.add(blueCar);
+
+    // --- Animation Logic ---
+    
+    // Animation State
+    let raceTime = 0;
+    const RACE_DURATION = 6.0; // Seconds for one full loop
+    const OVERTAKE_POINT = 0.45; // At what fraction of time does red pass blue?
+
+    // Speed profiles (normalized 0 to 1)
+    // Blue: Fast start, slows down slightly
+    // Red: Slow start, accelerates hard
+    function getSpeedBlue(t) {
+        if (t < 0.3) return 1.0; // Fast start
+        if (t < 0.6) return 0.7; // Slows down
+        return 0.4; // Cruising
+    }
+
+    function getSpeedRed(t) {
+        if (t < 0.3) return 0.6; // Slow start
+        if (t < 0.6) return 1.2; // Acceleration burst
+        return 0.8; // High cruising
+    }
+
+    // Reset function
+    function resetRace() {
+        raceTime = 0;
+        redCar.position.z = START_Z;
+        blueCar.position.z = START_Z;
+        redCar.rotation.z = 0;
+        blueCar.rotation.z = 0;
+        redCar.rotation.x = 0;
+        blueCar.rotation.x = 0;
+    }
+
+    // Camera Logic
+    const cameraOffset = new THREE.Vector3(0, 12, 25);
+    const targetLookAt = new THREE.Vector3();
+
+    function updateCamera() {
+        // Find the leading car to follow
+        const redPos = redCar.position.z;
+        const bluePos = blueCar.position.z;
+        
+        // Camera follows the car that is furthest ahead (closest to negative Z)
+        const leadZ = Math.min(redPos, bluePos);
+        
+        // Smoothly interpolate camera position
+        const desiredCamPos = new THREE.Vector3(0, 12, leadZ + 25);
+        camera.position.lerp(desiredCamPos, 0.1);
+        
+        // Look slightly ahead of the lead car
+        targetLookAt.set(0, 0, leadZ - 20);
+        camera.lookAt(targetLookAt);
+    }
+
+    // Wheel rotation helper
+    function rotateWheels(car, speed) {
+        car.children.forEach(child => {
+            if (child.geometry.type === 'CylinderGeometry') {
+                child.rotation.x += speed * 0.5;
+            }
+        });
+    }
+
+    // Main Loop
+    const clock = new THREE.Clock();
+
+    function animate() {
+        requestAnimationFrame(animate);
+
+        const delta = clock.getDelta();
+        raceTime += delta;
+
+        // Loop logic
+        if (raceTime >= RACE_DURATION) {
+            resetRace();
+        }
+
+        // Calculate progress (0.0 to 1.0)
+        const progress = raceTime / RACE_DURATION;
+        
+        // Total distance to travel
+        const totalDistance = FINISH_LINE_Z - START_Z;
+
+        // --- Car Physics / Logic ---
+        
+        // We define specific waypoints to ensure the "Race Narrative" happens correctly
+        // 0.0 - 0.3: Blue pulls ahead
+        // 0.3 - 0.5: Red catches up and passes
+        // 0.5 - 1.0: Red leads to finish
+        
+        // Let's use a simpler approach: 
+        // Calculate a raw distance based on a complex function, but clamp it to the track.
+        // However, to ensure the "Overtake" is visible, let's calculate specific positions.
+        
+        // Blue Position Logic
+        // Starts fast, maintains lead until ~40% of track, then slows.
+        let blueDist = 0;
+        if (progress < 0.45) {
+            // Blue runs ahead
+            blueDist = totalDistance * (progress * 2.2); // Factor > 1 to pull ahead
+        } else {
+            // Blue finishes at end but slower than red
+            blueDist = totalDistance * (0.45 * 2.2 + (progress - 0.45) * 1.0);
+        }
+        
+        // Red Position Logic
+        // Starts slow, accelerates, passes blue around 50% mark, wins.
+        let redDist = 0;
+        if (progress < 0.5) {
+            // Red accelerates from behind
+            redDist = totalDistance * (progress * 1.8); 
+        } else {
+            // Red pulls away
+            redDist = totalDistance * (0.5 * 1.8 + (progress - 0.5) * 1.4);
+        }
+
+        // Ensure they don't go past finish line (visual reset handles loop, but keep logic clean)
+        blueDist = Math.min(blueDist, totalDistance);
+        redDist = Math.min(redDist, totalDistance);
+
+        // Apply positions
+        blueCar.position.z = START_Z + blueDist;
+        redCar.position.z = START_Z + redDist;
+
+        // Wheel rotation visual
+        rotateWheels(blueCar, 1);
+        rotateWheels(redCar, 1);
+
+        // Car bounce (suspension)
+        blueCar.position.y = Math.sin(raceTime * 20) * 0.05;
+        redCar.position.y = Math.sin(raceTime * 20) * 0.05;
+
+        // Update Camera
+        updateCamera();
+
+        renderer.render(scene, camera);
+    }
+
+    // Handle Window Resize
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    animate();
+
+</script>
+</body>
+</html>

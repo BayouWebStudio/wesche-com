@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>3D Car Race</title>
+    <style>
+        body { margin:0; overflow:hidden; }
+        canvas { display:block; }
+    </style>
+</head>
+<body>
+    <script type="module">
+        import * as THREE from './three.module.js';
+
+        // Scene, camera, renderer
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Ground (simple plane)
+        const groundGeo = new THREE.PlaneGeometry(200, 20);
+        const groundMat = new THREE.MeshStandardMaterial({ color: 0x888888 });
+        const ground = new THREE.Mesh(groundGeo, groundMat);
+        ground.rotation.x = -Math.PI / 2;
+        ground.position.y = -0.01;
+        scene.add(ground);
+
+        // Sky (background sphere)
+        const skyGeo = new THREE.SphereGeometry(500, 32, 32);
+        const skyMat = new THREE.MeshBasicMaterial({ color: 0x87ceeb, side: THREE.BackSide });
+        const sky = new THREE.Mesh(skyGeo, skyMat);
+        scene.add(sky);
+
+        // Finish line (vertical plane)
+        const finishGeo = new THREE.PlaneGeometry(150, 20);
+        const finishMat = new THREE.MeshBasicMaterial({ color: 0xffcc00, transparent: true, opacity: 0.5 });
+        const finish = new THREE.Mesh(finishGeo, finishMat);
+        finish.rotation.x = Math.PI / 2;
+        finish.position.y = 0.5;
+        finish.position.z = 0;
+        scene.add(finish);
+
+        // Car geometry (simple box)
+        const carGeo = new THREE.BoxGeometry(4, 2, 10);
+        const redMat = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+        const blueMat = new THREE.MeshStandardMaterial({ color: 0x0000ff });
+
+        const redCar = new THREE.Mesh(carGeo, redMat);
+        const blueCar = new THREE.Mesh(carGeo, blueMat);
+
+        // Position cars on the track
+        const trackLength = 150;
+        const laneOffset = 0;
+        redCar.position.set(-trackLength / 2 + 5, 1, laneOffset);
+        blueCar.position.set(-trackLength / 2 + 15, 1, laneOffset);
+
+        // Add cars to scene
+        scene.add(redCar);
+        scene.add(blueCar);
+
+        // Camera position
+        camera.position.set(0, 30, 80);
+        camera.lookAt(0, 1, 0);
+
+        // Lighting
+        const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 1.2);
+        scene.add(hemi);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(10, 20, 10);
+        scene.add(dirLight);
+
+        // Animation variables
+        let redSpeed = 0.5;   // units per frame
+        let blueSpeed = 0.7;
+        const finishLineX = 75; // half of finish plane width
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Move cars forward
+            redCar.position.z += redSpeed;
+            blueCar.position.z += blueSpeed;
+
+            // Overtake logic: red accelerates after halfway point
+            const redPos = redCar.position.z;
+            const bluePos = blueCar.position.z;
+            const halfway = trackLength / 2;
+
+            if (redPos > halfway && redSpeed < 1.2) {
+                redSpeed = 1.2; // accelerate
+            }
+
+            // Check finish
+            if (redCar.position.z >= finishLineX) {
+                // Reset positions
+                redCar.position.set(-trackLength / 2 + 5, 1, -trackLength / 2);
+                blueCar.position.set(-trackLength / 2 + 15, 1, -trackLength / 2);
+                // Reset speeds
+                redSpeed = 0.5;
+                blueSpeed = 0.7;
+            }
+
+            // Keep both cars in view (simple zoom/pan)
+            const maxZ = Math.max(Math.abs(redCar.position.z), Math.abs(blueCar.position.z));
+            const distance = Math.max(maxZ, 30);
+            camera.position.z = distance * 2;
+
+            renderer.render(scene, camera);
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Start animation
+        animate();
+    </script>
+</body>
+</html>

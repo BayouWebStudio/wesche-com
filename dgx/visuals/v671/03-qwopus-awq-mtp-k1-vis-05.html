@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Low-Poly Humanoid on Treadmill</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { overflow: hidden; background: #1a1a2e; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<script type="module">
+import * as THREE from './three.module.js';
+
+// --- SCENE SETUP ---
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87CEEB);
+scene.fog = new THREE.Fog(0x87CEEB, 30, 60);
+
+const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 100);
+camera.position.set(8, 2.5, 0);
+camera.lookAt(0, 1.2, 0);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+// --- LIGHTS ---
+const ambientLight = new THREE.AmbientLight(0x606080, 0.6);
+scene.add(ambientLight);
+
+const dirLight = new THREE.DirectionalLight(0xfff4e0, 1.2);
+dirLight.position.set(5, 10, 3);
+dirLight.castShadow = true;
+dirLight.shadow.mapSize.width = 1024;
+dirLight.shadow.mapSize.height = 1024;
+dirLight.shadow.camera.near = 0.5;
+dirLight.shadow.camera.far = 30;
+dirLight.shadow.camera.left = -8;
+dirLight.shadow.camera.right = 8;
+dirLight.shadow.camera.top = 8;
+dirLight.shadow.camera.bottom = -2;
+scene.add(dirLight);
+
+const backLight = new THREE.DirectionalLight(0x8090ff, 0.3);
+backLight.position.set(-3, 5, -3);
+scene.add(backLight);
+
+// --- MATERIALS ---
+const skinMat = new THREE.MeshStandardMaterial({ color: 0xf4c28f, flatShading: true, roughness: 0.8 });
+const shirtMat = new THREE.MeshStandardMaterial({ color: 0xe74c3c, flatShading: true, roughness: 0.7 });
+const pantsMat = new THREE.MeshStandardMaterial({ color: 0x2c3e50, flatShading: true, roughness: 0.8 });
+const shoeMat = new THREE.MeshStandardMaterial({ color: 0x222222, flatShading: true, roughness: 0.6 });
+const hairMat = new THREE.MeshStandardMaterial({ color: 0x3d2314, flatShading: true, roughness: 0.9 });
+
+// --- HELPER: CREATE LOW-POLY MESH ---
+function createLimb(radiusTop, radiusBottom, height, material, segments = 5) {
+  const geo = new THREE.CylinderGeometry(radiusTop, radiusBottom, height, segments);
+  const mesh = new THREE.Mesh(geo, material);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  return mesh;
+}
+
+function createBox(w, h, d, material) {
+  const geo = new THREE.BoxGeometry(w, h, d);
+  const mesh = new THREE.Mesh(geo, material);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  return mesh;
+}
+
+// --- BUILD HUMANOID ---
+const humanoid = new THREE.Group();
+
+// Body (torso)
+const torso = createBox(0.55, 0.65, 0.3, shirtMat);
+torso.position.y = 1.35;
+humanoid.add(torso);
+
+// Chest (upper torso)
+const chest = createBox(0.5, 0.35, 0.28, shirtMat);
+chest.position.y = 1.72;
+humanoid.add(chest);
+
+// Head
+const head = new THREE.Group();
+const headMesh = createLimb(0.18, 0.18, 0.32, skinMat, 6);
+headMesh.position.y = 0.16;
+head.add(headMesh);
+
+// Hair
+const hairMesh = createLimb(0.19, 0.15, 0.15, hairMat, 6);
+hairMesh.position.y = 0.3;
+head.add(hairMesh);
+
+// Eyes (simple dots)
+const eyeGeo = new THREE.SphereGeometry(0.02, 4, 4);
+const eyeMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
+eyeL.position.set(-0.06, 0.18, 0.17);
+head.add(eyeL);
+const eyeR = new THREE.Mesh(eyeGeo, eyeMat);
+eyeR.position.set(0.06, 0.18, 0.17);
+head.add(eyeR);
+
+// Mouth (small line)
+const mouthGeo = new THREE.BoxGeometry(0.06, 0.01, 0.02);
+const mouthMat = new THREE.MeshStandardMaterial({ color: 0xc0392b });
+const mouth = new THREE.Mesh(mouthGeo, mouthMat);
+mouth.position.set(0, 0.1, 0.18);
+head.add(mouth);
+
+head.position.y = 1.95;
+humanoid.add(head);
+
+// --- ARMS ---
+function createArm(side) {
+  const armGroup = new THREE.Group();
+  const sign = side === 'left' ? 1 : -1;
+
+  // Shoulder joint
+  const shoulder = new THREE.Group();
+  shoulder.position.set(sign * 0.33, 1.68, 0);
+
+  // Upper arm
+  const upperArm = createLimb(0.06, 0.05, 0.35, skinMat, 5);
+  upperArm.position.y = -0.18;
+  shoulder.add(upperArm);
+
+  // Elbow joint
+  const elbow = new THREE.Group();
+  elbow.position.y = -0.35;
+  shoulder.add(elbow);
+
+  // Lower arm
+  const lowerArm = createLimb(0.05, 0.04, 0.32, skinMat, 5);
+  lowerArm.position.y = -0.16;
+  elbow.add(lowerArm);
+
+  // Hand
+  const hand = createLimb(0.04, 0.035, 0.08, skinMat, 5);
+  hand.position.y = -0.36;
+  elbow.add(hand);
+
+  armGroup.add(shoulder);
+  return { group: armGroup, shoulder, elbow };
+}
+
+const leftArm = createArm('left');
+const rightArm = createArm('right');
+humanoid.add(leftArm.group);
+humanoid.add(rightArm.group);
+
+// --- LEGS ---
+function createLeg(side) {
+  const legGroup = new THREE.Group();
+  const sign = side === 'left' ? 1 : -1;
+
+  // Hip joint
+  const hip = new THREE.Group();
+  hip.position.set(sign * 0.14, 1.02, 0);
+
+  // Upper leg
+  const upperLeg = createLimb(0.08, 0.065, 0.45, pantsMat, 5);
+  upperLeg.position.y = -0.23;
+  hip.add(upperLeg);
+
+  // Knee joint
+  const knee = new THREE.Group();
+  knee.position.y = -0.45;
+  hip.add(knee);
+
+  // Lower leg
+  const lowerLeg = createLimb(0.065, 0.05, 0.42, pantsMat, 5);
+  lowerLeg.position.y = -0.21;
+  knee.add(lowerLeg);
+
+  // Foot
+  const foot = new THREE.Group();
+  foot.position.y = -0.42;
+  knee.add(foot);
+
+  const shoe = createBox(0.1, 0.06, 0.22, shoeMat);
+  shoe.position.set(0, -0.03, 0.05);
+  foot.add(shoe);
+
+  legGroup.add(hip);
+  return { group: legGroup, hip, knee, foot };
+}
+
+const leftLeg = createLeg('left');
+const rightLeg = createLeg('right');
+humanoid.add(leftLeg.group);
+humanoid.add(rightLeg.group);
+
+humanoid.position.set(0, 0, 0);
+scene.add(humanoid);
+
+// --- TREADMILL ---
+const treadmill = new THREE.Group();
+
+// Belt surface
+const beltGeo = new THREE.BoxGeometry(2.5, 0.12, 0.8);
+const beltMat = new THREE.MeshStandardMaterial({ color: 0x333333, flatShading: true, roughness: 0.5 });
+const belt = new THREE.Mesh(beltGeo, beltMat);
+belt.receiveShadow = true;
+treadmill.add(belt);
+
+// Belt texture lines
+for (let i = -1.2; i <= 1.2; i += 0.15) {
+  const lineGeo = new THREE.BoxGeometry(0.01, 0.005, 0.78);
+  const lineMat = new THREE.MeshStandardMaterial({ color: 0x444444, flatShading: true });
+  const line = new THREE.Mesh(lineGeo, lineMat);
+  line.position.set(i, 0.065, 0);
+  treadmill.add(line);
+}
+
+// Side rails
+const railGeo = new THREE.BoxGeometry(2.7, 0.2, 0.06);
+const railMat = new THREE.MeshStandardMaterial({ color: 0x555555, flatShading: true, roughness: 0.4 });
+const railL = new THREE.Mesh(railGeo, railMat);
+railL.position.set(0, 0.1, 0.42);
+railL.castShadow = true;
+treadmill.add(railL);
+const railR = new THREE.Mesh(railGeo, railMat);
+railR.position.set(0, 0.1, -0.42);
+railR.castShadow = true;
+treadmill.add(railR);
+
+// Front and back panels
+const panelGeo = new THREE.BoxGeometry(0.06, 0.25, 0.82);
+const panelMat = new THREE.MeshStandardMaterial({ color: 0x444444, flatShading: true, roughness: 0.5 });
+const panelF = new THREE.Mesh(panelGeo, panelMat);
+panelF.position.set(1.28, 0.05, 0);
+panelF.castShadow = true;
+treadmill.add(panelF);
+const panelB = new THREE.Mesh(panelGeo, panelMat);
+panelB.position.set(-1.28, 0.05, 0);
+panelB.castShadow = true;
+treadmill.add(panelB);
+
+// Support legs
+const supportGeo = new THREE.BoxGeometry(0.08, 0.5, 0.08);
+const supportMat = new THREE.MeshStandardMaterial({ color: 0x444444, flatShading: true });
+const supportPositions = [
+  [-1.1, -0.3, 0.3], [-1.1, -0.3, -0.3],
+  [1.1, -0.3, 0.3], [1.1, -0.3, -0.3]
+];
+supportPositions.forEach(pos => {
+  const support = new THREE.Mesh(supportGeo, supportMat);
+  support.position.set(...pos);
+  support.castShadow = true;
+  treadmill.add(support);
+});
+
+// Console / display panel
+const consoleGeo = new THREE.BoxGeometry(0.08, 0.3, 0.35);
+const consoleMat = new THREE.MeshStandardMaterial({ color: 0x222222, flatShading: true });
+const consoleMesh = new THREE.Mesh(consoleGeo, consoleMat);
+consoleMesh.position.set(1.28, 0.35, 0);
+consoleMesh.castShadow = true;
+treadmill.add(consoleMesh);
+
+// Screen
+const screenGeo = new THREE.BoxGeometry(0.02, 0.15, 0.2);
+const screenMat = new THREE.MeshStandardMaterial({ color: 0x00ff88, flatShading: true, emissive: 0x00ff88, emissiveIntensity: 0.3 });
+const screen = new THREE.Mesh(screenGeo, screenMat);
+screen.position.set(1.26, 0.38, 0);
+treadmill.add(screen);
+
+treadmill.position.y = 0;
+scene.add(treadmill);
+
+// --- GROUND ---
+const groundGeo = new THREE.PlaneGeometry(50, 50);
+const groundMat = new THREE.MeshStandardMaterial({ color: 0x556b2f, flatShading: true });
+const ground = new THREE.Mesh(groundGeo, groundMat);
+ground.rotation.x = -Math.PI / 2;
+ground.position.y = -0.55;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// --- BACKGROUND ELEMENTS ---
+// Simple low-poly trees
+function createTree(x, z) {
+  const tree = new THREE.Group();
+  const trunkGeo = new THREE.CylinderGeometry(0.08, 0.12, 1.5, 5);
+  const trunkMat = new THREE.MeshStandardMaterial({ color: 0x8B4513, flatShading: true });
+  const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+  trunk.position.y = 0.75;
+  trunk.castShadow = true;
+  tree.add(trunk);
+
+  const leavesGeo = new THREE.ConeGeometry(0.8, 1.8, 6);
+  const leavesMat = new THREE.MeshStandardMaterial({ color: 0x2d5a1e, flatShading: true });
+  const leaves = new THREE.Mesh(leavesGeo, leavesMat);
+  leaves.position.y = 2.2;
+  leaves.castShadow = true;
+  tree.add(leaves);
+
+  const leaves2Geo = new THREE.ConeGeometry(0.6, 1.2, 6);
+  const leaves2 = new THREE.Mesh(leaves2Geo, leavesMat);
+  leaves2.position.y = 3.1;
+  leaves2.castShadow = true;
+  tree.add(leaves2);
+
+  tree.position.set(x, -0.55, z);
+  scene.add(tree);
+}
+
+createTree(-6, -5);
+createTree(7, -4);
+createTree(-8, 2);
+createTree(9, 3);
+createTree(-5, -8);
+createTree(6, -7);
+
+// --- ANIMATION ---
+const CYCLE_DURATION = 10000; // 10 seconds
+const STILL_DURATION = 2000;
+const WALK_DURATION = 3000;
+const RUN_DURATION = 3000;
+
+// Animation parameters
+const walkCycle = 0.5; // radians per step for walking
+const runCycle = 0.8;  // radians per step for running
+const walkSpeed = 0.8; // steps per second
+const runSpeed = 1.6;  // steps per second
+const runLean = 0.15;  // forward lean for running
+
+function easeInOut(t) {
+  return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+}
+
+function animate(time) {
+  requestAnimationFrame(animate);
+
+  const t = (time % CYCLE_DURATION) / CYCLE_DURATION; // 0 to 1
+  const phase = t < 0.2 ? 'still' : t < 0.5 ? 'walk' : t < 0.8 ? 'run' : 'still';
+
+  let phaseT;
+  if (phase === 'still') {
+    phaseT = t < 0.2 ? t / 0.2 : (t - 0.8) / 0.2;
+  } else if (phase === 'walk') {
+    phaseT = (t - 0.2) / 0.3;
+  } else {
+    phaseT = (t - 0.5) / 0.3;
+  }
+
+  // Smooth transitions between phases
+  const transitionDuration = 0.08;
+  let blend = 1;
+  if (phaseT < transitionDuration) {
+    blend = easeInOut(phaseT / transitionDuration);
+  } else if (phaseT > 1 - transitionDuration) {
+    blend = easeInOut((1 - phaseT) / transitionDuration);
+  }
+
+  // Base values
+  let legSwing = 0;
+  let armSwing = 0;
+  let kneeBend = 0;
+  let elbowBend = 0;
+  let bodyLean = 0;
+  let bounce = 0;
+  let beltSpeed = 0;
+
+  if (phase === 'still') {
+    // Standing still - limbs slightly relaxed
+    legSwing = 0;
+    armSwing = 0;
+    kneeBend = 0;
+    elbowBend = 0;
+    bodyLean = 0;
+    bounce = 0;
+    beltSpeed = 0;
+  } else if (phase === 'walk') {
+    const step = phaseT * walkSpeed * Math.PI * 2;
+    legSwing = Math.sin(step) * walkCycle;
+    armSwing = Math.sin(step + Math.PI) * walkCycle * 0.7;
+    kneeBend = Math.max(0, Math.sin(step)) * 0.4;
+    elbowBend = Math.max(0, Math.sin(step + Math.PI)) * 0.3;
+    bodyLean = 0;
+    bounce = Math.abs(Math.sin(step)) * 0.03;
+    beltSpeed = 0.5;
+  } else {
+    const step = phaseT * runSpeed * Math.PI * 2;
+    legSwing = Math.sin(step) * runCycle;
+    armSwing = Math.sin(step + Math.PI) * runCycle * 0.85;
+    kneeBend = Math.max(0, Math.sin(step)) * 0.7;
+    elbowBend = Math.max(0, Math.sin(step + Math.PI)) * 0.6;
+    bodyLean = runLean;
+    bounce = Math.abs(Math.sin(step)) * 0.06;
+    beltSpeed = 1.5;
+  }
+
+  // Apply blend for smooth transitions
+  legSwing *= blend;
+  armSwing *= blend;
+  kneeBend *= blend;
+  elbowBend *= blend;
+  bodyLean *= blend;
+  bounce *= blend;
+  beltSpeed *= blend;
+
+  // --- APPLY TO HUMANOID ---
+
+  // Body lean
+  humanoid.rotation.x = -bodyLean;
+  humanoid.position.y = bounce;
+
+  // Left leg
+  leftLeg.hip.rotation.x = legSwing;
+  leftLeg.knee.rotation.x = -kneeBend;
+
+  // Right leg
+  rightLeg.hip.rotation.x = -legSwing;
+  rightLeg.knee.rotation.x = kneeBend;
+
+  // Left arm (opposite phase to left leg)
+  leftArm.shoulder.rotation.x = -armSwing;
+  leftArm.elbow.rotation.x = elbowBend;
+
+  // Right arm (opposite phase to right leg)
+  rightArm.shoulder.rotation.x = armSwing;
+  rightArm.elbow.rotation.x = -elbowBend;
+
+  // Head bob
+  head.rotation.x = phase !== 'still' ? Math.sin(phaseT * Math.PI * 2 * (phase === 'walk' ? walkSpeed : runSpeed)) * 0.03 * blend : 0;
+
+  // --- TREADMILL BELT ANIMATION ---
+  // Move the texture lines to simulate belt movement
+  const beltLines = treadmill.children.filter(c => c.geometry && c.geometry.type === 'BoxGeometry' && c.geometry.parameters.width === 0.01);
+  beltLines.forEach((line, i) => {
+    const baseX = -1.2 + i * 0.15;
+    const offset = (time * beltSpeed * 0.001) % 0.15;
+    line.position.x = baseX + offset;
+    if (line.position.x > 1.2) {
+      line.position.x -= 1.35;
+    }
+  });
+
+  // Subtle treadmill vibration when moving
+  if (beltSpeed > 0) {
+    treadmill.position.y = Math.sin(time * 0.01 * beltSpeed) * 0.002 * blend;
+  }
+
+  // Screen glow pulse
+  screen.material.emissiveIntensity = 0.3 + Math.sin(time * 0.003) * 0.1;
+
+  renderer.render(scene, camera);
+}
+
+// --- RESIZE HANDLER ---
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// --- START ---
+animate(0);
+</script>
+</body>
+</html>

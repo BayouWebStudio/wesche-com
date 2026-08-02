@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Three.js Humanoid Cycle</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #111; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+<script type="module">
+    import * as THREE from './three.module.js';
+
+    // Scene Setup
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x222222);
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    document.body.appendChild(renderer.domElement);
+
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    scene.add(ambientLight);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+    directionalLight.position.set(5, 10, 5);
+    directionalLight.castShadow = true;
+    scene.add(directionalLight);
+
+    // Treadmill Ground
+    const groundGeo = new THREE.BoxGeometry(4, 0.2, 10);
+    const groundMat = new THREE.MeshStandardMaterial({ color: 0x444444 });
+    const ground = new THREE.Mesh(groundGeo);
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    // Treadmill Texture Effect (moving lines)
+    const grid = new THREE.GridHelper(10, 20, 0xffffff, 0x333333);
+    grid.position.y = 0.11;
+    scene.add(grid);
+
+    // Humanoid Group
+    const humanoid = new THREE.Group();
+    scene.add(humanoid);
+
+    const mat = new THREE.MeshStandardMaterial({ color: 0x00ffcc });
+    const darkMat = new THREE.MeshStandardMaterial({ color: 0x008877 });
+
+    // Body Parts
+    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.8, 0.3), mat);
+    torso.position.y = 1.4;
+    torso.castShadow = true;
+    humanoid.add(torso);
+
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), mat);
+    head.position.y = 0.65;
+    torso.add(head);
+
+    function createLimb(w, h, d, color) {
+        const group = new THREE.Group();
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), color);
+        mesh.position.y = -h / 2; // Offset so rotation happens at top
+        mesh.castShadow = true;
+        group.add(mesh);
+        return group;
+    }
+
+    const armL = createLimb(0.2, 0.7, 0.2, mat);
+    armL.position.set(0.4, 0.7, 0);
+    torso.add(armL);
+
+    const armR = createLimb(0.2, 0.7, 0.2, mat);
+    armR.position.set(-0.4, 0.7, 0);
+    torso.add(armR);
+
+    const legL = createLimb(0.25, 0.8, 0.25, darkMat);
+    legL.position.set(0.2, -0.4, 0);
+    torso.add(legL);
+
+    const legR = createLimb(0.25, 0.8, 0.25, darkMat);
+    legR.position.set(-0.2, -0.4, 0);
+    torso.add(legR);
+
+    // Camera Position
+    camera.position.set(4, 2.5, 5);
+    camera.lookAt(0, 1, 0);
+
+    // Animation Logic
+    const clock = new THREE.Clock();
+
+    function animate() {
+        requestAnimationFrame(animate);
+        const elapsed = clock.getElapsedTime() % 10; // 10s cycle
+        let speed = 0;
+        let intensity = 0;
+        let lean = 0;
+        let treadmillSpeed = 0;
+
+        // State Machine
+        if (elapsed < 2) {
+            // STAND STILL (0-2s)
+            speed = 0;
+            intensity = 0;
+            lean = 0;
+            treadmillSpeed = 0;
+        } else if (elapsed < 5) {
+            // WALK (2-5s)
+            speed = 1.5; 
+            intensity = 1.0;
+            lean = 0;
+            treadmillSpeed = 0.1;
+        } else if (elapsed < 8) {
+            // RUN (5-8s)
+            speed = 4.0;
+            intensity = 2.5;
+            lean = 0.3; // Forward lean
+            treadmillSpeed = 0.3;
+        } else {
+            // STAND STILL (8-10s)
+            speed = 0;
+            intensity = 0;
+            lean = 0;
+            treadmillSpeed = 0;
+        }
+
+        // Apply Movement
+        const time = clock.getElapsedTime() * speed;
+        
+        // Torso Lean
+        torso.rotation.x = lean;
+
+        // Limbs Swing (Sinusoidal)
+        // Legs: opposite phase
+        legL.rotation.x = Math.sin(time) * intensity * 0.5;
+        legR.rotation.x = Math.sin(time + Math.PI) * intensity * 0.5;
+        
+        // Arms: opposite phase to legs
+        armL.rotation.x = Math.sin(time + Math.PI) * intensity * 0.5;
+        armR.rotation.x = Math.sin(time) * intensity * 0.5;
+
+        // Vertical Bobbing
+        torso.position.y = 1.4 + (Math.abs(Math.sin(time * 2)) * 0.05 * intensity);
+
+        // Treadmill Visual (moving the grid)
+        grid.position.z = (clock.getElapsedTime() * treadmillSpeed * 10) % 1;
+
+        renderer.render(scene, camera);
+    }
+
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    animate();
+</script>
+</body>
+</html>

@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Car Race</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #87CEEB; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+
+<script type="module">
+    import * as THREE from './three.module.js';
+
+    // --- Configuration ---
+    const CONFIG = {
+        trackLength: 200,
+        carSpeedBase: 0.5,
+        loopDuration: 12, // seconds for a full loop
+        cameraOffset: { x: 0, y: 8, z: -15 }
+    };
+
+    // --- Scene Setup ---
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x87CEEB); // Sky blue
+    scene.fog = new THREE.Fog(0x87CEEB, 20, 150);
+
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 300);
+    camera.position.set(0, 10, -20);
+    camera.lookAt(0, 0, 20);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    document.body.appendChild(renderer.domElement);
+
+    // --- Lighting ---
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    scene.add(ambientLight);
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+    dirLight.position.set(50, 100, 50);
+    dirLight.castShadow = true;
+    dirLight.shadow.camera.top = 50;
+    dirLight.shadow.camera.bottom = -50;
+    dirLight.shadow.camera.left = -50;
+    dirLight.shadow.camera.right = 50;
+    dirLight.shadow.mapSize.width = 1024;
+    dirLight.shadow.mapSize.height = 1024;
+    scene.add(dirLight);
+
+    // --- Environment ---
+    // Ground
+    const groundGeo = new THREE.PlaneGeometry(200, CONFIG.trackLength + 100);
+    const groundMat = new THREE.MeshStandardMaterial({ color: 0x4caf50 });
+    const ground = new THREE.Mesh(groundGeo, groundMat);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.z = CONFIG.trackLength / 2 - 20;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    // Track
+    const trackGeo = new THREE.PlaneGeometry(20, CONFIG.trackLength);
+    const trackMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+    const track = new THREE.Mesh(trackGeo, trackMat);
+    track.rotation.x = -Math.PI / 2;
+    track.position.z = CONFIG.trackLength / 2 - 20;
+    track.position.y = 0.01; // Slightly above grass
+    track.receiveShadow = true;
+    scene.add(track);
+
+    // Finish Line
+    const finishLineGeo = new THREE.PlaneGeometry(20, 5);
+    const finishLineMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+    const finishLine = new THREE.Mesh(finishLineGeo, finishLineMat);
+    finishLine.rotation.x = -Math.PI / 2;
+    finishLine.position.z = CONFIG.trackLength - 10;
+    finishLine.position.y = 0.02;
+    finishLine.receiveShadow = true;
+    scene.add(finishLine);
+
+    // Checkered pattern overlay for finish line
+    const checkGeo = new THREE.PlaneGeometry(2, 1);
+    const checkMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+    for(let i=0; i<20; i++) {
+        if(i % 2 === 0) {
+            const check = new THREE.Mesh(checkGeo, checkMat);
+            check.rotation.x = -Math.PI / 2;
+            check.position.set((i % 10) * 2 - 9, 0.03, CONFIG.trackLength - 10 + (i < 10 ? 2.5 : -2.5));
+            scene.add(check);
+        }
+    }
+
+    // --- Car Factory ---
+    function createCar(color) {
+        const carGroup = new THREE.Group();
+
+        // Chassis
+        const chassisGeo = new THREE.BoxGeometry(2, 0.8, 4);
+        const chassisMat = new THREE.MeshStandardMaterial({ color: color });
+        const chassis = new THREE.Mesh(chassisGeo, chassisMat);
+        chassis.position.y = 0.8;
+        chassis.castShadow = true;
+        carGroup.add(chassis);
+
+        // Cabin
+        const cabinGeo = new THREE.BoxGeometry(1.8, 0.6, 2);
+        const cabinMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+        const cabin = new THREE.Mesh(cabinGeo, cabinMat);
+        cabin.position.y = 1.4;
+        cabin.position.z = -0.2;
+        cabin.castShadow = true;
+        carGroup.add(cabin);
+
+        // Wheels
+        const wheelGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.3, 16);
+        const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+        
+        const positions = [
+            { x: -1.1, y: 0.4, z: 1.2 },
+            { x: 1.1, y: 0.4, z: 1.2 },
+            { x: -1.1, y: 0.4, z: -1.2 },
+            { x: 1.1, y: 0.4, z: -1.2 }
+        ];
+
+        positions.forEach(pos => {
+            const wheel = new THREE.Mesh(wheelGeo, wheelMat);
+            wheel.rotation.z = Math.PI / 2;
+            wheel.position.set(pos.x, pos.y, pos.z);
+            wheel.castShadow = true;
+            carGroup.add(wheel);
+        });
+
+        return carGroup;
+    }
+
+    const redCar = createCar(0xff0000);
+    const blueCar = createCar(0x0000ff);
+
+    // Initial positions
+    redCar.position.set(-3, 0, 0);
+    blueCar.position.set(3, 0, 0);
+
+    scene.add(redCar);
+    scene.add(blueCar);
+
+    // --- Animation Logic ---
+    const clock = new THREE.Clock();
+
+    function animate() {
+        requestAnimationFrame(animate);
+
+        const delta = clock.getDelta();
+        const elapsed = clock.getElapsedTime();
+
+        // Calculate progress (0 to 1)
+        // We use a loop of 12 seconds
+        const loopTime = elapsed % CONFIG.loopDuration;
+        const progress = loopTime / CONFIG.loopDuration;
+
+        // --- Movement Logic ---
+        // Blue Car: Starts fast, slows down slightly at end
+        // Red Car: Starts slower, accelerates hard in middle, wins
+        
+        // Simple easing functions
+        // Blue: EaseOutQuad (starts fast)
+        const blueDist = easeOutQuad(progress) * CONFIG.trackLength;
+        
+        // Red: EaseInQuad (starts slow) but shifted to start behind and end ahead
+        // We want Red to win, so Red's final position should be slightly higher or reach 1.0 faster
+        // Let's use a custom curve for Red: Starts at -5, ends at TrackLength + 5
+        // Using a cubic bezier-like behavior via simple math
+        
+        // Let's define positions directly based on time for more control
+        // Blue: Starts at Z=0, ends at Z=TrackLength
+        // Red: Starts at Z=0, ends at Z=TrackLength
+        
+        // Blue Path: Fast start, slow finish
+        // Red Path: Slow start, fast finish (overtakes)
+        
+        // Blue Position
+        const blueZ = easeOutCubic(progress) * CONFIG.trackLength;
+        blueCar.position.z = blueZ;
+
+        // Red Position
+        // We want Red to overtake. 
+        // At t=0.5, Blue is at ~75% of track. Red should be at ~40%.
+        // At t=1.0, Red is at 100%, Blue is at 100% (but Red gets there "first" in terms of velocity)
+        // To make Red "win", Red's Z should be greater than Blue's Z at the end of the loop.
+        // Let's make Red go slightly further or arrive at the finish line animation frame earlier.
+        
+        // Let's use a custom easing for Red that stays behind then surges
+        // Red: EaseInCubic but scaled to finish slightly after Blue visually? 
+        // No, prompt says Red wins. So Red's Z > Blue's Z at the finish line.
+        
+        // Let's make Red's track length slightly longer or speed higher at end.
+        // Actually, let's just make Red's progress function result in a higher Z value at the same time t near the end.
+        
+        // Red Easing: Starts slow, ends very fast
+        const redZ = easeInCubic(progress) * CONFIG.trackLength;
+        
+        // To ensure Red wins, we can add a slight offset or adjust the easing curve.
+        // easeInCubic(1) = 1. easeOutCubic(1) = 1.
+        // At t=0.8:
+        // easeOutCubic(0.8) = 1 - (0.2^3) = 0.992 -> 99.2%
+        // easeInCubic(0.8) = 0.8^3 = 0.512 -> 51.2% -> Red is behind!
+        
+        // Let's swap: Blue is EaseIn (slow start), Red is EaseOut (fast start)? No, prompt says Blue leads early.
+        // Blue leads early -> Blue is fast start (EaseOut).
+        // Red overtakes -> Red must be faster later.
+        
+        // Let's use a custom function for Red.
+        // Red: Starts at 0. Accelerates slowly, then explodes in speed.
+        // We can use a power function with a high exponent for the second half.
+        
+        // Let's try:
+        // Blue: Linear with slight ease out
+        // Red: Starts behind (negative Z), ends ahead (positive Z beyond track)
+        
+        // Blue:
+        blueCar.position.z = progress * CONFIG.trackLength;
+        
+        // Red:
+        // We want Red to be behind at t=0.5 and ahead at t=1.0
+        // Let's use a polynomial.
+        // P(t) = a*t^3 + b*t^2 + c*t + d
+        // P(0) = 0 -> d=0
+        // P(1) = TrackLength -> a+b+c = TrackLength
+        // P(0.5) = 0.4 * TrackLength (Behind Blue who is at 0.5)
+        // P'(1) > P'_Blue (Red is faster at finish)
+        
+        // Let's simply use a custom easing that starts slow and ends very fast.
+        // RedZ = (progress * progress * progress * 2) * (CONFIG.trackLength / 1.5) ? 
+        // Let's try: RedZ = pow(progress, 2.5) * CONFIG.trackLength * 1.1
+        // At 0.5: 0.5^2.5 = 0.17 -> 17% of track * 1.1 = ~19% (Behind Blue's 50%)
+        // At 1.0: 1.0^2.5 = 1 -> 110% of track (Ahead of Blue's 100%)
+        // This works! Red starts behind, overtakes around 80%, and finishes ahead.
+        
+        const redProgress = Math.pow(progress, 2.5);
+        const redFinalZ = redProgress * CONFIG.trackLength * 1.1;
+        redCar.position.z = redFinalZ;
+
+        // --- Camera Logic ---
+        // Camera follows the midpoint of the two cars, slightly behind
+        const midZ = (blueCar.position.z + redCar.position.z) / 2;
+        
+        // Smooth camera movement
+        const targetCamZ = midZ - 15;
+        camera.position.z += (targetCamZ - camera.position.z) * 0.1;
+        
+        // Keep camera Y and X fixed relative to track center, maybe slight pan to keep both in view
+        // Since cars are at x=-3 and x=3, center is x=0.
+        camera.position.x = 0;
+        camera.position.y = 8;
+        
+        // Look at the midpoint
+        camera.lookAt(0, 0, midZ + 10);
+
+        renderer.render(scene, camera);
+    }
+
+    // Easing Functions
+    function easeOutQuad(t) {
+        return t * (2 - t);
+    }
+    
+    function easeOutCubic(t) {
+        return 1 - Math.pow(1 - t, 3);
+    }
+    
+    function easeInCubic(t) {
+        return t * t * t;
+    }
+
+    // Handle Window Resize
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Start Animation
+    animate();
+
+</script>
+</body>
+</html>

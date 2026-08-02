@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>3D Animation</title>
+  <style>
+    body { margin: 0; overflow: hidden; background: #000; }
+    #container { position: relative; width: 100vw; height: 100vh; }
+  </style>
+</head>
+<body>
+  <div id="container"></div>
+  <script type="module">
+    import * as THREE from './three.module.js';
+
+    const container = document.getElementById('container');
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ canvas: container });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // Define limb shapes and movement
+    const geometry = new THREE.SphereGeometry(1, 32, 32);
+    const material = new THREE.MeshBasicMaterial({ color: 0xFF0000 });
+    const humanoid = new THREE.Mesh(geometry, material);
+    scene.add(humanoid);
+
+    // Movement animation
+    let currentState = 'stand';
+    let walkingTime = 0;
+    let runningTime = 0;
+
+    function animate() {
+      requestAnimationFrame(animate);
+      humanoid.rotation.x += 0.01;
+      humanoid.rotation.y += 0.01;
+
+      if (currentState === 'stand') {
+        // Stand still
+        humanoid.position.set(0, 0, 0);
+        if (walkingTime < 2) {
+          walkingTime++;
+        } else if (runningTime < 3) {
+          runningTime++;
+        } else {
+          humanoid.position.set(0, 0, 0);
+          walkingTime = 0;
+          runningTime = 0;
+        }
+      } else if (currentState === 'walk') {
+        // Walking
+        humanoid.position.set(0, 0.5, 0.5);
+        humanoid.rotation.y += 0.02;
+        if (walkingTime < 3) {
+          walkingTime++;
+        } else {
+          humanoid.position.set(0, 0, 0);
+          walkingTime = 0;
+        }
+      } else if (currentState === 'run') {
+        // Running
+        humanoid.position.set(0, 1, 0);
+        humanoid.rotation.z += 0.03;
+        humanoid.rotation.y += 0.015;
+        humanoid.rotation.x += 0.005;
+        if (runningTime < 3) {
+          runningTime++;
+        } else {
+          humanoid.position.set(0, 0, 0);
+          runningTime = 0;
+        }
+      }
+
+      container.appendChild(renderer.domElement);
+      renderer.render(scene, camera);
+      animate();
+    }
+
+    animate();
+  </script>
+</body>
+</html>

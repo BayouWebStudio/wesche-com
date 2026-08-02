@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>3D Race Animation</title>
+    <style>
+        body { margin:0; overflow:hidden; background:#87ceeb; } /* sky blue */
+        #scene { width:100vh; height:100vh; position:relative; }
+    </style>
+</head>
+<body>
+    <div id="scene"></div>
+    <script type="module">
+        import * as THREE from './three.module.js';
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('scene').appendChild(renderer.domElement);
+
+        // Simple ground and sky
+        const groundGeo = new THREE.PlaneGeometry(200, 5);
+        const groundMat = new THREE.MeshBasicMaterial({ color: 0x228b22 });
+        const ground = new THREE.Mesh(groundGeo, groundMat);
+        ground.rotation.x = -Math.PI/2;
+        scene.add(ground);
+
+        const skyGeo = new THREE.PlaneGeometry(200, 5);
+        const skyMat = new THREE.MeshBasicMaterial({ color: 0x87ceeb, side: THREE.DoubleSide });
+        const sky = new THREE.Mesh(skyGeo, skyMat);
+        sky.rotation.x = -Math.PI/2;
+        scene.add(sky);
+
+        // Red car
+        const redCarGeo = new THREE.BoxGeometry(2, 1, 5);
+        const redCarMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        const redCar = new THREE.Mesh(redCarGeo, redCarMat);
+        redCar.position.y = 1; // sit on ground
+        scene.add(redCar);
+
+        // Blue car
+        const blueCarGeo = new THREE.BoxGeometry(2, 1, 5);
+        const blueCarMat = new THREE.MeshBasicMaterial({ color: 0x0000ff });
+        const blueCar = new THREE.Mesh(blueCarGeo, blueCarMat);
+        blueCar.position.y = 1;
+        scene.add(blueCar);
+
+        // Finish line (visible)
+        const finishLineGeo = new THREE.PlaneGeometry(200, 0.1);
+        const finishLineMat = new THREE.MeshBasicMaterial({ color: 0xffff00, transparent: true, opacity: 0.5 });
+        const finishLine = new THREE.Mesh(finishLineGeo, finishLineMat);
+        finishLine.position.y = 0;
+        finishLine.rotation.x = -Math.PI/2;
+        scene.add(finishLine);
+
+        // Animation loop
+        const speedRed = 0.02;   // initial speed (units per frame)
+        const speedBlue = 0.03;  // initial speed (units per frame)
+        const accelRed = 0.001;  // acceleration per frame
+
+        let redSpeed = speedRed;
+        let blueSpeed = speedBlue;
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Move cars
+            redCar.position.z += redSpeed;
+            blueCar.position.z += blueSpeed;
+
+            // Red car accelerates
+            redSpeed += accelRed;
+
+            // If red car catches up with blue car
+            if (redCar.position.z >= blueCar.position.z) {
+                // Switch lead: red overtakes blue
+                // Immediately set blue speed to red speed (so blue slows/stops) and red speed to blue speed
+                const temp = blueSpeed;
+                blueSpeed = redSpeed;
+                redSpeed = temp;
+            }
+
+            // If red car reaches finish line
+            if (redCar.position.z >= finishLine.position.z) {
+                // Reset positions to loop forever
+                redCar.position.z = -100; // start behind finish line
+                blueCar.position.z = -100;
+                // Reset speeds (optional)
+                redSpeed = speedRed;
+                blueSpeed = speedBlue;
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // Camera setup
+        camera.position.set(0, 5, 10);
+        camera.lookAt(scene.position);
+
+        animate();
+    </script>
+</body>
+</html>

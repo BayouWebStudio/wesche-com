@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>3D Race</title>
+  <script type="module">
+    import * as THREE from './three.module.js';
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // Define car shapes and colors
+    const redGeometry = new THREE.BoxGeometry(1, 1, 0.5);
+    const redMaterial = new THREE.MeshBasicMaterial({ color: 0xFF0000 });
+    const blueGeometry = new THREE.BoxGeometry(1, 1, 0.5);
+    const blueMaterial = new THREE.MeshBasicMaterial({ color: 0x0000FF });
+
+    // Create and add cars
+    const redCube = new THREE.Mesh(redGeometry, redMaterial);
+    const blueCube = new THREE.Mesh(blueGeometry, blueMaterial);
+
+    // Place cars on a track
+    const trackGeometry = new THREE.PlaneGeometry(100, 100);
+    const trackMaterial = new THREE.MeshBasicMaterial({ color: 0x222222 });
+    const track = new THREE.Mesh(trackGeometry, trackMaterial);
+    scene.add(track);
+    track.rotation.x = Math.PI / 2; // tilt to track forward
+
+    // Add finish line
+    const finishLineGeometry = new THREE.CircleGeometry(5, 4);
+    const finishLineMaterial = new THREE.MeshBasicMaterial({ color: 0xFFFF00 });
+    const finishLine = new THREE.Mesh(finishLineGeometry, finishLineMaterial);
+    scene.add(finishLine);
+
+    // Add ground
+    const groundGeometry = new THREE.PlaneGeometry(200, 200);
+    const groundMaterial = new THREE.MeshBasicMaterial({ color: 0x888888 });
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    scene.add(ground);
+
+    // Add sky
+    const skyGeometry = new THREE.CircleGeometry(100, 4);
+    const skyMaterial = new THREE.MeshBasicMaterial({ color: 0xAAAAAA });
+    const sky = new THREE.Mesh(skyGeometry, skyMaterial);
+    scene.add(sky);
+
+    // Place camera to follow cars
+    camera.position.z = 5;
+
+    // Animation loop
+    function animate() {
+      requestAnimationFrame(animate);
+      camera.updateCamera();
+
+      // Move cars (simple acceleration)
+      redCube.position.x = 5;
+      blueCube.position.x = 15;
+      redCube.rotation.x += 0.02;
+      blueCube.rotation.x -= 0.02;
+
+      // Reset for loop
+      if (redCube.position.x > 90 && redCube.position.x < 100) {
+        redCube.position.x = 0;
+        animate();
+      }
+    }
+
+    animate();
+  </script>
+</head>
+<body>
+  <threejs></threejs>
+</body>
+</html>

@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Low Poly Humanoid Animation</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #1a1a1a; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+
+<script type="module">
+    import * as THREE from './three.module.js';
+
+    // --- Configuration ---
+    const CYCLE_DURATION = 10; // seconds
+    const PHASE_STILL = 0;
+    const PHASE_WALK = 1;
+    const PHASE_RUN = 2;
+
+    // --- Scene Setup ---
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x87CEEB); // Sky blue
+    scene.fog = new THREE.Fog(0x87CEEB, 20, 50);
+
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(0, 2, 8); // Side-on view
+    camera.lookAt(0, 1, 0);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    document.body.appendChild(renderer.domElement);
+
+    // --- Lighting ---
+    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);
+    scene.add(hemiLight);
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+    dirLight.position.set(5, 10, 7);
+    dirLight.castShadow = true;
+    dirLight.shadow.mapSize.width = 1024;
+    dirLight.shadow.mapSize.height = 1024;
+    scene.add(dirLight);
+
+    // --- Materials ---
+    const matSkin = new THREE.MeshStandardMaterial({ color: 0xffccaa, flatShading: true });
+    const matShirt = new THREE.MeshStandardMaterial({ color: 0x3366cc, flatShading: true });
+    const matPants = new THREE.MeshStandardMaterial({ color: 0x333333, flatShading: true });
+    const matShoes = new THREE.MeshStandardMaterial({ color: 0x111111, flatShading: true });
+
+    // --- Humanoid Construction ---
+    // We use a hierarchy to make rotation easier.
+    // Root -> Hips -> Spine -> Neck -> Head
+    //                   -> Shoulder -> Arm -> Forearm
+    // Hips -> HipJoint -> Leg -> Calf -> Foot
+
+    const root = new THREE.Group();
+    scene.add(root);
+
+    // Hips (Center of gravity pivot)
+    const hips = new THREE.Group();
+    hips.position.y = 1.0;
+    root.add(hips);
+
+    // Torso
+    const torsoGeo = new THREE.BoxGeometry(0.6, 0.7, 0.3);
+    const torso = new THREE.Mesh(torsoGeo, matShirt);
+    torso.position.y = 0.35;
+    torso.castShadow = true;
+    hips.add(torso);
+
+    // Head
+    const headGeo = new THREE.BoxGeometry(0.35, 0.4, 0.35);
+    const head = new THREE.Mesh(headGeo, matSkin);
+    head.position.y = 0.8;
+    head.castShadow = true;
+    hips.add(head);
+
+    // Helper to create limbs
+    function createLimb(w, h, d, mat, x, y, z) {
+        const group = new THREE.Group();
+        group.position.set(x, y, z);
+        const geo = new THREE.BoxGeometry(w, h, d);
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.y = -h / 2; // Pivot at top
+        mesh.castShadow = true;
+        group.add(mesh);
+        return group;
+    }
+
+    // Arms
+    const leftArm = createLimb(0.15, 0.5, 0.15, matSkin, -0.35, 0.6, 0);
+    const rightArm = createLimb(0.15, 0.5, 0.15, matSkin, 0.35, 0.6, 0);
+    hips.add(leftArm);
+    hips.add(rightArm);
+
+    const leftForearm = createLimb(0.12, 0.5, 0.12, matSkin, 0, 0, 0);
+    const rightForearm = createLimb(0.12, 0.5, 0.12, matSkin, 0, 0, 0);
+    // Attach forearms to the bottom of upper arms (visually)
+    // Note: In this simple hierarchy, we rotate the forearm group relative to the upper arm group
+    leftArm.add(leftForearm);
+    rightArm.add(rightForearm);
+
+    // Legs
+    const leftLeg = createLimb(0.2, 0.5, 0.2, matPants, -0.15, 0, 0);
+    const rightLeg = createLimb(0.2, 0.5, 0.2, matPants, 0.15, 0, 0);
+    hips.add(leftLeg);
+    hips.add(rightLeg);
+
+    const leftCalf = createLimb(0.18, 0.5, 0.18, matPants, 0, 0, 0);
+    const rightCalf = createLimb(0.18, 0.5, 0.18, matPants, 0, 0, 0);
+    leftLeg.add(leftCalf);
+    rightLeg.add(rightCalf);
+
+    // Feet (Shoes)
+    const footGeo = new THREE.BoxGeometry(0.18, 0.1, 0.3);
+    const leftFoot = new THREE.Mesh(footGeo, matShoes);
+    leftFoot.position.set(0, -0.25, 0.1); // Pivot at ankle, mesh extends down/forward
+    leftCalf.add(leftFoot);
+
+    const rightFoot = new THREE.Mesh(footGeo, matShoes);
+    rightFoot.position.set(0, -0.25, 0.1);
+    rightCalf.add(rightFoot);
+
+    // --- Environment: The Treadmill/Ground ---
+    const groundGeo = new THREE.PlaneGeometry(100, 10);
+    const groundMat = new THREE.MeshStandardMaterial({ 
+        color: 0x555555, 
+        roughness: 0.8,
+        flatShading: true 
+    });
+    const ground = new THREE.Mesh(groundGeo, groundMat);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = 0;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    // Treadmill frame (visuals)
+    const beltGeo = new THREE.BoxGeometry(4, 0.2, 1.2);
+    const beltMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+    const belt = new THREE.Mesh(beltGeo, beltMat);
+    belt.position.y = 0.1;
+    scene.add(belt);
+
+    const legsGeo = new THREE.BoxGeometry(0.2, 0.4, 0.2);
+    const legMat = new THREE.MeshStandardMaterial({ color: 0x888888 });
+    
+    const tl = new THREE.Mesh(legsGeo, legMat); tl.position.set(-1.8, 0.2, 0); scene.add(tl);
+    const tr = new THREE.Mesh(legsGeo, legMat); tr.position.set(1.8, 0.2, 0); scene.add(tr);
+    const ml = new THREE.Mesh(legsGeo, legMat); ml.position.set(-0.8, 0.2, 0); scene.add(ml);
+    const mr = new THREE.Mesh(legsGeo, legMat); mr.position.set(0.8, 0.2, 0); scene.add(mr);
+
+    // --- Animation Logic ---
+    const clock = new THREE.Clock();
+
+    function animate() {
+        requestAnimationFrame(animate);
+
+        const time = clock.getElapsedTime();
+        const cycleTime = time % CYCLE_DURATION;
+
+        // Determine Phase
+        let phase = PHASE_STILL;
+        let progress = 0; // 0 to 1 within the phase
+
+        if (cycleTime < 2) {
+            phase = PHASE_STILL;
+            progress = cycleTime / 2;
+        } else if (cycleTime < 5) {
+            phase = PHASE_WALK;
+            progress = (cycleTime - 2) / 3;
+        } else if (cycleTime < 8) {
+            phase = PHASE_RUN;
+            progress = (cycleTime - 5) / 3;
+        } else {
+            phase = PHASE_STILL;
+            progress = (cycleTime - 8) / 2;
+        }
+
+        // Reset to neutral
+        hips.rotation.z = 0;
+        hips.position.y = 1.0;
+        leftArm.rotation.x = 0;
+        rightArm.rotation.x = 0;
+        leftLeg.rotation.x = 0;
+        rightLeg.rotation.x = 0;
+        leftCalf.rotation.x = 0;
+        rightCalf.rotation.x = 0;
+        leftForearm.rotation.x = 0;
+        rightForearm.rotation.x = 0;
+
+        // Animation Parameters
+        const PI2 = Math.PI * 2;
+        let speed = 0;
+        let legAmp = 0;
+        let armAmp = 0;
+        let bounceAmp = 0;
+        let lean = 0;
+
+        if (phase === PHASE_WALK) {
+            speed = 4; // Cycles per 3 seconds
+            legAmp = 0.5; 
+            armAmp = 0.6;
+            bounceAmp = 0.05;
+            lean = 0;
+        } else if (phase === PHASE_RUN) {
+            speed = 8; // Cycles per 3 seconds
+            legAmp = 1.2;
+            armAmp = 1.0;
+            bounceAmp = 0.15;
+            lean = 0.2; // Forward lean
+        }
+
+        // Apply Animation
+        const t = time * speed; // Time scaled by speed
+
+        // Bounce (Y-axis bobbing)
+        if (phase !== PHASE_STILL) {
+            hips.position.y = 1.0 + Math.abs(Math.sin(t)) * bounceAmp;
+            hips.rotation.z = -lean; // Lean forward
+        }
+
+        // Limb Oscillations
+        if (phase !== PHASE_STILL) {
+            // Legs (Opposite phase)
+            const lLegAngle = Math.sin(t) * legAmp;
+            const rLegAngle = Math.sin(t + Math.PI) * legAmp;
+            
+            leftLeg.rotation.x = lLegAngle;
+            rightLeg.rotation.x = rLegAngle;
+
+            // Knees (Bend when leg swings back)
+            // Simple logic: bend knee if thigh rotation is negative (back)
+            leftCalf.rotation.x = Math.max(0, -lLegAngle * 1.5);
+            rightCalf.rotation.x = Math.max(0, -rLegAngle * 1.5);
+
+            // Arms (Opposite to legs, same phase as legs)
+            // Left arm moves with Right leg, Right arm with Left leg
+            // Actually usually: Left Arm swings forward when Right Leg swings forward.
+            const lArmAngle = Math.sin(t + Math.PI) * armAmp; // Opposite to left leg
+            const rArmAngle = Math.sin(t) * armAmp;         // Opposite to right leg
+
+            leftArm.rotation.x = lArmAngle;
+            rightArm.rotation.x = rArmAngle;
+
+            // Elbows (Bend slightly)
+            leftForearm.rotation.x = -0.5 - Math.abs(lArmAngle);
+            rightForearm.rotation.x = -0.5 - Math.abs(rArmAngle);
+        }
+
+        // Treadmill belt visual effect (optional texture offset or particle)
+        // Here we just ensure the ground stays static relative to camera, 
+        // but the figure moves "in place".
+
+        renderer.render(scene, camera);
+    }
+
+    // Handle Resize
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Start
+    animate();
+
+</script>
+</body>
+</html>

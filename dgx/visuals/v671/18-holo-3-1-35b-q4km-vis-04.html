@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Car Race</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+    </style>
+</head>
+<body>
+<script type="module">
+import * as THREE from './three.module.js';
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+// Create ground
+const groundGeometry = new THREE.PlaneGeometry(200, 200);
+const groundMaterial = new THREE.MeshBasicMaterial({ color: 0x228B22 });
+const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+ground.rotation.x = Math.PI / 2;
+scene.add(ground);
+
+// Create sky
+const skyGeometry = new THREE.SphereGeometry(500, 32, 32);
+const skyMaterial = new THREE.MeshBasicMaterial({ color: 0x87CEEB });
+const sky = new THREE.Mesh(skyGeometry, skyMaterial);
+scene.add(sky);
+
+// Create cars
+const carGeometry = new THREE.BoxGeometry(4, 2, 8);
+const redCarMaterial = new THREE.MeshBasicMaterial({ color: 0xFF0000 });
+const blueCarMaterial = new THREE.MeshBasicMaterial({ color: 0x0000FF });
+const redCar = new THREE.Mesh(carGeometry, redCarMaterial);
+const blueCar = new THREE.Mesh(carGeometry, blueCarMaterial);
+
+// Position cars
+redCar.position.set(-2, 1, 0);
+blueCar.position.set(2, 1, 0);
+
+scene.add(redCar);
+scene.add(blueCar);
+
+// Create finish line
+const finishLineGeometry = new THREE.PlaneGeometry(20, 1);
+const finishLineMaterial = new THREE.MeshBasicMaterial({ color: 0xFFFFFF });
+const finishLine = new THREE.Mesh(finishLineGeometry, finishLineMaterial);
+finishLine.rotation.x = Math.PI / 2;
+finishLine.position.z = 100;
+scene.add(finishLine);
+
+// Position camera
+camera.position.set(0, 10, -20);
+camera.lookAt(redCar.position);
+camera.lookAt(blueCar.position);
+
+// Animation
+let redCarSpeed = 0.2;
+let blueCarSpeed = 0.2;
+let reset = false;
+
+function animate() {
+    requestAnimationFrame(animate);
+
+    if (!reset) {
+        redCar.position.z += redCarSpeed;
+        blueCar.position.z += blueCarSpeed;
+
+        if (redCar.position.z > blueCar.position.z && redCar.position.z < 80) {
+            redCarSpeed = 0.3;
+        }
+
+        if (redCar.position.z > 100) {
+            reset = true;
+        }
+    } else {
+        redCar.position.z = -2;
+        blueCar.position.z = 2;
+        redCarSpeed = 0.2;
+        blueCarSpeed = 0.2;
+        reset = false;
+    }
+
+    renderer.render(scene, camera);
+}
+
+animate();
+
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+</body>
+</html>

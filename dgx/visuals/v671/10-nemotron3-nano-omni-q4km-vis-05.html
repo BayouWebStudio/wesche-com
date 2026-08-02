@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>3D Humanoid Animation</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <script type="module">
+        import * as THREE from './three.module.js';
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Camera setup: side-on view
+        camera.position.set(0, 1.5, 5);
+        camera.lookAt(0, 1, 0);
+
+        // Lights
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
+        directionalLight.position.set(5, 5, 5);
+        scene.add(directionalLight);
+
+        // Ground (treadmill-style)
+        const groundGeometry = new THREE.PlaneGeometry(20, 2);
+        const groundMaterial = new THREE.MeshPhongMaterial({ color: 0x888888 });
+        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        ground.rotation.x = -Math.PI / 2;
+        ground.position.y = -0.01;
+        scene.add(ground);
+
+        // Low-poly humanoid (simplified)
+        const bodyGeometry = new THREE.SphereGeometry(0.3, 16, 16);
+        const headGeometry = new THREE.SphereGeometry(0.15, 16, 16);
+        const limbGeometry = new THREE.CylinderGeometry(0.08, 0.08, 0.5, 8, 1);
+
+        const body = new THREE.Mesh(bodyGeometry, new THREE.MeshPhongMaterial({ color: 0xffcc00 }));
+        const head = new THREE.Mesh(headGeometry, new THREE.MeshPhongMaterial({ color: 0xffcc00 }));
+        const leftArm = new THREE.Mesh(limbGeometry, new THREE.MeshPhongMaterial({ color: 0xffcc00 }));
+        const rightArm = new THREE.Mesh(limbGeometry, new THREE.MeshPhongMaterial({ color: 0xffcc00 }));
+        const leftLeg = new THREE.Mesh(limbGeometry, new THREE.MeshPhongMaterial({ color: 0xffcc00 }));
+        const rightLeg = new THREE.Mesh(limbGeometry, new THREE.MeshPhongMaterial({ color: 0xffcc00 }));
+
+        // Positioning limbs
+        body.position.y = 0.3;
+        head.position.y = 0.8;
+
+        leftArm.position.set(-0.3, 0, 0);
+        rightArm.position.set(0.3, 0, 0);
+        leftArm.rotation.z = Math.PI / 2;
+        rightArm.rotation.z = -Math.PI / 2;
+
+        leftLeg.position.set(-0.15, -0.3, 0);
+        rightLeg.position.set(0.15, -0.3, 0);
+
+        scene.add(body, head, leftArm, rightArm, leftLeg, rightLeg);
+
+        // Animation variables
+        const walkSpeed = 0.05;    // radians per frame (slow walk)
+        const runSpeed = 0.12;     // radians per frame (faster run)
+        let phase = 0;             // 0-10 seconds cycle
+        let isRunning = false;
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Update phase (10-second cycle)
+            phase += isRunning ? runSpeed : walkSpeed;
+            if (phase >= 10) phase = 0;
+
+            // Determine limb swing angles based on phase
+            const walkPhase = phase % 10;
+            const runPhase = phase % 10;
+            let leftArmAngle = 0;
+            let rightArmAngle = 0;
+            let leftLegAngle = 0;
+            let rightLegAngle = 0;
+
+            if (walkPhase < 2) { // Stand still (0-2s)
+                // Reset limbs to neutral
+                leftArm.rotation.z = 0;
+                rightArm.rotation.z = 0;
+                leftLeg.rotation.z = 0;
+                rightLeg.rotation.z = 0;
+            } else if (walkPhase < 5) { // Walk in place (2-5s)
+                const t = (walkPhase - 2) / 3; // 0-1
+                leftArmAngle = -Math.PI * t * 0.5;
+                rightArmAngle = Math.PI * t * 0.5;
+                leftLegAngle = -Math.PI * t * 0.3;
+                rightLegAngle = Math.PI * t * 0.3;
+            } else if (walkPhase < 7) { // Run in place (5-7s)
+                const t = (walkPhase - 5) / 2; // 0-1
+                leftArmAngle = -Math.PI * t * 0.8;
+                rightArmAngle = Math.PI * t * 0.8;
+                leftLegAngle = -Math.PI * t * 0.6;
+                rightLegAngle = Math.PI * t * 0.6;
+                // Slight forward lean
+                body.rotation.x = -Math.PI * t * 0.1;
+            } else if (walkPhase < 9) { // Run continues (7-9s)
+                const t = (walkPhase - 7) / 2; // 0-1
+                leftArmAngle = -Math.PI * (1 - t) * 0.8;
+                rightArmAngle = Math.PI * (1 - t) * 0.8;
+                leftLegAngle = Math.PI * (1 - t) * 0.6;
+                rightLegAngle = -Math.PI * (1 - t) * 0.6;
+            } else { // Stand still (9-10s)
+                leftArmAngle = 0;
+                rightArmAngle = 0;
+                leftLegAngle = 0;
+                rightLegAngle = 0;
+                body.rotation.x = 0;
+            }
+
+            // Apply rotations
+            leftArm.rotation.z = leftArmAngle;
+            rightArm.rotation.z = rightArmAngle;
+            leftLeg.rotation.z = leftLegAngle;
+            rightLeg.rotation.z = rightLegAngle;
+
+            // Update cycle state (detect run start/stop)
+            if (walkPhase >= 2 && walkPhase < 3 && !isRunning) {
+                isRunning = true;
+            } else if ((walkPhase >= 5 || walkPhase >= 7) && walkPhase < 8 && isRunning) {
+                // Running continues until 9s
+            } else if (walkPhase >= 9 && walkPhase < 10 && isRunning) {
+                isRunning = false;
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Start animation immediately
+        animate();
+    </script>
+</body>
+</html>

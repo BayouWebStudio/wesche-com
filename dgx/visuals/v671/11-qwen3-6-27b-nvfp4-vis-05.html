@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Low Poly Humanoid Treadmill</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #1a1a1a; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <script type="module">
+        import * as THREE from './three.module.js';
+
+        // --- Configuration ---
+        const CYCLE_DURATION = 10.0; // Seconds
+        const STATE_STILL = 0;
+        const STATE_WALK = 1;
+        const STATE_RUN = 2;
+
+        // --- Scene Setup ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x222222);
+        scene.fog = new THREE.Fog(0x222222, 10, 50);
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(0, 3, 8); // Side-on view
+        camera.lookAt(0, 2, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document.body.appendChild(renderer.domElement);
+
+        // --- Lighting ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+        dirLight.position.set(5, 10, 7);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 1024;
+        dirLight.shadow.mapSize.height = 1024;
+        scene.add(dirLight);
+
+        // --- Materials ---
+        const matBody = new THREE.MeshStandardMaterial({ color: 0x3366ff, flatShading: true });
+        const matSkin = new THREE.MeshStandardMaterial({ color: 0xffccaa, flatShading: true });
+        const matGround = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.8 });
+
+        // --- The Humanoid ---
+        const humanGroup = new THREE.Group();
+        scene.add(humanGroup);
+
+        // Helper to create parts
+        function createPart(geo, mat, parent, pos, rot) {
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(pos.x, pos.y, pos.z);
+            if (rot) mesh.rotation.set(rot.x, rot.y, rot.z);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            parent.add(mesh);
+            return mesh;
+        }
+
+        // Hips (Root of the character)
+        const hips = new THREE.Group();
+        hips.position.y = 2.2; // Hip height
+        humanGroup.add(hips);
+
+        // Torso
+        const torsoGeo = new THREE.BoxGeometry(0.8, 1.2, 0.5);
+        const torso = createPart(torsoGeo, matBody, hips, {x: 0, y: 0.8, z: 0});
+        
+        // Head
+        const headGeo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+        const head = createPart(headGeo, matSkin, torso, {x: 0, y: 1.0, z: 0});
+
+        // Arms
+        const armGeo = new THREE.BoxGeometry(0.25, 0.9, 0.25);
+        const leftUpperArm = new THREE.Group();
+        leftUpperArm.position.set(-0.55, 1.4, 0);
+        torso.add(leftUpperArm);
+        createPart(armGeo, matSkin, leftUpperArm, {x: 0, y: -0.45, z: 0});
+
+        const rightUpperArm = new THREE.Group();
+        rightUpperArm.position.set(0.55, 1.4, 0);
+        torso.add(rightUpperArm);
+        createPart(armGeo, matSkin, rightUpperArm, {x: 0, y: -0.45, z: 0});
+
+        // Legs
+        const legGeo = new THREE.BoxGeometry(0.3, 1.0, 0.3);
+        
+        const leftHipJoint = new THREE.Group();
+        leftHipJoint.position.set(-0.25, 0, 0);
+        hips.add(leftHipJoint);
+        createPart(legGeo, matBody, leftHipJoint, {x: 0, y: -0.5, z: 0});
+
+        const rightHipJoint = new THREE.Group();
+        rightHipJoint.position.set(0.25, 0, 0);
+        hips.add(rightHipJoint);
+        createPart(legGeo, matBody, rightHipJoint, {x: 0, y: -0.5, z: 0});
+
+        // --- The Treadmill ---
+        const treadmillGroup = new THREE.Group();
+        scene.add(treadmillGroup);
+
+        // Belt
+        const beltGeo = new THREE.BoxGeometry(3, 0.2, 1.2);
+        const beltMat = new THREE.MeshStandardMaterial({ 
+            color: 0x111111, 
+            map: createStripedTexture(),
+            roughness: 0.9 
+        });
+        const belt = new THREE.Mesh(beltGeo, beltMat);
+        belt.position.set(0, 0.1, 0);
+        belt.receiveShadow = true;
+        treadmillGroup.add(belt);
+
+        // Frame
+        const frameMat = new THREE.MeshStandardMaterial({ color: 0x666666 });
+        const frameGeo = new THREE.BoxGeometry(3.2, 0.5, 1.4);
+        const frame = new THREE.Mesh(frameGeo, frameMat);
+        frame.position.set(0, -0.25, 0);
+        frame.receiveShadow = true;
+        treadmillGroup.add(frame);
+
+        // Console
+        const consoleGeo = new THREE.BoxGeometry(0.4, 1.5, 0.8);
+        const consoleMesh = new THREE.Mesh(consoleGeo, frameMat);
+        consoleMesh.position.set(-1.2, 0.75, 0);
+        treadmillGroup.add(consoleMesh);
+
+        // --- Procedural Texture for Belt ---
+        function createStripedTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 64;
+            canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#111';
+            ctx.fillRect(0, 0, 64, 64);
+            ctx.fillStyle = '#222';
+            ctx.fillRect(0, 0, 32, 64);
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.RepeatWrapping;
+            tex.repeat.set(10, 1);
+            return tex;
+        }
+
+        // --- Animation Logic ---
+        const clock = new THREE.Clock();
+
+        // Easing function for smoother state transitions
+        function smoothstep(edge0, edge1, x) {
+            const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
+            return t * t * (3 - 2 * t);
+        }
+
+        // Lerp helper
+        function lerp(start, end, t) {
+            return start + (end - start) * t;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const time = clock.getElapsedTime();
+            const cycleTime = time % CYCLE_DURATION;
+
+            // --- State Machine ---
+            // 0-2s: Still
+            // 2-5s: Walk
+            // 5-8s: Run
+            // 8-10s: Still
+
+            let state = STATE_STILL;
+            let phaseTime = 0; // Time elapsed in current state
+            let blendFactor = 0; // 0 to 1 transition factor
+
+            if (cycleTime < 2) {
+                state = STATE_STILL;
+                phaseTime = cycleTime;
+            } else if (cycleTime < 5) {
+                state = STATE_WALK;
+                phaseTime = cycleTime - 2;
+            } else if (cycleTime < 8) {
+                state = STATE_RUN;
+                phaseTime = cycleTime - 5;
+            } else {
+                state = STATE_STILL;
+                phaseTime = cycleTime - 8;
+            }
+
+            // --- Calculate Animation Parameters ---
+            
+            // 1. Body Lean (Torso rotation)
+            // Still: 0, Walk: 0.1, Run: 0.3
+            let targetLean = 0;
+            if (state === STATE_WALK) targetLean = 0.1;
+            if (state === STATE_RUN) targetLean = 0.3;
+            
+            // Smooth transition for lean
+            // We use a simple lerp based on how long we've been in the state vs transition time
+            // To make it snappy but smooth, we assume a 0.5s transition window
+            const transitionSpeed = 4.0;
+            hips.rotation.x = THREE.MathUtils.lerp(hips.rotation.x, targetLean, 0.1);
+
+            // 2. Limb Oscillation
+            // We need continuous angles to avoid snapping when switching states.
+            // We calculate "virtual" angles for each mode and blend between them.
+            
+            // Frequencies
+            const walkFreq = 4.0; // radians per second
+            const runFreq = 8.0;
+            
+            // Amplitudes (Radians)
+            const walkAmpLeg = 0.6;
+            const runAmpLeg = 1.0;
+            const walkAmpArm = 0.5;
+            const runAmpArm = 0.8;
+
+            // Calculate raw angles
+            const legAngleWalk = Math.sin(time * walkFreq) * walkAmpLeg;
+            const legAngleRun = Math.sin(time * runFreq) * runAmpLeg;
+            
+            const armAngleWalk = Math.sin(time * walkFreq + Math.PI) * walkAmpArm; // Arms opposite to legs
+            const armAngleRun = Math.sin(time * runFreq + Math.PI) * runAmpArm;
+
+            // Determine current active angle based on state
+            // We blend the amplitude and frequency effectively by blending the sine results
+            // Note: Since frequencies differ, a direct lerp of angles creates a "phase shift" visual glitch.
+            // To fix this, we reset the phase or just accept the shift. 
+            // Better approach: Reset the "time" offset for the sine wave when entering a state so it starts at 0.
+            
+            // Let's use the `phaseTime` calculated above to ensure clean starts for each state
+            const legAngleWalkLocal = Math.sin(phaseTime * walkFreq) * walkAmpLeg;
+            const legAngleRunLocal = Math.sin(phaseTime * runFreq) * runAmpLeg;
+            
+            const armAngleWalkLocal = Math.sin(phaseTime * walkFreq + Math.PI) * walkAmpArm;
+            const armAngleRunLocal = Math.sin(phaseTime * runFreq + Math.PI) * runAmpArm;
+
+            let currentLegAngle = 0;
+            let currentArmAngle = 0;
+
+            if (state === STATE_STILL) {
+                // Fade to 0
+                currentLegAngle = THREE.MathUtils.lerp(legAngleWalkLocal, 0, Math.min(1, phaseTime * 2));
+                currentArmAngle = THREE.MathUtils.lerp(armAngleWalkLocal, 0, Math.min(1, phaseTime * 2));
+            } else if (state === STATE_WALK) {
+                // Fade from Still to Walk
+                const t = Math.min(1, phaseTime * 2);
+                currentLegAngle = THREE.MathUtils.lerp(0, legAngleWalkLocal, t);
+                currentArmAngle = THREE.MathUtils.lerp(0, armAngleWalkLocal, t);
+            } else if (state === STATE_RUN) {
+                // Fade from Walk to Run
+                // We need the previous walk angle at the exact moment of switch to blend smoothly
+                // But since we reset phaseTime, we blend from the "Walk equivalent" of the start
+                // Actually, simply lerping the amplitude works okay if we handle the phase carefully.
+                // Let's just lerp the calculated angles.
+                const t = Math.min(1, phaseTime * 2);
+                // Estimate what the leg angle was at the end of walk (approx 0 since sin(0)=0 at start of new phase)
+                // This is a simplification.
+                currentLegAngle = THREE.MathUtils.lerp(0, legAngleRunLocal, t);
+                currentArmAngle = THREE.MathUtils.lerp(0, armAngleRunLocal, t);
+            }
+
+            // Apply Limb Rotations
+            leftHipJoint.rotation.x = currentLegAngle;
+            rightHipJoint.rotation.x = -currentLegAngle; // Opposite leg
+            
+            leftUpperArm.rotation.x = currentArmAngle;
+            rightUpperArm.rotation.x = -currentArmAngle; // Opposite arm
+
+            // --- Treadmill Belt Animation ---
+            // Move texture offset based on speed
+            let speed = 0;
+            if (state === STATE_WALK) speed = 0.5;
+            if (state === STATE_RUN) speed = 1.0;
+            
+            // Smooth speed transition
+            const currentSpeed = THREE.MathUtils.lerp(belt.userData.speed || 0, speed, 0.1);
+            belt.userData.speed = currentSpeed;
+            
+            belt.material.map.offset.x -= currentSpeed * 0.05;
+
+            renderer.render(scene, camera);
+        }
+
+        // Handle Resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Start
+        animate();
+
+    </script>
+</body>
+</html>

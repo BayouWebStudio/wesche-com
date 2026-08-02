@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Low-Poly 3D Humanoid Animation</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+    </style>
+</head>
+<body>
+<script type="module">
+    import * as THREE from './three.module.js';
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    const geometry = new THREE.BoxGeometry(1, 1, 1);
+    const humanoid = new THREE.Group();
+
+    const material = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
+    const body = new THREE.Mesh(new THREE.BoxGeometry(1, 1.5, 0.5), material);
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), material);
+    head.position.y = 1;
+
+    const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.2, 1, 0.2), material);
+    leftArm.position.set(-0.75, 0.5, 0);
+
+    const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.2, 1, 0.2), material);
+    rightArm.position.set(0.75, 0.5, 0);
+
+    const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.3, 1, 0.3), material);
+    leftLeg.position.set(-0.3, -1.25, 0);
+
+    const rightLeg = new THREE.Mesh(new THREE.BoxGeometry(0.3, 1, 0.3), material);
+    rightLeg.position.set(0.3, -1.25, 0);
+
+    humanoid.add(body, head, leftArm, rightArm, leftLeg, rightLeg);
+    scene.add(humanoid);
+
+    camera.position.z = 5;
+
+    const ambientLight = new THREE.AmbientLight(0x404040);
+    scene.add(ambientLight);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+    directionalLight.position.set(1, 1, 1);
+    scene.add(directionalLight);
+
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(10, 10), new THREE.MeshStandardMaterial({ color: 0x808080 }));
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -2;
+    scene.add(ground);
+
+    const clock = new THREE.Clock();
+    let elapsed = 0;
+
+    function animate() {
+        requestAnimationFrame(animate);
+        elapsed = clock.getElapsedTime();
+        const cycleTime = 10;
+        const cycleElapsed = elapsed % cycleTime;
+
+        if (cycleElapsed < 2) {
+            // Stand still
+            humanoid.rotation.y = 0;
+            leftArm.rotation.x = 0;
+            rightArm.rotation.x = 0;
+            leftLeg.rotation.x = 0;
+            rightLeg.rotation.x = 0;
+        } else if (cycleElapsed < 5) {
+            // Walk
+            const walkTime = cycleElapsed - 2;
+            humanoid.rotation.y = 0;
+            leftArm.rotation.x = Math.sin(walkTime * 2) * 0.3;
+            rightArm.rotation.x = -Math.sin(walkTime * 2) * 0.3;
+            leftLeg.rotation.x = -Math.sin(walkTime * 2) * 0.3;
+            rightLeg.rotation.x = Math.sin(walkTime * 2) * 0.3;
+        } else if (cycleElapsed < 8) {
+            // Run
+            const runTime = cycleElapsed - 5;
+            humanoid.rotation.y = -0.1;
+            leftArm.rotation.x = Math.sin(runTime * 6) * 0.6;
+            rightArm.rotation.x = -Math.sin(runTime * 6) * 0.6;
+            leftLeg.rotation.x = -Math.sin(runTime * 6) * 0.6;
+            rightLeg.rotation.x = Math.sin(runTime * 6) * 0.6;
+        } else {
+            // Stand still again
+            humanoid.rotation.y = 0;
+            leftArm.rotation.x = 0;
+            rightArm.rotation.x = 0;
+            leftLeg.rotation.x = 0;
+            rightLeg.rotation.x = 0;
+        }
+
+        renderer.render(scene, camera);
+    }
+
+    animate();
+
+    window.addEventListener('resize', () => {
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+        renderer.setSize(width, height);
+    });
+</script>
+</body>
+</html>

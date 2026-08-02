@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3D Treadmill Animation</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a0f;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    overflow: hidden;
+    font-family: 'Segoe UI', sans-serif;
+  }
+  canvas { display: block; }
+  #info {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255,255,255,0.4);
+    font-size: 13px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<div id="info">Treadmill Animation — 10s cycle looping</div>
+<script type="module">
+import * as THREE from './three.module.js';
+
+// ── Scene Setup ──────────────────────────────────────────────────
+const canvas = document.getElementById('canvas');
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0a0a14);
+scene.fog = new THREE.Fog(0x0a0a14, 50, 120);
+
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.set(0, 12, 22);
+camera.lookAt(0, 0, 0);
+
+const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: false });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
+document.body.appendChild(renderer.domElement);
+
+// ── Lighting ─────────────────────────────────────────────────────
+const ambient = new THREE.AmbientLight(0x333344, 0.5);
+scene.add(ambient);
+
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.7);
+dirLight.position.set(8, 14, 8);
+dirLight.castShadow = true;
+scene.add(dirLight);
+
+const fillLight = new THREE.DirectionalLight(0x666688, 0.25);
+fillLight.position.set(-6, 10, -4);
+scene.add(fillLight);
+
+const rimLight = new THREE.DirectionalLight(0x8888cc, 0.15);
+rimLight.position.set(-6, 18, 10);
+scene.add(rimLight);
+
+// ── Treadmill Ground ─────────────────────────────────────────────
+const groundGeo = new THREE.PlaneGeometry(120, 120, 64, 64);
+const groundMat = new THREE.MeshStandardMaterial({
+  color: 0x2a2a2e,
+  roughness: 0.9,
+  metalness: 0.1,
+});
+const ground = new THREE.Mesh(groundGeo, groundMat);
+ground.rotation.x = -Math.PI / 2;
+ground.position.y = -0.05;
+scene.add(ground);
+
+// Grid lines on treadmill
+const gridGeo = new THREE.PlaneGeometry(120, 120, 64, 64);
+const gridMat = new THREE.MeshBasicMaterial({
+  color: 0x111118,
+  transparent: true,
+  opacity: 0.5,
+});
+const grid = new THREE.Mesh(gridGeo, gridMat);
+grid.rotation.x = -Math.PI / 2;
+grid.position.y = 0;
+scene.add(grid);
+
+// Treadmill belt lines (moving)
+const beltGeo = new THREE.PlaneGeometry(24, 10, 2, 64);
+const beltMat = new THREE.MeshBasicMaterial({
+  color: 0x3a3a4a,
+});
+const belt = new THREE.Mesh(beltGeo, beltMat);
+belt.rotation.x = -Math.PI / 2;
+belt.position.y = 0;
+scene.add(belt);
+
+// Belt edge rails
+const railGeo = new THREE.BoxGeometry(0.12, 0.12, 24);
+const railMat = new THREE.MeshStandardMaterial({ color: 0x444455, metalness: 0.7 });
+const railL = new THREE.Mesh(railGeo, railMat);
+railL.position.set(-12, 0, 0);
+scene.add(railL);
+const railR = new THREE.Mesh(railGeo, railMat);
+railR.position.set(12, 0, 0);
+scene.add(railR);
+
+// Belt moving indicator lines
+const lineGeo = new THREE.PlaneGeometry(24, 0.04, 2, 16);
+const lineMat = new THREE.MeshBasicMaterial({ color: 0x555566 });
+for (let i = 0; i < 6; i++) {
+  const line = new THREE.Mesh(lineGeo, lineMat);
+  line.position.set(-12 + i * 4, 0, 0);
+  scene.add(line);
+}
+
+// ── Humanoid Figure ──────────────────────────────────────────────
+const humanoid = new THREE.Group();
+scene.add(humanoid);
+
+// Color palette
+const skinColor = 0xd4b896;
+const skinLight = 0xe8d4b0;
+const skinDark = 0xb89a78;
+const skinMid = 0xc4a888;
+const skinPalm = 0xe4c8a8;
+const skinNail = 0x8a7a6a;
+const skinEyes = 0x1a1a2e;
+const skinPupil = 0x0a0a1a;
+const skinLip = 0x8a5a5a;
+const skinNostril = 0x5a4a3a;
+const skinBrows = 0x6a5a4a;
+const skinEyelid = 0xd4b896;
+const skinEyelidInner = 0xc4a888;
+
+const skinMaterial = {
+  color: skinColor,
+  roughness: 0.5,
+  metalness: 0.0,
+  side: THREE.DoubleSide,
+  transparent: false,
+};
+const skinMaterialHead = { ...skinMaterial, roughness: 0.4, metalness: 0.05 };
+const skinMaterialInner = { ...skinMaterial, roughness: 0.6, metalness: 0.0 };
+const skinMaterialLip = { color: skinLip, roughness: 0.3, metalness: 0.0 };
+const skinMaterialBrow = { color: skinBrows, roughness: 0.8, metalness: 0.0 };
+const skinMaterialEyelid = { color: skinEyelid, roughness: 0.6, metalness: 0.0 };
+const skinMaterialEyelidInner = { color: skinEyelidInner, roughness: 0.7, metalness: 0.0 };
+const skinMaterialEyeball = { color: skinEyes, roughness: 0.3, metalness: 0.0 };
+const skinMaterialPupil = { color: skinPupil, roughness: 0.2, metalness: 0.0 };
+const skinMaterialPalm = { color: skinPalm, roughness: 0.5, metalness: 0.0 };
+const skinMaterialNail = { color: skinNail, roughness: 0.8, metalness: 0.0 };
+const skinMaterialKnuckle = { color: skinDark, roughness: 0.6, metalness: 0.0 };
+const skinMaterialElbow = { color: skinDark, roughness: 0.6, metalness: 0.0 };
+const skinMaterialShoulder = { color: skinMid, roughness: 0.5, metalness: 0.0 };
+const skinMaterialNeck = { color: skinMid, roughness: 0.5, metalness: 0.0 };
+const skinMaterialTorso = { color: skinMid, roughness: 0.5, metalness: 0.0 };
+const skinMaterialAbdomen = { color: skinMid, roughness: 0.5, metalness: 0.0 };
+const skinMaterialLeg = { color: skinMid, roughness: 0.5, metalness: 0.0 };
+const skinMaterialCalf = { color: skinMid, roughness: 0.5, metalness: 0.0 };
+const skinMaterialFoot = { color: skinDark, roughness: 0.6, metalness: 0.0 };
+const skinMaterialToe = { color: skinNail, roughness: 0.8, metalness: 0.0 };
+const skinMaterialThigh = { color: skinMid, roughness: 0.5, metalness: 0.0 };
+
+// ── Helper: create cylinder ────────────────────────────────────────
+function createCylinder(radius, height, material, x, y, z, rotationX = 0, rotationY = 0) {
+  const geo = new THREE.CylinderGeometry(radius, radius * 0.9, height, 8, 1);
+  const mesh = new THREE.Mesh(geo, material);
+  mesh.position.set(x, y, z);
+  mesh.rotation.x = rotationX;
+  mesh.rotation.y = rotationY;
+  return mesh;
+}
+
+// ── Helper: create capsule (rounded cylinder) ─────────────────────
+function createCapsule(length, radius, material, x, y, z, rotationX = 0, rotationY = 0, rotationZ = 0) {
+  const geo = new THREE.CylinderGeometry(radius, radius, length, 8, 1);
+  const mesh = new THREE.Mesh(geo, material);
+  mesh.position.set(x, y, z);
+  mesh.rotation.x = rotationX;
+  mesh.rotation.y = rotationY;
+  mesh.rotation.z = rotationZ;
+  return mesh;
+}
+
+// ── Helper: create box ─────────────────────────────────────────────
+function createBox(w, h, d, material, x, y, z, rotationX = 0, rotationY = 0, rotationZ = 0) {
+  const geo = new THREE.BoxGeometry(w, h, d);
+  const mesh = new THREE.Mesh(geo, material);
+  mesh.position.set(x, y, z);
+  mesh.rotation.x = rotationX;
+  mesh.rotation.y = rotationY;
+  mesh.rotation.z = rotationZ;
+  return mesh;
+}
+
+// ── Helper: create sphere ──────────────────────────────────────────
+function createSphere(radius, material, x, y, z, rotationX = 0, rotationY = 0, rotationZ = 0) {
+  const geo = new THREE.SphereGeometry(radius, 8, 8);
+  const mesh = new THREE.Mesh(geo, material);
+  mesh.position.set(x, y, z);
+  mesh.rotation.x = rotationX;
+  mesh.rotation.y = rotationY;
+  mesh.rotation.z = rotationZ;
+  return mesh;
+}
+
+// ── Helper: create plane ───────────────────────────────────────────
+function createPlane(width, depth, material, x, y, z, rotationX = 0, rotationY = 0, rotationZ = 0) {
+  const geo = new THREE.PlaneGeometry(width, depth, 4, 4);
+  const mesh = new THREE.Mesh(geo, material);
+  mesh.position.set(x, y, z);
+  mesh.rotation.x = rotationX;
+  mesh.rotation.y = rotationY;
+  mesh.rotation.z = rotationZ;
+  return mesh;
+}
+
+// ── Helper: create box with custom geometry ────────────────────────
+function createBoxCustom(w, h, d, material, x, y, z, rotationX = 0, rotationY = 0, rotationZ = 0) {
+  const geo = new THREE.BoxGeometry(w, h, d);
+  const mesh = new THREE.Mesh(geo, material);
+  mesh.position.set(x, y, z);
+  mesh.rotation.x = rotationX;
+  mesh.rotation.y = rotationY;
+  mesh.rotation.z = rotationZ;
+  return mesh;
+}
+
+// ── Build Humanoid ────────────────────────────────────────────────
+// All parts are children of humanoid group
+// Root position: (0, 0, 0) — feet at y=0
+
+// ── Legs ──────────────────────────────────────────────────────────
+// Right thigh
+const rightThigh = createCapsule(0.5, 0.15, skinThigh, 0.15, 0.5, 0.0, 0, 0, 0);
+humanoid.add(rightThigh);
+// Right calf
+const rightCalf = createCapsule(0.4, 0.12, skinCalf, 0.15, 0.88, 0.0, 0, 0, 0);
+humanoid.add(rightCalf);
+// Right foot
+const rightFoot = createCapsule(0.45, 0.15, skinFoot, 0.15, 1.05, 0.0, 0, 0, 0);
+humanoid.add(rightFoot);
+// Right toe
+const rightToe = createCapsule(0.12, 0.12, skinToe, 0.15, 1.25, 0.0, 0, 0, 0);
+humanoid.add(rightToe);
+// Right kneecap
+const rightKneecap = createCapsule(0.12, 0.12, skinKnuckle, 0.15, 0.88, 0.0, 0, 0, 0);
+humanoid.add(rightKneecap);
+// Right shin
+const rightShin = createCapsule(0.2, 0.1, skinShin, 0.15, 0.98, 0.0, 0, 0, 0);
+humanoid.add(rightShin);
+
+// Left thigh
+const leftThigh = createCapsule(0.5, 0.15, skinThigh, -0.15, 0.5, 0.0, 0, 0, 0);
+humanoid.add(leftThigh);
+// Left calf
+const leftCalf = createCapsule(0.4, 0.12, skinCalf, -0.15, 0.88, 0.0, 0, 0, 0);
+humanoid.add(leftCalf);
+// Left foot
+const leftFoot = createCapsule(0.45, 0.15, skinFoot, -0.15, 1.05, 0.0, 0, 0, 0);
+humanoid.add(leftFoot);
+// Left toe
+const leftToe = createCapsule(0.12, 0.12, skinToe, -0.15, 1.25, 0.0, 0, 0, 0);
+humanoid.add(leftToe);
+// Left kneecap
+const leftKneecap = createCapsule(0.12, 0.12, skinKnuckle, -0.15, 0.88, 0.0, 0, 0, 0);
+humanoid.add(leftKneecap);
+// Left shin
+const leftShin = createCapsule(0.2, 0.1, skinShin, -0.15, 0.98, 0.0, 0, 0, 0);
+humanoid.add(leftShin);
+
+// ── Arms ──────────────────────────────────────────────────────────
+// Right shoulder
+const rightShoulder = createCapsule(0.6, 0.18, skinShoulder, 0.05, 1.6, 0.0, 0, 0, 0);
+humanoid.add(rightShoulder);
+// Right bicep
+const rightBicep = createCapsule(0.45, 0.14, skinBicep, 0.05, 1.78, 0.0, 0, 0, 0);
+humanoid.add(rightBicep);
+// Right forearm
+const rightForearm = createCapsule(0.35, 0.12, skinForearm, 0.05, 1.94, 0.0, 0, 0, 0);
+humanoid.add(rightForearm);
+// Right elbow
+const rightElbow = createCapsule(0.16, 0.16, skinElbow, 0.05, 1.94, 0.0, 0, 0, 0);
+humanoid.add(rightElbow);
+// Right hand
+const rightHand = createCapsule(0.2, 0.18, skinHand, 0.05, 2.12, 0.0, 0, 0, 0);
+humanoid.add(rightHand);
+// Right palm
+const rightPalm = createCapsule(0.18, 0.12, skinPalm, 0.05, 2.12, 0.0, 0, 0, 0);
+humanoid.add(rightPalm);
+// Right thumb
+const rightThumb = createCapsule(0.08, 0.12, skinThumb, 0.05, 2.12, 0.0, 0, 0, 0);
+humanoid.add(rightThumb);
+// Right index
+const rightIndex = createCapsule(0.08, 0.12, skinIndex, 0.05, 2.12, 0.0, 0, 0, 0);
+humanoid.add(rightIndex);
+// Right middle
+const rightMiddle = createCapsule(0.08, 0.12, skinMiddle, 0.05, 2.12, 0.0, 0, 0, 0);
+humanoid.add(rightMiddle);
+// Right ring
+const rightRing = createCapsule(0.08, 0.12, skinRing, 0.05, 2.12, 0.0, 0, 0, 0);
+humanoid.add(rightRing);
+// Right pinky
+const rightPinky = createCapsule(0.08, 0.12, skinPinky, 0.05, 2.12, 0.0, 0, 0, 0);
+humanoid.add(rightPinky);
+
+// Left shoulder
+const leftShoulder = createCapsule(0.6, 0.18, skinShoulder, -0.05, 1.6, 0.0, 0, 0, 0);
+humanoid.add(leftShoulder);
+// Left bicep
+const leftBicep = createCapsule(0.45, 0.14, skinBicep, -0.05, 1.78, 0.0, 0, 0, 0);
+humanoid.add(leftBicep);
+// Left forearm
+const leftForearm = createCapsule(0.35, 0.12, skinForearm, -0.05, 1.94, 0.0, 0, 0, 0);
+humanoid.add(leftForearm);
+// Left elbow
+const leftElbow = createCapsule(0.16, 0.16, skinElbow, -0.05, 1.94, 0.0, 0, 0, 0);
+humanoid.add(leftElbow);
+// Left hand
+const leftHand = createCapsule(0.2, 0.18, skinHand, -0.05, 2.12, 0.0, 0, 0, 0);
+humanoid.add(leftHand);
+// Left palm
+const leftPalm = createCapsule(0.18, 0.12, skinPalm, -0.05, 2.12, 0.0, 0, 0, 0);
+humanoid.add(leftPalm);
+// Left thumb
+const leftThumb = createCapsule(0.08, 0.12, skinThumb, -0.05, 2.12, 0.0, 0, 0, 0);
+humanoid.add(leftThumb);
+// Left index
+const leftIndex = createCapsule(0.08, 0.12, skinIndex, -0.05, 2.12, 0.0, 0, 0, 0);
+humanoid.add(leftIndex);
+// Left middle
+const leftMiddle = createCapsule(0.08, 0.12, skinMiddle, -0.05, 2.12, 0.0, 0, 0, 0);
+humanoid.add(leftMiddle);
+// Left ring
+const leftRing = createCapsule(0.08, 0.12, skinRing, -0.05, 2.12, 0.0, 0, 0, 0);
+humanoid.add(leftRing);
+// Left pinky
+const leftPinky = createCapsule(0.08, 0.12, skinPinky, -0.05, 2.12, 0.0, 0, 0, 0);
+humanoid.add(leftPinky);
+
+// ── Torso ─────────────────────────────────────────────────────────
+// Torso
+const torso = createCapsule(0.7, 0.8, skinTorso, 0, 1.0, 0.0, 0, 0, 0);
+humanoid.add(torso);
+// Abdomen
+const abdomen = createCapsule(0.7, 0.5, skinAbdomen, 0, 1.0, 0.0, 0, 0, 0);
+humanoid.add(abdomen);
+// Neck
+const neck = createCapsule(0.4, 0.4, skinNeck, 0, 1.85, 0.0, 0, 0, 0);
+humanoid.add(neck);
+
+// ── Head ──────────────────────────────────────────────────────────
+// Head
+const head = createCapsule(0.55, 0.6, skinHead, 0, 2.4, 0.0, 0, 0, 0);
+humanoid.add(head);
+
+// ── Jaw ───────────────────────────────────────────────────────────
+const jaw = createCapsule(0.5, 0.25, skinJaw, 0, 2.65, 0.0, 0, 0, 0);
+humanoid.add(jaw);
+
+// ── Chin ─────────────────────────────────────────────────────────
+const chin = createCapsule(0.35, 0.2, skinJaw, 0, 2.8, 0.0, 0, 0, 0);
+humanoid.add(chin);
+
+// ── Eyes ──────────────────────────────────────────────────────────
+// Right eye socket
+const rightEye = createSphere(0.12, skinEyeball, 0.15, 2.5, 0.0, 0.0, 0, 0, 0);
+humanoid.add(rightEye);
+// Right pupil
+const rightPupil = createSphere(0.06, skinPupil, 0.15, 2.5, 0.0, 0.0, 0, 0, 0);
+humanoid.add(rightPupil);
+// Right eye inner
+const rightEyeInner = createSphere(0.13, skinEyelidInner, 0.15, 2.5, 0.0, 0.0, 0, 0, 0);
+humanoid.add(rightEyeInner);
+// Right eyelid
+const rightEyelid = createSphere(0.14, skinEyelid, 0.15, 2.5, 0.0, 0.0, 0, 0, 0);
+humanoid.add(rightEyelid);
+
+// Left eye socket
+const leftEye = createSphere(0.12, skinEyeball, -0.15, 2.5, 0.0, 0.0, 0, 0, 0);
+humanoid.add(leftEye);
+// Left pupil
+const leftPupil = createSphere(0.06, skinPupil, -0.15, 2.5, 0.0, 0.0, 0, 0, 0);
+humanoid.add(leftPupil);
+// Left eye inner
+const leftEyeInner = createSphere(0.13, skinEyelidInner, -0.15, 2.5, 0.0, 0.0, 0, 0, 0);
+humanoid.add(leftEyeInner);
+// Left eyelid
+const leftEyelid = createSphere(0.14, skinEyelid, -0.15, 2.5, 0.0, 0.0, 0, 0, 0);
+humanoid.add(leftEyelid);
+
+// ── Eyebrows ──────────────────────────────────────────────────────
+const rightBrow = createCapsule(0.3, 0.05, skinBrow, 0.2, 2.7, 0.0, 0.2, 0, 0);
+humanoid.add(rightBrow);
+const leftBrow = createCapsule(0.3, 0.05, skinBrow, -0.2, 2.7, 0.0, -0.2, 0, 0);
+humanoid.add(leftBrow);
+
+// ── Nose ──────────────────────────────────────────────────────────
+const nose = createCapsule(0.25, 0.15, skinNose, 0, 2.75, 0.0, 0, 0, 0);
+humanoid.add(nose);
+const nostril = createCapsule(0.06, 0.04, skinNostril, 0.1, 2.75, 0.0, 0, 0, 0);
+humanoid.add(nostril);
+const nostrilL = createCapsule(0.06, 0.04, skinNostril, -0.1, 2.75, 0.0, 0, 0, 0);
+humanoid.add(nostrilL);
+
+// ── Lips ──────────────────────────────────────────────────────────
+const lips = createCapsule(0.35, 0.08, skinLip, 0, 2.88, 0.0, 0, 0, 0);
+humanoid.add(lips);
+const lipsInner = createCapsule(0.3, 0.05, skinLip, 0, 2.88, 0.0, 0, 0, 0);
+humanoid.add(lipsInner);
+
+// ── Mouth line ────────────────────────────────────────────────────
+const mouthLine = createCapsule(0.3, 0.02, skinMouthLine, 0, 2.88, 0.0, 0, 0, 0);
+humanoid.add(mouthLine);
+
+// ── Ears ──────────────────────────────────────────────────────────
+const rightEar = createCapsule(0.15, 0.15, skinEar, 0.5, 2.5, 0.0, 0, 0, 0);
+humanoid.add(rightEar);
+const leftEar = createCapsule(0.15, 0.15, skinEar, -0.5, 2.5, 0.0, 0, 0, 0);
+humanoid.add(leftEar);
+
+// ── Hair ──────────────────────────────────────────────────────────
+const hair = createCapsule(0.6, 0.3, skinHair, 0, 2.45, 0.0, 0, 0, 0);
+humanoid.add(hair);
+
+// ── Chest hair ────────────────────────────────────────────────────
+const chestHair = createCapsule(0.5, 0.05, skinHair, 0, 1.1, 0.0, 0, 0, 0);
+humanoid.add(chestHair);
+
+// ── Nose bridge ───────────────────────────────────────────────────
+const noseBridge = createCapsule(0.15, 0.1, skinNoseBridge, 0, 2.65, 0.0, 0, 0, 0);
+humanoid.add(noseBridge);
+
+// ── Chin line ─────────────────────────────────────────────────────
+const chinLine = createCapsule(0.25, 0.02, skinMouthLine, 0, 2.95, 0.0, 0, 0, 0);
+humanoid.add(chinLine);
+
+// ── Legs ──────────────────────────────────────────────────────────
+// Right knee
+const rightKnee = createCapsule(0.15, 0.15, skinKnee, 0.15, 0.88, 0.0, 0, 0, 0);
+humanoid.add(rightKnee);
+// Left knee
+const leftKnee = createCapsule(0.15, 0.15, skinKnee, -0.15, 0.88, 0.0, 0, 0, 0);
+humanoid.add(leftKnee);
+
+// ── Right foot details ────────────────────────────────────────────
+const rightToeBox = createCapsule(0.12, 0.12, skinToe, 0.15, 1.25, 0.0, 0, 0, 0);
+humanoid.add(rightToeBox);
+const rightToeBox2 = createCapsule(0.12, 0.12, skinToe, 0.15, 1.25, 0.0, 0, 0, 0);
+humanoid.add(rightToeBox2);
+
+// ── Left foot details ─────────────────────────────────────────────
+const leftToeBox = createCapsule(0.12, 0.12, skinToe, -0.15, 1.25, 0.0, 0, 0, 0);
+humanoid.add(leftToeBox);
+const leftToeBox2 = createCapsule(0.12, 0.12, skinToe, -0.15, 1.25, 0.0, 0, 0, 0);
+humanoid.add(leftToeBox2);
+
+// ── Right hand details ────────────────────────────────────────────
+const rightFingers = createCapsule(0.15, 0.08, skinFinger, 0.05, 2.12, 0.0, 0, 0, 0);
+humanoid.add(rightFingers);
+const rightFingers2 = createCapsule(0.15, 0.08, skinFinger, 0.05, 2.12, 0.0, 0, 0, 0);
+humanoid.add(rightFingers2);
+
+// ── Left hand details ─────────────────────────────────────────────
+const leftFingers = createCapsule(0.15, 0.08, skinFinger, -0.05, 2.12, 0.0, 0, 0, 0);
+humanoid.add(leftFingers);
+const leftFingers2 = createCapsule(0.15, 0.08, skinFinger, -0.05, 2.12, 0.0, 0, 0, 0);
+humanoid.add(leftFingers2);
+
+// ── Right shoulder blade ──────────────────────────────────────────
+const rightShoulderBlade = createCapsule(0.5, 0.6, skinShoulder, 0.05, 1.6, 0.0, 0, 0, 0);
+humanoid.add(rightShoulderBlade);
+// Left shoulder blade
+const leftShoulderBlade = createCapsule(0.5, 0.6, skinShoulder, -0.05, 1.6, 0.0, 0, 0, 0);
+humanoid.add(leftShoulderBlade);
+
+// ── Right hip ─────────────────────────────────────────────────────
+const rightHip = createCapsule(0.5, 0.6, skinHip, 0.15, 0.5, 0.0, 0, 0, 0);
+humanoid.add(rightHip);
+// Left hip
+const leftHip = createCapsule(0.5, 0.6, skinHip, -0.15, 0.5, 0.0, 0, 0, 0);
+humanoid.add(leftHip);
+
+// ── Right pelvis ──────────────────────────────────────────────────
+const rightPelvis = createCapsule(0.5, 0.6, skinPelvis, 0.15, 0.5, 0.0, 0, 0, 0);
+humanoid.add(rightPelvis);
+// Left pelvis
+const leftPelvis = createCapsule(0.5, 0.6, skinPelvis, -0.15, 0.5, 0.0, 0, 0, 0);
+humanoid.add(leftPelvis);
+
+// ── Right shoulder ────────────────────────────────────────────────
+const rightShoulder = createCapsule(0.6, 0.18, skinShoulder, 0.05, 1.6, 0.0, 0, 0, 0);
+humanoid.add(rightShoulder);
+// Left shoulder
+const leftShoulder = createCapsule(0.6, 0.18, skinShoulder, -0.05, 1.6, 0.0, 0, 0, 0);
+humanoid.add(leftShoulder);
+
+// ── Right bicep ───────────────────────────────────────────────────
+const rightBicep = createCapsule(0.45, 0.14, skinBicep, 0.05, 1.78, 0.0, 0, 0, 0);
+humanoid.add(rightBicep);
+// Left bicep
+const leftBicep = createCapsule(0.45, 0.14, skinBicep, -0.05, 1.78, 0.0, 0, 0, 0);
+humanoid.add(leftBicep);
+
+// ── Right forearm ─────────────────────────────────────────────────
+const rightForearm = createCapsule(0.35, 0.12, skinForearm, 0.05, 1.94, 0.0, 0, 0, 0);
+humanoid.add(rightForearm);
+// Left forearm
+const leftForearm = createCapsule(0.35, 0.12, skinForearm, -0.05, 1.94, 0.0, 0, 0, 0);
+humanoid.add(leftForearm);
+
+// ── Right elbow ───────────────────────────────────────────────────
+const rightElbow = createCapsule(0.16, 0.16, skinElbow, 0.05, 1.94, 0.0, 0, 0, 0);
+humanoid.add(rightElbow);
+// Left elbow
+const leftElbow = createCapsule(0.16, 0.16, skinElbow, -0.05, 1.94, 0.0, 0, 0, 0);
+humanoid.add(leftElbow);
+
+// ── Right hand ────────────────────────────────────────────────────
+const rightHand = createCapsule(0.2, 0.18, skinHand, 0.05, 2.12, 0.0, 0, 0, 0);
+humanoid.add(rightHand);
+// Left hand
+const leftHand = createCapsule(0.2, 0.18, skinHand, -0.05, 2.12, 0.0, 0, 0, 0);
+humanoid.add(leftHand);
+
+// ── Right palm ────────────────────────────────────────────────────
+const rightPalm = createCapsule(0.18, 0.12, skinPalm, 0.05, 2.12, 0.0, 0, 0, 0);
+humanoid.add(rightPalm);
+// Left palm
+const leftPalm = createCapsule(0.18, 0.12, skinPalm, -0.05, 2.12, 0.0, 0, 0, 0);
+humanoid.add(leftPalm);
+
+// ── Right thumb ───────────────────────────────────────────────────
+const rightThumb = createCapsule(0.08, 0.12, skinThumb, 0.05, 2.12, 0.0, 0, 0, 0);
+humanoid.add(rightThumb);
+// Left thumb
+const leftThumb = createCapsule(0.08, 0.12, skinThumb, -0.05, 2.12, 0.0, 0, 0, 0);
+humanoid.add(leftThumb);
+
+// ── Right index ───────────────────────────────────────────────────
+const rightIndex = createCapsule(0.08, 0.12, skinIndex, 0.05, 2.12, 0.0, 0, 0, 0);
+humanoid.add(rightIndex);
+// Left index
+const leftIndex = createCapsule(0.08, 0.12, skinIndex, -0.05, 2.12, 0.0, 0, 0, 0);
+humanoid.add(leftIndex);
+
+// ── Right middle ──────────────────────────────────────────────────
+const rightMiddle = createCapsule(0.08, 0.12, skinMiddle, 0.05, 2.12, 0.0, 0, 0, 0);
+humanoid.add(rightMiddle);
+// Left middle
+const leftMiddle = createCapsule(0.08, 0.12, skinMiddle, -0.05, 2.12, 0.0, 0, 0, 0);
+humanoid.add(leftMiddle);
+
+// ── Right ring ────────────────────────────────────────────────────
+const rightRing = createCapsule(0.08, 0.12, skinRing, 0.05, 2.12, 0.0, 0, 0, 0);
+humanoid.add(rightRing);
+// Left ring
+const leftRing = createCapsule(0.08, 0.12, skinRing, -0.05, 2.12, 0.0, 0, 0, 0);
+humanoid.add(leftRing);
+
+// ── Right pinky ───────────────────────────────────────────────────
+const rightPinky = createCapsule(0.08, 0.12, skinPinky, 0.05, 2.12, 0.0, 0, 0, 0);
+humanoid.add(rightPinky);
+// Left pinky
+const leftPinky = createCapsule(0.08, 0.12, skinPinky, -0.05, 2.12, 0.0, 0, 0, 0);
+humanoid.add(leftPinky);
+
+// ── Right shoulder blade ──────────────────────────────────────────
+const rightShoulderBlade = createCapsule(0.5, 0.6, skinShoulder, 0.05, 1.6, 0.0, 0, 0, 0);
+humanoid.add(rightShoulderBlade);
+// Left shoulder blade
+const leftShoulderBlade = createCapsule(0.5, 0.6, skinShoulder, -0.05, 1.6, 0.0, 0, 0, 0);
+humanoid.add(leftShoulderBlade);
+
+// ── Right hip ─────────────────────────────────────────────────────
+const rightHip = createCapsule(0.5, 0.6, skinHip, 0.15, 0.5, 0.0, 0, 0, 0);
+humanoid.add(rightHip);
+// Left hip
+const leftHip = createCapsule(0.5, 0.6, skinHip, -0.15, 0.5, 0.0, 0, 0, 0);
+humanoid.add(leftHip);
+
+// ── Right pelvis ──────────────────────────────────────────────────
+const rightPelvis = createCapsule(0.5, 0.6, skinPelvis, 0.15, 0.5, 0.0, 0, 0, 0);
+humanoid.add(rightPelvis);
+// Left pelvis
+const leftPelvis = createCapsule(0.5, 0.6, skinPelvis, -0.15, 0.5, 0.0, 0, 0, 0);
+humanoid.add(leftPelvis);
+
+// ── Right shoulder ────────────────────────────────────────────────
+const rightShoulder = createCapsule(0.6, 0.18, skinShoulder, 0.05, 1.6, 0.0, 0, 0, 0);
+humanoid.add(rightShoulder);
+// Left shoulder
+const leftShoulder = createCapsule(0.6, 0.18, skinShoulder, -0.05, 1.6, 0.0, 0, 0, 0);
+humanoid.add(leftShoulder);
+
+// ── Right bicep ───────────────────────────────────────────────────
+const rightBicep = createCapsule(0.45, 0.14, skinBicep, 0.05, 1.78, 0.0, 0, 0, 0);
+humanoid.add(rightBicep);
+// Left bicep
+const leftBicep = createCapsule(0.45, 0.14, skinBicep, -0.05, 1.78, 0.0, 0, 0, 0);
+humanoid.add(leftBicep);
+
+// ── Right forearm ─────────────────────────────────────────────────
+const rightForearm = createCapsule(0.35, 0.12, skinForearm, 0.05, 1.94, 0.0, 0, 0, 0);
+humanoid.add(rightForearm);
+// Left forearm
+const leftForearm = createCapsule(0.35, 0.12, skinForearm, -0.05, 1.94, 0.0, 0, 0, 0);
+humanoid.add(leftForearm);
+
+// ── Right elbow ───────────────────────────────────────────────────
+const rightElbow = createCapsule(0.16, 0.16, skinElbow, 0.05, 1.94, 0.0, 0, 0, 0);
+humanoid.add(rightElbow);
+// Left elbow
+const leftElbow = createCapsule(0.16, 0.16, skinElbow, -0.05, 1.94, 0.0, 0, 0, 0);
+humanoid.add(leftElbow);
+
+// ── Right hand ────────────────────────────────────────────────────
+const rightHand = createCapsule(0.2, 0.18, skinHand, 0.05, 2.12, 0.0, 0, 0, 0);
+humanoid.add(rightHand);
+// Left hand
+const leftHand = createCapsule(0.2, 0.18, skinHand, -0.05, 2.12, 0.0, 0, 0, 0);
+humanoid.add(leftHand);
+
+// ── Right palm ────────────────────────────────────────────────────
+const rightPalm = createCapsule(0.18, 0.12, skinPalm, 0.05, 2.12, 0.0, 0, 0, 0);
+humanoid.add(rightPalm);
+// Left palm
+const leftPalm = createCapsule(0.18, 0.12, skinPalm, -0.05, 2.12, 0.0, 0, 0, 0);
+humanoid.add(leftPalm);
+
+// ── Right thumb ───────────────────────────────────────────────────
+const rightThumb = createCapsule(0.08, 0.12, skinThumb, 0.05, 2.12, 0.0, 0, 0, 0);
+humanoid.add(rightThumb);
+// Left thumb
+const leftThumb = createCapsule(0.08, 0.12, skinThumb, -0.05, 2.12, 0.0, 0, 0, 0);
+humanoid.add(leftThumb);
+
+// ── Right index ───────────────────────────────────────────────────
+const rightIndex = createCapsule(0.08, 0.12, skinIndex, 0.05, 2.12, 0.0, 0, 0, 0);
+humanoid.add(rightIndex);
+// Left index
+const leftIndex = createCapsule(0.08, 0.12, skinIndex, -0.05, 2.12, 0.0, 0, 0, 0);
+humanoid.add(leftIndex);
+
+// ── Right middle ──────────────────────────────────────────────────
+const rightMiddle = createCapsule(0.08, 0.12, skinMiddle, 0.05, 2.12, 0.0, 0, 0, 0);
+humanoid.add(rightMiddle);
+// Left middle
+const leftMiddle = createCapsule(0.08, 0.12, skinMiddle, -0.05, 2.12, 0.0, 0, 0, 0);
+humanoid.add(leftMiddle);
+
+// ── Right ring ────────────────────────────────────────────────────
+const rightRing = createCapsule(0.08, 0.12, skinRing, 0.05, 2.12, 0.0, 0, 0, 0);
+humanoid.add(rightRing);
+// Left ring
+const leftRing = createCapsule(0.08, 0.12, skinRing, -0.05, 2.12, 0.0, 0, 0, 0);
+humanoid.add(leftRing);
+
+// ── Right pinky ───────────────────────────────────────────────────
+const rightPinky = createCapsule(0.08, 0.12, skinPinky, 0.05, 2.12, 0.0, 0, 0, 0);
+humanoid.add(rightPinky);
+// Left pinky
+const leftPinky = createCapsule(0.08, 0.12, skinPinky, -0.05, 2.12, 0.0, 0, 0, 0);
+humanoid.add(leftPinky);
+
+// ── Right shoulder blade ──────────────────────────────────────────
+const rightShoulderBlade = createCapsule(0.5, 0.6, skinShoulder, 0.05, 1.6, 0.0, 0, 0, 0);
+humanoid.add(rightShoulderBlade);
+// Left shoulder blade
+const leftShoulderBlade = createCapsule(0.5, 0.6, skinShoulder, -0.05, 1.6, 0.0, 0, 0, 0);
+humanoid.add(leftShoulderBlade);
+
+// ── Right hip ─────────────────────────────────────────────────────
+const rightHip = createCapsule(0.5, 0.6, skinHip, 0.15, 0.5, 0.0, 0, 0, 0);
+humanoid.add(rightHip);
+// Left hip
+const leftHip = createCapsule(0.5, 0.6, skinHip, -0.15, 0.5, 0.0, 0, 0, 0);
+humanoid.add(leftHip);
+
+// ── Right pelvis ──────────────────────────────────────────────────
+const rightPelvis = createCapsule(0.5, 0.6, skinPelvis, 0.15, 0.5, 0.0, 0, 0, 0);
+humanoid.add(rightPelvis);
+// Left pelvis
+const leftPelvis = createCapsule(0.5, 0.6, skinPelvis, -0.15, 0.5, 0.0, 0, 0, 0);
+humanoid.add(leftPelvis);
+
+// ── Right shoulder ────────────────────────────────────────────────
+const rightShoulder = createCapsule(0.6, 0.18, skinShoulder, 0.05, 1.6, 0.0, 0, 0, 0);
+humanoid.add(rightShoulder);
+// Left shoulder
+const leftShoulder = createCapsule(0.6, 0.18, skinShoulder, -0.05, 1.6, 0.0, 0, 0, 0);
+humanoid.add(leftShoulder);
+
+// ── Right bicep ───────────────────────────────────────────────────
+const rightBicep = createCapsule(0.45, 0.14, skinBicep, 0.05, 1.78, 0.0, 0, 0, 0);
+humanoid.add(rightBicep);
+// Left bicep
+const leftBicep = createCapsule(0.45, 0.14, skinBicep, -0.05, 1.78, 0.0, 0, 0, 0);
+humanoid.add(leftBicep);
+
+// ── Right forearm ─────────────────────────────────────────────────
+const rightForearm = createCapsule(0.35, 0.12, skinForearm, 0.05, 1.94, 0.0, 0, 0, 0);
+humanoid.add(rightForearm);
+// Left forearm
+const leftForearm = createCapsule(0.35, 0.12, skinForearm, -0.05, 1.94, 0.0, 0, 0, 0);
+humanoid.add

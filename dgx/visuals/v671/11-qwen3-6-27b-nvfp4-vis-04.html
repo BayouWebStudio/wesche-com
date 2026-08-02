@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Red vs Blue Race</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; }
+        canvas { display: block; }
+        #ui {
+            position: absolute;
+            top: 20px;
+            width: 100%;
+            text-align: center;
+            font-family: 'Arial', sans-serif;
+            font-weight: bold;
+            font-size: 24px;
+            color: white;
+            text-shadow: 2px 2px 4px #000;
+            pointer-events: none;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+    <div id="ui">RACE IN PROGRESS</div>
+    <script type="module">
+        import * as THREE from './three.module.js';
+
+        // --- Configuration ---
+        const TRACK_LENGTH = 200;
+        const RACE_DURATION = 10; // Seconds per loop
+        const CAR_WIDTH = 2;
+        const CAR_LENGTH = 4.5;
+        const CAR_HEIGHT = 1.5;
+        
+        // --- Scene Setup ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87CEEB); // Sky blue
+        scene.fog = new THREE.Fog(0x87CEEB, 20, 150);
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document.body.appendChild(renderer.domElement);
+
+        // --- Lighting ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+        dirLight.position.set(50, 100, 50);
+        dirLight.castShadow = true;
+        dirLight.shadow.camera.left = -50;
+        dirLight.shadow.camera.right = 50;
+        dirLight.shadow.camera.top = 50;
+        dirLight.shadow.camera.bottom = -50;
+        dirLight.shadow.mapSize.width = 2048;
+        dirLight.shadow.mapSize.height = 2048;
+        scene.add(dirLight);
+
+        // --- Environment ---
+        // Ground
+        const planeGeo = new THREE.PlaneGeometry(200, 500);
+        const planeMat = new THREE.MeshStandardMaterial({ color: 0x228B22, roughness: 1 });
+        const ground = new THREE.Mesh(planeGeo, planeMat);
+        ground.rotation.x = -Math.PI / 2;
+        ground.position.z = 0;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        // Road
+        const roadGeo = new THREE.PlaneGeometry(20, 500);
+        const roadMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+        const road = new THREE.Mesh(roadGeo, roadMat);
+        road.rotation.x = -Math.PI / 2;
+        road.position.y = 0.05;
+        road.receiveShadow = true;
+        scene.add(road);
+
+        // Finish Line
+        const finishGeo = new THREE.PlaneGeometry(20, 2);
+        const finishMat = new THREE.MeshStandardMaterial({ color: 0xffffff }); // Checkerboard simplified to white
+        const finishLine = new THREE.Mesh(finishGeo, finishMat);
+        finishLine.rotation.x = -Math.PI / 2;
+        finishLine.position.set(0, 0.06, -TRACK_LENGTH / 2 + 10);
+        finishLine.receiveShadow = true;
+        scene.add(finishLine);
+
+        // Finish Banner
+        const bannerGeo = new THREE.BoxGeometry(22, 4, 0.5);
+        const bannerMat = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+        const banner = new THREE.Mesh(bannerGeo, bannerMat);
+        banner.position.set(0, 6, -TRACK_LENGTH / 2 + 10);
+        scene.add(banner);
+        
+        const bannerTextGeo = new THREE.PlaneGeometry(20, 2);
+        const bannerTextMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        const bannerText = new THREE.Mesh(bannerTextGeo, bannerTextMat);
+        bannerText.position.set(0, 6, -TRACK_LENGTH / 2 + 10.3);
+        scene.add(bannerText);
+
+        // --- Car Factory ---
+        function createCar(color) {
+            const carGroup = new THREE.Group();
+
+            // Chassis
+            const chassisGeo = new THREE.BoxGeometry(CAR_WIDTH, CAR_HEIGHT, CAR_LENGTH);
+            const chassisMat = new THREE.MeshStandardMaterial({ color: color });
+            const chassis = new THREE.Mesh(chassisGeo, chassisMat);
+            chassis.position.y = CAR_HEIGHT / 2;
+            chassis.castShadow = true;
+            carGroup.add(chassis);
+
+            // Cabin
+            const cabinGeo = new THREE.BoxGeometry(CAR_WIDTH * 0.8, CAR_HEIGHT * 0.6, CAR_LENGTH * 0.5);
+            const cabinMat = new THREE.MeshStandardMaterial({ color: 0x333333 }); // Dark glass
+            const cabin = new THREE.Mesh(cabinGeo, cabinMat);
+            cabin.position.y = CAR_HEIGHT + (CAR_HEIGHT * 0.3);
+            cabin.position.z = -0.2;
+            cabin.castShadow = true;
+            carGroup.add(cabin);
+
+            // Wheels
+            const wheelGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.4, 16);
+            const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+            
+            const positions = [
+                { x: -CAR_WIDTH/2 - 0.1, z: 1.2 },
+                { x: CAR_WIDTH/2 + 0.1, z: 1.2 },
+                { x: -CAR_WIDTH/2 - 0.1, z: -1.2 },
+                { x: CAR_WIDTH/2 + 0.1, z: -1.2 }
+            ];
+
+            positions.forEach(pos => {
+                const wheel = new THREE.Mesh(wheelGeo, wheelMat);
+                wheel.rotation.z = Math.PI / 2;
+                wheel.position.set(pos.x, 0.4, pos.z);
+                wheel.castShadow = true;
+                carGroup.add(wheel);
+            });
+
+            return carGroup;
+        }
+
+        const blueCar = createCar(0x0000FF); // Bright Blue
+        const redCar = createCar(0xFF0000);  // Bright Red
+
+        // Initial positions
+        blueCar.position.set(-3, 0, 0);
+        redCar.position.set(3, 0, 0);
+        
+        scene.add(blueCar);
+        scene.add(redCar);
+
+        // --- Animation Logic ---
+        let startTime = null;
+        const uiElement = document.getElementById('ui');
+
+        function updateCarPosition(car, t, offset, type) {
+            // t is 0 to 1 (normalized time)
+            // offset is lateral offset (left or right lane)
+            
+            // Ease In Out Cubic function
+            const ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+            
+            // Total distance
+            const totalDist = TRACK_LENGTH;
+            
+            // Specific Race Logic
+            let progress = 0;
+            
+            if (type === 'blue') {
+                // Blue starts fast, slows down near end
+                // 0-0.5: Fast
+                // 0.5-1.0: Slower
+                if (t < 0.5) {
+                    progress = ease * 0.6; // Covers 60% of track in first half
+                } else {
+                    progress = 0.6 + (ease - 0.5) * 0.8; // Covers remaining 40% slowly
+                }
+            } else {
+                // Red starts slow, accelerates massively at end
+                // 0-0.6: Slow
+                // 0.6-1.0: Fast
+                if (t < 0.6) {
+                    progress = ease * 0.4; // Covers 40% of track in first 60% time
+                } else {
+                    // Accelerate to win
+                    const localT = (t - 0.6) / 0.4;
+                    const localEase = localT * localT * localT; // Power curve
+                    progress = 0.4 + localEase * 0.6; // Covers remaining 60% fast
+                }
+            }
+
+            // Map progress (0-1) to Z coordinates
+            // Start at Z=0, Finish at Z = -TRACK_LENGTH/2 + 10
+            const startZ = 0;
+            const endZ = -TRACK_LENGTH / 2 + 10;
+            const currentZ = startZ + (endZ - startZ) * progress;
+
+            car.position.z = currentZ;
+            car.position.x = offset;
+        }
+
+        function animate(time) {
+            requestAnimationFrame(animate);
+
+            if (!startTime) startTime = time;
+            
+            // Calculate loop time
+            const elapsed = (time - startTime) / 1000; // seconds
+            const loopTime = elapsed % RACE_DURATION;
+            const t = loopTime / RACE_DURATION; // 0 to 1
+
+            // Update positions
+            updateCarPosition(blueCar, t, -3, 'blue');
+            updateCarPosition(redCar, t, 3, 'red');
+
+            // Camera Logic
+            // Find the leader (lowest Z value)
+            const leaderZ = Math.min(blueCar.position.z, redCar.position.z);
+            const trailingZ = Math.max(blueCar.position.z, redCar.position.z);
+            
+            // Camera follows behind the leader, but adjusted to keep both in view
+            // We want to be behind the leader by some distance, and high up
+            const camZ = leaderZ + 15; 
+            const camY = 8;
+            const camX = 0;
+
+            // Smooth camera movement
+            camera.position.z += (camZ - camera.position.z) * 0.1;
+            camera.position.y += (camY - camera.position.y) * 0.1;
+            camera.position.x += (camX - camera.position.x) * 0.1;
+
+            // Look at a point between the cars slightly ahead
+            const lookZ = leaderZ - 10;
+            camera.lookAt(0, 2, lookZ);
+
+            // UI Update
+            if (t > 0.95) {
+                uiElement.innerText = "RED WINS!";
+                uiElement.style.color = "#FF0000";
+            } else if (t < 0.05) {
+                uiElement.innerText = "GET READY...";
+                uiElement.style.color = "white";
+            } else {
+                uiElement.innerText = "RACE IN PROGRESS";
+                uiElement.style.color = "white";
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // Handle Resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate(0);
+    </script>
+</body>
+</html>

@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Humanoid Cycle</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #87CEEB; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+
+<script type="module">
+    import * as THREE from './three.module.js';
+
+    // --- Configuration ---
+    const CYCLE_DURATION = 10; // seconds
+    const PHASE_STILL = 2;
+    const PHASE_WALK = 3;
+    const PHASE_RUN = 3;
+    
+    // --- Scene Setup ---
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x87CEEB); // Sky blue
+    scene.fog = new THREE.Fog(0x87CEEB, 10, 50);
+
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+    // Side-on camera
+    camera.position.set(0, 3, 8); 
+    camera.lookAt(0, 1.5, 0);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    document.body.appendChild(renderer.domElement);
+
+    // --- Lighting ---
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    scene.add(ambientLight);
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    dirLight.position.set(5, 10, 7);
+    dirLight.castShadow = true;
+    scene.add(dirLight);
+
+    // --- Materials ---
+    const skinMat = new THREE.MeshLambertMaterial({ color: 0xffccaa });
+    const shirtMat = new THREE.MeshLambertMaterial({ color: 0x3366ff });
+    const pantsMat = new THREE.MeshLambertMaterial({ color: 0x222222 });
+    const shoeMat = new THREE.MeshLambertMaterial({ color: 0x111111 });
+
+    // --- Humanoid Construction ---
+    // Helper to create limbs with pivot at the top
+    function createLimb(w, h, d, material, colorOverride) {
+        const group = new THREE.Group();
+        const geo = new THREE.BoxGeometry(w, h, d);
+        const mesh = new THREE.Mesh(geo, material);
+        mesh.castShadow = true;
+        // Offset geometry so pivot is at the top of the box
+        mesh.position.y = -h / 2; 
+        group.add(mesh);
+        return group;
+    }
+
+    const human = new THREE.Group();
+    scene.add(human);
+
+    // 1. Hips (Root of the body)
+    const hips = new THREE.Group();
+    hips.position.y = 1.2; // Height of hips off ground
+    human.add(hips);
+
+    // 2. Torso
+    const torso = new THREE.Group();
+    torso.position.y = 0.55; // Half of torso height
+    hips.add(torso);
+    
+    // Torso Mesh
+    const torsoGeo = new THREE.BoxGeometry(0.5, 1.1, 0.3);
+    const torsoMesh = new THREE.Mesh(torsoGeo, shirtMat);
+    torsoMesh.castShadow = true;
+    torso.add(torsoMesh);
+
+    // 3. Head
+    const head = new THREE.Group();
+    head.position.y = 0.7; // On top of torso
+    torso.add(head);
+    const headGeo = new THREE.BoxGeometry(0.35, 0.35, 0.35);
+    const headMesh = new THREE.Mesh(headGeo, skinMat);
+    headMesh.castShadow = true;
+    head.add(headMesh);
+
+    // 4. Arms
+    const leftArm = createLimb(0.15, 0.7, 0.15, skinMat);
+    leftArm.position.set(0.35, 0.4, 0); // Shoulder pos
+    torso.add(leftArm);
+
+    const rightArm = createLimb(0.15, 0.7, 0.15, skinMat);
+    rightArm.position.set(-0.35, 0.4, 0);
+    torso.add(rightArm);
+
+    // Forearms (optional for more detail, but simple boxes work for low-poly)
+    // Let's stick to single segment arms for cleaner "robotic/low-poly" look requested
+
+    // 5. Legs
+    const leftLeg = createLimb(0.2, 0.9, 0.2, pantsMat);
+    leftLeg.position.set(0.15, 0, 0); // Hip socket
+    hips.add(leftLeg);
+
+    const rightLeg = createLimb(0.2, 0.9, 0.2, pantsMat);
+    rightLeg.position.set(-0.15, 0, 0);
+    hips.add(rightLeg);
+
+    // --- Treadmill / Ground ---
+    const groundGroup = new THREE.Group();
+    scene.add(groundGroup);
+
+    // The moving belt
+    const beltGeo = new THREE.BoxGeometry(4, 0.2, 1.5);
+    // Create a texture for the belt to show movement
+    const canvas = document.createElement('canvas');
+    canvas.width = 64; canvas.height = 64;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#555'; ctx.fillRect(0,0,64,64);
+    ctx.fillStyle = '#777'; ctx.fillRect(0,0,32,64); // Stripes
+    const beltTexture = new THREE.CanvasTexture(canvas);
+    beltTexture.wrapS = THREE.RepeatWrapping;
+    beltTexture.wrapT = THREE.RepeatWrapping;
+    beltTexture.repeat.set(4, 1);
+
+    const beltMat = new THREE.MeshStandardMaterial({ map: beltTexture, roughness: 0.8 });
+    const belt = new THREE.Mesh(beltGeo, beltMat);
+    belt.position.y = -0.1;
+    belt.receiveShadow = true;
+    groundGroup.add(belt);
+
+    // Frame
+    const frameMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+    const frameLeft = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.4, 1.6), frameMat);
+    frameLeft.position.set(-2.1, -0.2, 0);
+    groundGroup.add(frameLeft);
+    
+    const frameRight = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.4, 1.6), frameMat);
+    frameRight.position.set(2.1, -0.2, 0);
+    groundGroup.add(frameRight);
+
+    // --- Animation Logic ---
+    const clock = new THREE.Clock();
+
+    // Helper for smooth interpolation
+    function lerp(start, end, t) {
+        return start * (1 - t) + end * t;
+    }
+
+    // Helper for smooth easing
+    function smoothStep(edge0, edge1, x) {
+        let t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
+        return t * t * (3 - 2 * t);
+    }
+
+    function getPhase(time) {
+        const t = time % CYCLE_DURATION;
+        if (t < PHASE_STILL) return 'still';
+        if (t < PHASE_STILL + PHASE_WALK) return 'walk';
+        return 'run';
+    }
+
+    // Limb swing function: returns angle in radians
+    // phase: 0 to 2PI
+    // amplitude: max swing angle
+    function swing(phase, amplitude, offset) {
+        return Math.sin(phase + offset) * amplitude;
+    }
+
+    function animate() {
+        requestAnimationFrame(animate);
+
+        const time = clock.getElapsedTime();
+        const phase = getPhase(time);
+        
+        // Calculate phase specific timing
+        let cycleTime = 0; // 0 to 1 within the phase
+        let globalPhase = 0; // Continuous phase for limbs to prevent snapping
+
+        if (phase === 'still') {
+            cycleTime = time % PHASE_STILL / PHASE_STILL;
+            globalPhase = 0;
+        } else if (phase === 'walk') {
+            const walkTime = (time % CYCLE_DURATION) - PHASE_STILL;
+            cycleTime = walkTime / PHASE_WALK;
+            // Walk frequency
+            globalPhase = walkTime * 4.0; 
+        } else { // run
+            const runTime = (time % CYCLE_DURATION) - PHASE_STILL - PHASE_WALK;
+            cycleTime = runTime / PHASE_RUN;
+            // Run frequency (faster)
+            globalPhase = runTime * 8.0;
+        }
+
+        // --- State Transitions (Smoothing) ---
+        // We want to blend into the movement smoothly over ~0.5s
+        const blendTime = 0.5;
+        let intensity = 0;
+        
+        if (phase === 'still') {
+            // Fade out if coming from movement
+            const t = time % CYCLE_DURATION;
+            if (t > CYCLE_DURATION - blendTime) {
+                // End of run fading to still
+                intensity = 1 - smoothStep(CYCLE_DURATION - blendTime, CYCLE_DURATION, t);
+            } else if (t < blendTime) {
+                // Start of still (just finished still, do nothing)
+                intensity = 0;
+            } else {
+                intensity = 0;
+            }
+        } else {
+            // Fade in
+            const phaseStart = (phase === 'walk') ? PHASE_STILL : (PHASE_STILL + PHASE_WALK);
+            const t = time % CYCLE_DURATION;
+            if (t < phaseStart + blendTime) {
+                intensity = smoothStep(phaseStart, phaseStart + blendTime, t);
+            } else {
+                intensity = 1;
+            }
+        }
+
+        // --- Apply Animation ---
+        
+        // 1. Body Bobbing
+        let bobY = 0;
+        if (phase === 'walk') bobY = Math.abs(Math.sin(globalPhase)) * 0.05 * intensity;
+        if (phase === 'run') bobY = Math.abs(Math.sin(globalPhase)) * 0.15 * intensity;
+        
+        // 2. Limb Angles
+        let legAngleL, legAngleR, armAngleL, armAngleR, torsoRot, headRot;
+
+        if (phase === 'walk') {
+            // Walk: ~30 degrees swing
+            legAngleL = swing(globalPhase, 0.5, 0) * intensity;
+            legAngleR = swing(globalPhase, 0.5, Math.PI) * intensity;
+            // Arms swing opposite to legs
+            armAngleL = swing(globalPhase, 0.4, Math.PI) * intensity;
+            armAngleR = swing(globalPhase, 0.4, 0) * intensity;
+            torsoRot = 0;
+            headRot = 0;
+        } else if (phase === 'run') {
+            // Run: ~60 degrees swing, faster
+            legAngleL = swing(globalPhase, 1.0, 0) * intensity;
+            legAngleR = swing(globalPhase, 1.0, Math.PI) * intensity;
+            // Arms swing wider and bend slightly (simulated by rotation)
+            armAngleL = swing(globalPhase, 0.8, Math.PI) * intensity;
+            armAngleR = swing(globalPhase, 0.8, 0) * intensity;
+            // Forward lean
+            torsoRot = 0.2 * intensity; 
+            headRot = -0.1 * intensity; // Keep head up slightly
+        } else {
+            // Still
+            legAngleL = 0; legAngleR = 0;
+            armAngleL = 0; armAngleR = 0;
+            torsoRot = 0; headRot = 0;
+        }
+
+        // --- Update Meshes ---
+        
+        // Hips vertical position (Base + Bob)
+        hips.position.y = 1.2 + bobY;
+
+        // Legs
+        leftLeg.rotation.x = legAngleL;
+        rightLeg.rotation.x = legAngleR;
+
+        // Arms
+        leftArm.rotation.x = armAngleL;
+        rightArm.rotation.x = armAngleR;
+
+        // Torso Lean
+        torso.rotation.x = torsoRot;
+        
+        // Head (Counter tilt to keep eyes forward)
+        head.rotation.x = headRot;
+
+        // --- Treadmill Animation ---
+        if (phase === 'walk') {
+            beltTexture.offset.x -= 0.01 * intensity;
+        } else if (phase === 'run') {
+            beltTexture.offset.x -= 0.03 * intensity;
+        }
+
+        renderer.render(scene, camera);
+    }
+
+    // Handle Window Resize
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Start
+    animate();
+
+</script>
+</body>
+</html>

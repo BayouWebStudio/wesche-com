@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Low Poly Treadmill Animation</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #222; }
+        canvas { display: block; }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-family: monospace;
+            background: rgba(0,0,0,0.5);
+            padding: 5px 10px;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">Cycle: Stand -> Walk -> Run -> Stand</div>
+    <script type="module">
+        import * as THREE from './three.module.js';
+
+        // --- Configuration ---
+        const CYCLE_DURATION = 10.0;
+        const STAND_DURATION = 2.0;
+        const WALK_DURATION = 3.0;
+        const RUN_DURATION = 3.0;
+
+        // --- Setup Scene ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87CEEB); // Sky blue
+        scene.fog = new THREE.Fog(0x87CEEB, 10, 50);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        // Side-on camera
+        camera.position.set(0, 2, 12);
+        camera.lookAt(0, 1.5, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+
+        // --- Lighting ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(5, 10, 7);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 1024;
+        dirLight.shadow.mapSize.height = 1024;
+        scene.add(dirLight);
+
+        // --- Materials ---
+        const skinMat = new THREE.MeshStandardMaterial({ color: 0xffccaa, flatShading: true });
+        const shirtMat = new THREE.MeshStandardMaterial({ color: 0x3366cc, flatShading: true });
+        const pantsMat = new THREE.MeshStandardMaterial({ color: 0x222222, flatShading: true });
+        const shoeMat = new THREE.MeshStandardMaterial({ color: 0x111111, flatShading: true });
+
+        // --- Helper: Create Limb ---
+        function createLimb(width, height, depth, mat) {
+            const geo = new THREE.BoxGeometry(width, height, depth);
+            // Offset geometry so pivot is at the top
+            geo.translate(0, -height / 2, 0);
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            return mesh;
+        }
+
+        // --- Build Humanoid ---
+        const characterGroup = new THREE.Group();
+        scene.add(characterGroup);
+
+        // Torso
+        const torso = createLimb(0.5, 0.7, 0.3, shirtMat);
+        torso.position.y = 1.4; // Hips height
+        characterGroup.add(torso);
+
+        // Head
+        const headGeo = new THREE.BoxGeometry(0.3, 0.35, 0.3);
+        const head = new THREE.Mesh(headGeo, skinMat);
+        head.position.y = 0.52; // relative to torso top
+        head.castShadow = true;
+        torso.add(head);
+
+        // Legs
+        const leftLeg = createLimb(0.18, 0.7, 0.2, pantsMat);
+        leftLeg.position.set(-0.15, -0.35, 0); // relative to torso bottom
+        torso.add(leftLeg);
+
+        const rightLeg = createLimb(0.18, 0.7, 0.2, pantsMat);
+        rightLeg.position.set(0.15, -0.35, 0);
+        torso.add(rightLeg);
+
+        // Shins (Children of legs)
+        const leftShin = createLimb(0.16, 0.7, 0.2, skinMat);
+        leftShin.position.set(0, -0.7, 0); // relative to leg bottom
+        leftLeg.add(leftShin);
+        // Shoe on shin
+        const leftShoe = createLimb(0.18, 0.1, 0.3, shoeMat);
+        leftShoe.position.set(0, -0.7, 0.05);
+        leftShin.add(leftShoe);
+
+        const rightShin = createLimb(0.16, 0.7, 0.2, skinMat);
+        rightShin.position.set(0, -0.7, 0);
+        rightLeg.add(rightShin);
+        const rightShoe = createLimb(0.18, 0.1, 0.3, shoeMat);
+        rightShoe.position.set(0, -0.7, 0.05);
+        rightShin.add(rightShoe);
+
+        // Arms
+        const leftArm = createLimb(0.15, 0.6, 0.15, skinMat);
+        leftArm.position.set(-0.35, 0.3, 0); // relative to torso top
+        torso.add(leftArm);
+
+        const rightArm = createLimb(0.15, 0.6, 0.15, skinMat);
+        rightArm.position.set(0.35, 0.3, 0);
+        torso.add(rightArm);
+
+        // --- Treadmill / Ground ---
+        const groundGeo = new THREE.BoxGeometry(20, 0.2, 6);
+        const groundMat = new THREE.MeshStandardMaterial({ color: 0x555555 });
+        const ground = new THREE.Mesh(groundGeo, groundMat);
+        ground.position.y = -0.1;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        // --- Animation Logic ---
+
+        // Helper: Smooth interpolation between states
+        // 0.0 -> 0.5: Stand
+        // 0.5 -> 0.8: Walk (0.5=stand, 0.65=peak walk, 0.8=stand)
+        // 0.8 -> 1.0: Run (0.8=stand, 0.9=peak run, 1.0=stand)
+        
+        // Actually, let's define phases based on time t (0 to 10)
+        
+        function updateAnimation(time) {
+            // Reset rotations
+            leftLeg.rotation.x = 0;
+            rightLeg.rotation.x = 0;
+            leftArm.rotation.x = 0;
+            rightArm.rotation.x = 0;
+            leftShin.rotation.x = 0;
+            rightShin.rotation.x = 0;
+            
+            // Reset lean
+            characterGroup.rotation.z = 0;
+            characterGroup.position.y = 0;
+
+            // Phase 1: Stand (0s - 2s)
+            if (time < STAND_DURATION) {
+                // Do nothing, defaults apply
+            }
+            
+            // Phase 2: Walk (2s - 5s)
+            else if (time < STAND_DURATION + WALK_DURATION) {
+                const walkTime = time - STAND_DURATION;
+                const duration = WALK_DURATION;
+                const t = walkTime / duration; // 0 to 1
+                
+                // Walking speed: approx 1.5Hz
+                const speed = 10; 
+                const angle = Math.sin(t * Math.PI * 2 * speed) * 0.8; // +/- 0.8 rads
+                
+                // Limb swing
+                leftLeg.rotation.x = angle;
+                rightLeg.rotation.x = -angle;
+                
+                // Arms counter-swing
+                leftArm.rotation.x = -angle * 0.8;
+                rightArm.rotation.x = angle * 0.8;
+
+                // Slight knee bend (Shin rotation)
+                // Shin bends when leg swings back
+                const kneeBend = Math.max(0, Math.sin(t * Math.PI * 2 * speed + Math.PI)) * 0.5;
+                leftShin.rotation.x = kneeBend;
+                rightShin.rotation.x = -kneeBend; // simplified, usually both bend slightly
+
+                // Slight vertical bob
+                characterGroup.position.y = Math.abs(Math.sin(t * Math.PI * 2 * speed)) * 0.05;
+            }
+
+            // Phase 3: Run (5s - 8s)
+            else if (time < STAND_DURATION + WALK_DURATION + RUN_DURATION) {
+                const runTime = time - (STAND_DURATION + WALK_DURATION);
+                const duration = RUN_DURATION;
+                const t = runTime / duration;
+                
+                // Running speed: approx 2.5Hz
+                const speed = 18; 
+                const angle = Math.sin(t * Math.PI * 2 * speed) * 1.2; // +/- 1.2 rads (larger swing)
+                
+                // Limb swing
+                leftLeg.rotation.x = angle;
+                rightLeg.rotation.x = -angle;
+                
+                // Arms counter-swing (more vigorous)
+                leftArm.rotation.x = -angle * 1.0;
+                rightArm.rotation.x = angle * 1.0;
+
+                // Knee bend (higher lift)
+                const kneeBend = Math.max(0, Math.sin(t * Math.PI * 2 * speed + Math.PI)) * 1.5;
+                leftShin.rotation.x = kneeBend;
+                rightShin.rotation.x = -kneeBend;
+
+                // Forward lean
+                characterGroup.rotation.z = -0.15; // lean forward slightly
+                
+                // More vertical bob
+                characterGroup.position.y = Math.abs(Math.sin(t * Math.PI * 2 * speed)) * 0.15;
+            }
+
+            // Phase 4: Stand (8s - 10s)
+            else {
+                // Back to defaults
+            }
+        }
+
+        // --- Main Loop ---
+        const clock = new THREE.Clock();
+        let startTime = clock.getElapsedTime();
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const now = clock.getElapsedTime();
+            const elapsed = now - startTime;
+            
+            // Loop cycle
+            const cycleTime = elapsed % CYCLE_DURATION;
+
+            updateAnimation(cycleTime);
+
+            renderer.render(scene, camera);
+        }
+
+        // Handle Resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>

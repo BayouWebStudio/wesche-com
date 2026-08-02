@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>3D Car Race</title>
+<style>
+  *{margin:0;padding:0}
+  body{overflow:hidden;background:#000}
+  canvas{display:block}
+</style>
+</head>
+<body>
+<script type="importmap">
+{"imports":{"three":"./three.module.js"}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+
+// ─── Setup ───
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.1, 500);
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.shadowMap.enabled = true;
+document.body.appendChild(renderer.domElement);
+
+// ─── Lighting ───
+scene.add(new THREE.AmbientLight(0xffffff,0.5));
+const sun = new THREE.DirectionalLight(0xffffff,1.2);
+sun.position.set(15,40,15);
+sun.castShadow = true;
+scene.add(sun);
+scene.add(new THREE.HemisphereLight(0x88ccff,0x444444,0.6));
+
+// ─── Sky ───
+scene.background = new THREE.Color(0x87CEEB);
+scene.fog = new THREE.Fog(0x87CEEB,80,180);
+
+// ─── Ground ───
+const gnd = new THREE.Mesh(new THREE.PlaneGeometry(200,200), new THREE.MeshLambertMaterial({color:0x5a8f3c}));
+gnd.rotation.x=-Math.PI/2; gnd.position.set(0,-0.1,-50);
+gnd.receiveShadow=true;
+scene.add(gnd);
+
+// ─── Road ───
+const road = new THREE.Mesh(new THREE.PlaneGeometry(12,200), new THREE.MeshLambertMaterial({color:0x444444}));
+road.rotation.x=-Math.PI/2; road.position.set(0,-0.05,-50);
+scene.add(road);
+
+// Road markings
+for(let z=60;z>-100;z-=8){
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(0.15,3.5),new THREE.MeshLambertMaterial({color:0xffffff}));
+  m.rotation.x=-Math.PI/2; m.position.set(0,-0.04,z); scene.add(m);
+}
+// Road edge lines
+[-5.8,5.8].forEach(x=>{
+  const l=new THREE.Mesh(new THREE.PlaneGeometry(0.2,200),new THREE.MeshLambertMaterial({color:0xffffff}));
+  l.rotation.x=-Math.PI/2; l.position.set(x,-0.04,-50); scene.add(l);
+});
+
+// ─── Finish line ───
+(function(){
+  const g=new THREE.PlaneGeometry(10,1);
+  const c=document.createElement('canvas'); c.width=20; c.height=4;
+  const x=c.getContext('2d');
+  for(let i=0;i<20;i++) x.fillStyle=i%2?'#fff':'#111', x.fillRect(i*5,0,5,4);
+  const t=new THREE.CanvasTexture(c);
+  const m=new THREE.Mesh(g,new THREE.MeshLambertMaterial({map:t}));
+  m.rotation.x=-Math.PI/2; m.position.set(0,-0.03,5);
+  scene.add(m);
+  const p=new THREE.Mesh(new THREE.BoxGeometry(0.2,0.5,1),new THREE.MeshLambertMaterial({color:0xff0000}));
+  p.position.set(-6,-0.2,5); scene.add(p);
+  const p2=p.clone(); p2.position.x=6; scene.add(p2);
+  const b=new THREE.Mesh(new THREE.BoxGeometry(0.15,0.4,1),new THREE.MeshLambertMaterial({color:0x888888}));
+  b.position.set(-6,-0.45,5); scene.add(b);
+  const b2=b.clone(); b2.position.x=6; scene.add(b2);
+})();
+
+// ─── Car builder ───
+function makeCar(color){
+  const g=new THREE.Group();
+  const bm={color,roughness:0.4,metalness:0.6};
+  const gm={color:0x222222,roughness:0.9};
+  // body
+  const body=new THREE.Mesh(new THREE.BoxGeometry(1.6,0.55,3.8),new THREE.MeshLambertMaterial(bm));
+  body.position.y=0.55; body.castShadow=true; g.add(body);
+  // cabin
+  const cab=new THREE.Mesh(new THREE.BoxGeometry(1.4,0.5,1.5),new THREE.MeshLambertMaterial(bm));
+  cab.position.set(0,1.1,-0.3); cab.castShadow=true; g.add(cab);
+  // windshield
+  const ws=new THREE.Mesh(new THREE.BoxGeometry(1.35,0.28,0.05),new THREE.MeshLambertMaterial({color:0x88ccff,transparent:true,opacity:0.5}));
+  ws.position.set(0,1.15,0.4); ws.rotation.x=-0.15; g.add(ws);
+  // wheels
+  const wg=new THREE.CylinderGeometry(0.3,0.3,0.25,16);
+  const wy=0.3;
+  [[-0.85,wy,1.1],[0.85,wy,1.1],[-0.85,wy,-1.1],[0.85,wy,-1.1]].forEach(p=>{
+    const w=new THREE.Mesh(wg,gm); w.position.set(...p); g.add(w);
+    const r=new THREE.Mesh(new THREE.CylinderGeometry(0.15,0.15,0.3,8),gm);
+    r.position.set(p[0],wy+0.15,p[2]); g.add(r);
+  });
+  // headlights
+  for(const x of[-0.6,0.6]){
+    const h=new THREE.Mesh(new THREE.SphereGeometry(0.12,8,8),new THREE.MeshLambertMaterial({color:0xffffaa}));
+    h.position.set(x,0.55,1.95); g.add(h);
+  }
+  // tail lights
+  for(const x of[-0.55,0.55]){
+    const t=new THREE.Mesh(new THREE.BoxGeometry(0.2,0.12,0.05),new THREE.MeshLambertMaterial({color:0xff0000}));
+    t.position.set(x,0.55,-1.95); g.add(t);
+  }
+  return g;
+}
+
+// ─── Scenery ───
+function makeTree(){
+  const g=new THREE.Group();
+  const t=new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.5,2.5,8),new THREE.MeshLambertMaterial({color:0x8B4513}));
+  t.position.y=1.25; g.add(t);
+  const f=new THREE.Mesh(new THREE.ConeGeometry(1.8,3.5,8),new THREE.MeshLambertMaterial({color:0x2d6a2d}));
+  f.position.y=4.5; g.add(f);
+  return g;
+}
+for(let i=0;i<25;i++){
+  const t=makeTree();
+  t.position.set(10+Math.random()*30,0,-Math.random()*100);
+  scene.add(t);
+  const t2=makeTree();
+  t2.position.set(-10+Math.random()*30,0,-Math.random()*100);
+  scene.add(t2);
+}
+
+// ─── Cars ───
+const redCar=makeCar(0xff1111);
+const blueCar=makeCar(0x1144ff);
+scene.add(redCar,blueCar);
+redCar.position.set(-2.5,0,30);
+blueCar.position.set(2.5,0,30);
+
+// ─── Race state ───
+const FINISH=5;
+let t=0, lastT=0, resetTimer=0;
+
+// ─── Animate ───
+function animate(now){
+  requestAnimationFrame(animate);
+  const dt=Math.min((now-lastT)/1000,0.05); lastT=now; t+=dt;
+
+  // Reset after crossing
+  if(t>16){resetTimer+=dt; if(resetTimer>2){t=0; resetTimer=0;} }
+
+  // ── Blue car: steady start, then slow ──
+  const blueBase=10;
+  const blueSpd=Math.min(blueBase+Math.sin(t*0.3)*1.5,12);
+  // After t=5s, blue car starts slowing
+  const blueMod = t<5 ? 1 : Math.max(0.3, 1-(t-5)*0.08);
+  const bluePos = Math.min(blueMod * blueSpd * t, 999);
+
+  // ── Red car: slow start, then accelerates ──
+  const redBase=8;
+  const redSpd=Math.min(redBase+t*1.2, 20);
+  const redMod = t<3 ? 0.6 : 1+(t-3)*0.05;
+  const redPos = Math.min(redMod * redSpd * t, 999);
+
+  // Clamp
+  const bP=Math.min(bluePos,999);
+  const rP=Math.min(redPos,999);
+
+  blueCar.position.set(2.5,0,30-bP);
+  redCar.position.set(-2.5,0,30-rP);
+
+  // Reset positions
+  if(resetTimer>0){
+    blueCar.position.set(2.5,0,30);
+    redCar.position.set(-2.5,0,30);
+  }
+
+  // Camera follows the lead car, keeping both in view
+  const lead=Math.max(rP,bP);
+  const cx=0;
+  const cy=12;
+  const cz=30-lead+35;
+  camera.position.lerp(new THREE.Vector3(cx,cy,cz),0.08);
+  camera.lookAt(0,2,30-lead+10);
+
+  renderer.render(scene,camera);
+}
+requestAnimationFrame(animate);
+</script>
+</body>
+</html>

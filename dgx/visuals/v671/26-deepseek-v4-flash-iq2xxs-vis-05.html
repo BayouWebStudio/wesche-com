@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3D Humanoid Walk/Run Cycle</title>
+  <style>
+    body { margin: 0; overflow: hidden; background: #222; }
+    #info {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      color: #aaa;
+      font-family: monospace;
+      font-size: 14px;
+      background: rgba(0,0,0,0.6);
+      padding: 6px 12px;
+      border-radius: 8px;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="info">🚶‍♂️ Stand (2s) → Walk (3s) → Run (3s) → Stand (2s)</div>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./three.module.js"
+      }
+    }
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+
+    // ----- setup scene -----
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x2a2a3a);
+
+    // camera: side-on view
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 20);
+    camera.position.set(3, 2.5, 5);
+    camera.lookAt(0, 1.2, 0);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    document.body.appendChild(renderer.domElement);
+
+    // lights
+    const ambient = new THREE.AmbientLight(0x404060);
+    scene.add(ambient);
+    const dirLight = new THREE.DirectionalLight(0xffeedd, 1.2);
+    dirLight.position.set(4, 6, 5);
+    scene.add(dirLight);
+    const fillLight = new THREE.DirectionalLight(0x4466ff, 0.5);
+    fillLight.position.set(-3, 2, 4);
+    scene.add(fillLight);
+
+    // ground (treadmill style)
+    const groundMat = new THREE.MeshStandardMaterial({ color: 0x3a4a5a, roughness: 0.8 });
+    const ground = new THREE.Mesh(new THREE.BoxGeometry(4, 0.2, 2), groundMat);
+    ground.position.y = -0.1;
+    scene.add(ground);
+    // treadmill lines
+    const lineMat = new THREE.MeshStandardMaterial({ color: 0x5a7a8a, roughness: 0.6 });
+    for (let i = -0.8; i <= 0.8; i += 0.4) {
+      const bar = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 1.8), lineMat);
+      bar.position.set(i, 0.05, 0);
+      scene.add(bar);
+    }
+
+    // ----- build low-poly humanoid -----
+    const group = new THREE.Group();
+    group.position.y = 0.5;
+
+    // body parts (all groups)
+    const torso = new THREE.Group();
+    const head = new THREE.Group();
+    const leftArm = new THREE.Group();
+    const rightArm = new THREE.Group();
+    const leftLeg = new THREE.Group();
+    const rightLeg = new THREE.Group();
+
+    // torso (box)
+    const torsoGeo = new THREE.BoxGeometry(0.8, 1.0, 0.4);
+    const torsoMat = new THREE.MeshStandardMaterial({ color: 0x4a7a9a, roughness: 0.3 });
+    const torsoMesh = new THREE.Mesh(torsoGeo, torsoMat);
+    torsoMesh.position.y = 0;
+    torso.add(torsoMesh);
+    group.add(torso);
+
+    // head (sphere)
+    const headGeo = new THREE.SphereGeometry(0.35, 6, 6);
+    const headMat = new THREE.MeshStandardMaterial({ color: 0xeeddbb, roughness: 0.2 });
+    const headMesh = new THREE.Mesh(headGeo, headMat);
+    headMesh.position.y = 1.2;
+    head.add(headMesh);
+    // eyes (tiny spheres)
+    const eyeMat = new THREE.MeshStandardMaterial({ color: 0x222233 });
+    const eyeGeo = new THREE.SphereGeometry(0.06, 4, 4);
+    const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
+    eyeL.position.set(-0.18, 1.25, 0.35);
+    head.add(eyeL);
+    const eyeR = new THREE.Mesh(eyeGeo, eyeMat);
+    eyeR.position.set(0.18, 1.25, 0.35);
+    head.add(eyeR);
+    group.add(head);
+
+    // arms
+    const armMat = new THREE.MeshStandardMaterial({ color: 0x4a7a9a, roughness: 0.3 });
+    const armGeo = new THREE.BoxGeometry(0.2, 0.9, 0.2);
+    // left arm
+    const leftArmMesh = new THREE.Mesh(armGeo, armMat);
+    leftArmMesh.position.set(-0.5, 0.0, 0);
+    leftArm.add(leftArmMesh);
+    group.add(leftArm);
+    // right arm
+    const rightArmMesh = new THREE.Mesh(armGeo, armMat);
+    rightArmMesh.position.set(0.5, 0.0, 0);
+    rightArm.add(rightArmMesh);
+    group.add(rightArm);
+
+    // legs
+    const legMat = new THREE.MeshStandardMaterial({ color: 0x223344, roughness: 0.4 });
+    const legGeo = new THREE.BoxGeometry(0.25, 0.9, 0.25);
+    // left leg
+    const leftLegMesh = new THREE.Mesh(legGeo, legMat);
+    leftLegMesh.position.set(-0.25, -1.0, 0);
+    leftLeg.add(leftLegMesh);
+    group.add(leftLeg);
+    // right leg
+    const rightLegMesh = new THREE.Mesh(legGeo, legMat);
+    rightLegMesh.position.set(0.25, -1.0, 0);
+    rightLeg.add(rightLegMesh);
+    group.add(rightLeg);
+
+    // feet (tiny boxes for visual)
+    const footMat = new THREE.MeshStandardMaterial({ color: 0x334455 });
+    const footGeo = new THREE.BoxGeometry(0.28, 0.1, 0.35);
+    const footL = new THREE.Mesh(footGeo, footMat);
+    footL.position.set(-0.25, -1.45, 0.05);
+    leftLeg.add(footL);
+    const footR = new THREE.Mesh(footGeo, footMat);
+    footR.position.set(0.25, -1.45, -0.05);
+    rightLeg.add(footR);
+
+    // center the whole figure
+    group.position.y = 0.8;
+    scene.add(group);
+
+    // ----- animation state -----
+    // cycle: stand 2s, walk 3s, run 3s, stand 2s => total 10s
+    const CYCLE = 10; // seconds
+    let time = 0;
+
+    // store original positions for reset
+    const origPositions = {
+      leftArm: 0, rightArm: 0,
+      leftLeg: 0, rightLeg: 0,
+    };
+
+    // helper to get phase in current cycle
+    function getPhase(t) {
+      const cyclePos = t % CYCLE;
+      if (cyclePos < 2) return { phase: 'stand', progress: cyclePos / 2 };
+      else if (cyclePos < 5) return { phase: 'walk', progress: (cyclePos - 2) / 3 };
+      else if (cyclePos < 8) return { phase: 'run', progress: (cyclePos - 5) / 3 };
+      else return { phase: 'stand', progress: (cyclePos - 8) / 2 };
+    }
+
+    // ----- animation loop -----
+    function animate() {
+      const delta = renderer.getDelta ? renderer.getDelta() : 0.016;
+      time += delta;
+
+      const info = getPhase(time);
+      const phase = info.phase;
+      const prog = info.progress; // 0..1
+
+      // base stance: all limbs neutral
+      let armSwing = 0;
+      let legSwing = 0;
+      let forwardLean = 0;
+      let speed = 0;
+
+      if (phase === 'walk') {
+        // walking: moderate swing, slower frequency
+        const angle = Math.sin(prog * Math.PI * 2 * 1.5) * 0.5; // 1.5 cycles over 3s
+        armSwing = angle * 0.6;
+        legSwing = angle * 0.7;
+        speed = 0.15;
+      } else if (phase === 'run') {
+        // running: faster, larger swings, slight forward lean
+        const angle = Math.sin(prog * Math.PI * 2 * 2.5) * 0.9; // 2.5 cycles over 3s
+        armSwing = angle * 0.9;
+        legSwing = angle * 1.0;
+        forwardLean = 0.2;
+        speed = 0.25;
+      } else {
+        // stand: no motion
+        armSwing = 0;
+        legSwing = 0;
+        forwardLean = 0;
+        speed = 0;
+      }
+
+      // apply limb rotations (in local space)
+      // arms: rotate around Z (swing forward/back)
+      leftArm.rotation.z = armSwing;
+      rightArm.rotation.z = -armSwing;
+
+      // legs: rotate around Z (swing forward/back)
+      leftLeg.rotation.z = legSwing;
+      rightLeg.rotation.z = -legSwing;
+
+      // forward lean: rotate entire torso group around X (lean forward = negative rotation)
+      // but keep head upright? we lean the whole group slightly
+      group.rotation.x = -forwardLean * 0.3;
+
+      // subtle body bob
+      if (phase === 'walk') {
+        group.position.y = 0.8 + Math.sin(prog * Math.PI * 2 * 1.5) * 0.03;
+      } else if (phase === 'run') {
+        group.position.y = 0.8 + Math.sin(prog * Math.PI * 2 * 2.5) * 0.06;
+      } else {
+        group.position.y = 0.8;
+      }
+
+      // slight lateral shift for running
+      if (phase === 'run') {
+        group.position.x = Math.sin(prog * Math.PI * 2 * 2.5) * 0.04;
+      } else {
+        group.position.x = 0;
+      }
+
+      // render
+      renderer.render(scene, camera);
+      requestAnimationFrame(animate);
+    }
+
+    animate();
+
+    // resize handler
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>

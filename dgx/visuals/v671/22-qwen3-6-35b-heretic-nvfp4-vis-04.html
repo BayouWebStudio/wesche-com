@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Car Race</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #87CEEB; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+
+<script type="module">
+    import * as THREE from './three.module.js';
+
+    // --- Configuration ---
+    const TRACK_LENGTH = 100;
+    const FINISH_LINE = 90;
+    const LANE_WIDTH = 4;
+    const CAR_HEIGHT = 1.5;
+    
+    // --- Scene Setup ---
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x87CEEB); // Sky blue
+    scene.fog = new THREE.Fog(0x87CEEB, 20, 120);
+
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    document.body.appendChild(renderer.domElement);
+
+    // --- Lighting ---
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    scene.add(ambientLight);
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    dirLight.position.set(10, 20, 10);
+    dirLight.castShadow = true;
+    dirLight.shadow.camera.top = 20;
+    dirLight.shadow.camera.bottom = -20;
+    dirLight.shadow.camera.left = -20;
+    dirLight.shadow.camera.right = 20;
+    scene.add(dirLight);
+
+    // --- Environment (Ground & Sky) ---
+    const groundGeo = new THREE.PlaneGeometry(200, 200);
+    const groundMat = new THREE.MeshStandardMaterial({ color: 0x3a5f0b }); // Grass green
+    const ground = new THREE.Mesh(groundGeo, groundMat);
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    // --- Finish Line ---
+    const finishGeo = new THREE.PlaneGeometry(20, 2);
+    const finishMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+    const finishLine = new THREE.Mesh(finishGeo, finishMat);
+    finishLine.rotation.x = -Math.PI / 2;
+    finishLine.position.set(0, 0.05, FINISH_LINE);
+    scene.add(finishLine);
+
+    // Finish Line Posts
+    const postGeo = new THREE.BoxGeometry(0.5, 4, 0.5);
+    const postMat = new THREE.MeshStandardMaterial({ color: 0xdddddd });
+    const post1 = new THREE.Mesh(postGeo, postMat);
+    post1.position.set(-5, 2, FINISH_LINE);
+    scene.add(post1);
+    const post2 = new THREE.Mesh(postGeo, postMat);
+    post2.position.set(5, 2, FINISH_LINE);
+    scene.add(post2);
+
+    // --- Car Class ---
+    class Car {
+        constructor(color, startXZ, startZ) {
+            this.mesh = new THREE.Group();
+            
+            // Body
+            const bodyGeo = new THREE.BoxGeometry(2, 1.2, 4);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: color });
+            this.body = new THREE.Mesh(bodyGeo, bodyMat);
+            this.body.position.y = 0.8;
+            this.body.castShadow = true;
+            this.mesh.add(this.body);
+
+            // Cabin
+            const cabinGeo = new THREE.BoxGeometry(1.6, 0.8, 2);
+            const cabinMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+            this.cabin = new THREE.Mesh(cabinGeo, cabinMat);
+            this.cabin.position.set(0, 1.8, -0.2);
+            this.cabin.castShadow = true;
+            this.mesh.add(this.cabin);
+
+            // Wheels
+            const wheelGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.4, 16);
+            const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+            const positions = [
+                { x: -1, z: 1.2 }, { x: 1, z: 1.2 },
+                { x: -1, z: -1.2 }, { x: 1, z: -1.2 }
+            ];
+            positions.forEach(pos => {
+                const wheel = new THREE.Mesh(wheelGeo, wheelMat);
+                wheel.rotation.z = Math.PI / 2;
+                wheel.position.set(pos.x, 0.4, pos.z);
+                this.mesh.add(wheel);
+            });
+
+            this.mesh.position.set(startXZ, 0, startZ);
+            this.mesh.castShadow = true;
+            scene.add(this.mesh);
+        }
+
+        getPosition() {
+            return this.mesh.position.z;
+        }
+        
+        reset(zPos) {
+            this.mesh.position.z = zPos;
+        }
+    }
+
+    // --- Create Cars ---
+    const redCar = new Car(0xff0000, 2, -5);
+    const blueCar = new Car(0x0000ff, -2, -5);
+
+    // --- Animation Logic ---
+    const clock = new THREE.Clock();
+    
+    // Race State
+    let redZ = -5;
+    let blueZ = -5;
+    
+    // Animation phases
+    // 0-3s: Blue leads
+    // 3-6s: Red accelerates and overtakes
+    // 6-8s: Red crosses finish
+    // 8-9s: Reset
+    
+    const resetTime = 9.0;
+    
+    function updateCars(time) {
+        // --- RED CAR LOGIC ---
+        // Phase 1 (0-3s): Slow start
+        if (time < 3.0) {
+            redZ = -5 + (time * 8); // Speed 8
+        } 
+        // Phase 2 (3-6s): Acceleration
+        else if (time < 6.0) {
+            // Start from where it left off
+            const startZ = -5 + (3.0 * 8);
+            const elapsed = time - 3.0;
+            // Speed increases from 10 to 20
+            const speed = 10 + (elapsed * 3.33); 
+            redZ = startZ + (elapsed * 15); // Average speed approx 15
+        }
+        // Phase 3 (6-8s): Sprint to finish
+        else if (time < 8.0) {
+            const startZ = -5 + 24 + (3.0 * 15); // Approx 60
+            // High speed
+            redZ = 60 + (time - 6.0) * 25; 
+        }
+        // Phase 4 (8-9s): Cross and reset
+        else {
+            redZ = FINISH_LINE + (time - 8.0) * 10;
+            if (time >= resetTime) {
+                redZ = -5;
+            }
+        }
+
+        // --- BLUE CAR LOGIC ---
+        // Phase 1 (0-3s): Fast start
+        if (time < 3.0) {
+            blueZ = -5 + (time * 12); // Speed 12
+        }
+        // Phase 2 (3-6s): Maintains speed but slower than Red
+        else if (time < 6.0) {
+            const startZ = -5 + (3.0 * 12);
+            blueZ = startZ + (time - 3.0) * 10;
+        }
+        // Phase 3 (6-8s): Continues
+        else if (time < 8.0) {
+            blueZ = 25 + (time - 3.0) * 10;
+        }
+        // Phase 4 (8-9s): Crosses finish
+        else {
+            blueZ = FINISH_LINE + (time - 8.0) * 5;
+            if (time >= resetTime) {
+                blueZ = -5;
+            }
+        }
+
+        // Update Meshes
+        redCar.mesh.position.z = redZ;
+        blueCar.mesh.position.z = blueZ;
+
+        // Tilt cars slightly when accelerating
+        const redTilt = (redZ > -5 && redZ < FINISH_LINE) ? -0.1 : 0;
+        const blueTilt = (blueZ > -5 && blueZ < FINISH_LINE) ? -0.05 : 0;
+        
+        redCar.mesh.rotation.x = redTilt;
+        blueCar.mesh.rotation.x = blueTilt;
+    }
+
+    function animate() {
+        requestAnimationFrame(animate);
+
+        const time = clock.getElapsedTime();
+        
+        // Loop logic: reset clock time to keep numbers small if needed, 
+        // but for this simple script, just letting it run is fine until reset.
+        // To keep it looping forever seamlessly:
+        const loopDuration = 10;
+        const loopTime = time % loopDuration;
+
+        updateCars(loopTime);
+
+        // Camera Logic
+        // Calculate the average position of the two cars
+        const avgZ = (redCar.mesh.position.z + blueCar.mesh.position.z) / 2;
+        
+        // Camera follows the average Z, but stays ahead slightly
+        const camZ = avgZ + 15; 
+        const camY = 12;
+        const camX = 8; // Slight offset for depth
+
+        // Smooth camera movement
+        camera.position.set(camX, camY, camZ);
+        camera.lookAt(0, 1, avgZ);
+
+        renderer.render(scene, camera);
+    }
+
+    // Handle Window Resize
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    animate();
+
+</script>
+
+</body>
+</html>

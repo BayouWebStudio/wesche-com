@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Low Poly Treadmill Cycle</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #1a1a1a; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <script type="module">
+        import * as THREE from './three.module.js';
+
+        // --- Configuration ---
+        const CYCLE_DURATION = 10;
+        const STATIONARY_TIME = 2;
+        const WALK_TIME = 3;
+        const RUN_TIME = 3;
+        
+        // --- Scene Setup ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x1a1a1a);
+        scene.fog = new THREE.Fog(0x1a1a1a, 10, 25);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(-4, 2, 5);
+        camera.lookAt(0, 1, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+
+        // --- Lighting ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+        dirLight.position.set(-5, 10, 5);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 2048;
+        dirLight.shadow.mapSize.height = 2048;
+        scene.add(dirLight);
+
+        // --- Materials ---
+        const skinMat = new THREE.MeshStandardMaterial({ color: 0xffccaa, flatShading: true });
+        const shirtMat = new THREE.MeshStandardMaterial({ color: 0x3366ff, flatShading: true });
+        const pantsMat = new THREE.MeshStandardMaterial({ color: 0x222222, flatShading: true });
+        const shoeMat = new THREE.MeshStandardMaterial({ color: 0xff3333, flatShading: true });
+        const treadmillMat = new THREE.MeshStandardMaterial({ color: 0x444444, flatShading: true });
+        const beltMat = new THREE.MeshStandardMaterial({ color: 0x111111, flatShading: true });
+
+        // --- Treadmill Construction ---
+        const treadmillGroup = new THREE.Group();
+        scene.add(treadmillGroup);
+
+        // Frame
+        const frameGeo = new THREE.BoxGeometry(3.5, 0.2, 1.2);
+        const frame = new THREE.Mesh(frameGeo, treadmillMat);
+        frame.position.set(0, 0.1, 0);
+        frame.receiveShadow = true;
+        treadmillGroup.add(frame);
+
+        // Legs
+        const legGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.2);
+        const leg1 = new THREE.Mesh(legGeo, treadmillMat); leg1.position.set(-1.5, 0, 0.5);
+        const leg2 = new THREE.Mesh(legGeo, treadmillMat); leg2.position.set(-1.5, 0, -0.5);
+        const leg3 = new THREE.Mesh(legGeo, treadmillMat); leg3.position.set(1.5, 0, 0.5);
+        const leg4 = new THREE.Mesh(legGeo, treadmillMat); leg4.position.set(1.5, 0, -0.5);
+        treadmillGroup.add(leg1, leg2, leg3, leg4);
+
+        // Belt
+        const beltGeo = new THREE.BoxGeometry(2.8, 0.05, 0.8);
+        const belt = new THREE.Mesh(beltGeo, beltMat);
+        belt.position.set(0, 0.22, 0);
+        belt.receiveShadow = true;
+        treadmillGroup.add(belt);
+
+        // --- Humanoid Construction ---
+        const humanGroup = new THREE.Group();
+        scene.add(humanGroup);
+
+        // Helper to create limbs
+        function createLimb(geo, mat, x, y, z) {
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(x, y, z);
+            mesh.castShadow = true;
+            return mesh;
+        }
+
+        const upperLegGeo = new THREE.BoxGeometry(0.25, 0.6, 0.25);
+        const lowerLegGeo = new THREE.BoxGeometry(0.22, 0.6, 0.22);
+        const shoeGeo = new THREE.BoxGeometry(0.3, 0.15, 0.45);
+        
+        const upperArmGeo = new THREE.BoxGeometry(0.2, 0.5, 0.2);
+        const lowerArmGeo = new THREE.BoxGeometry(0.18, 0.5, 0.18);
+
+        // Left Leg
+        const lHipJoint = new THREE.Group(); lHipJoint.position.set(-0.15, 0.9, 0);
+        const lUpperLeg = createLimb(upperLegGeo, pantsMat, 0, -0.3, 0);
+        const lKneeJoint = new THREE.Group(); lKneeJoint.position.set(0, -0.6, 0);
+        const lLowerLeg = createLimb(lowerLegGeo, pantsMat, 0, -0.3, 0);
+        const lShoe = createLimb(shoeGeo, shoeMat, 0, -0.6, 0.05);
+        
+        lHipJoint.add(lUpperLeg);
+        lUpperLeg.add(lKneeJoint);
+        lKneeJoint.add(lLowerLeg);
+        lLowerLeg.add(lShoe);
+        humanGroup.add(lHipJoint);
+
+        // Right Leg
+        const rHipJoint = new THREE.Group(); rHipJoint.position.set(0.15, 0.9, 0);
+        const rUpperLeg = createLimb(upperLegGeo, pantsMat, 0, -0.3, 0);
+        const rKneeJoint = new THREE.Group(); rKneeJoint.position.set(0, -0.6, 0);
+        const rLowerLeg = createLimb(lowerLegGeo, pantsMat, 0, -0.3, 0);
+        const rShoe = createLimb(shoeGeo, shoeMat, 0, -0.6, 0.05);
+
+        rHipJoint.add(rUpperLeg);
+        rUpperLeg.add(rKneeJoint);
+        rKneeJoint.add(rLowerLeg);
+        rLowerLeg.add(rShoe);
+        humanGroup.add(rHipJoint);
+
+        // Torso
+        const torsoGeo = new THREE.BoxGeometry(0.6, 0.8, 0.35);
+        const torso = createLimb(torsoGeo, shirtMat, 0, 1.3, 0);
+        humanGroup.add(torso);
+
+        // Head
+        const headGeo = new THREE.BoxGeometry(0.3, 0.35, 0.35);
+        const head = createLimb(headGeo, skinMat, 0, 1.8, 0);
+        torso.add(head);
+
+        // Left Arm
+        const lShoulderJoint = new THREE.Group(); lShoulderJoint.position.set(-0.35, 1.5, 0);
+        const lUpperArm = createLimb(upperArmGeo, skinMat, 0, -0.25, 0);
+        const lElbowJoint = new THREE.Group(); lElbowJoint.position.set(0, -0.5, 0);
+        const lLowerArm = createLimb(lowerArmGeo, skinMat, 0, -0.25, 0);
+
+        lShoulderJoint.add(lUpperArm);
+        lUpperArm.add(lElbowJoint);
+        lElbowJoint.add(lLowerArm);
+        torso.add(lShoulderJoint);
+
+        // Right Arm
+        const rShoulderJoint = new THREE.Group(); rShoulderJoint.position.set(0.35, 1.5, 0);
+        const rUpperArm = createLimb(upperArmGeo, skinMat, 0, -0.25, 0);
+        const rElbowJoint = new THREE.Group(); rElbowJoint.position.set(0, -0.5, 0);
+        const rLowerArm = createLimb(lowerArmGeo, skinMat, 0, -0.25, 0);
+
+        rShoulderJoint.add(rUpperArm);
+        rUpperArm.add(rElbowJoint);
+        rElbowJoint.add(rLowerArm);
+        torso.add(rShoulderJoint);
+
+        // --- Animation Logic ---
+        const clock = new THREE.Clock();
+
+        function getAnimationState(time) {
+            const t = time % CYCLE_DURATION;
+            if (t < STATIONARY_TIME) return 'stand';
+            if (t < STATIONARY_TIME + WALK_TIME) return 'walk';
+            return 'run';
+        }
+
+        // Helper for smooth limb swing
+        function swingLimb(t, state, amplitude, phase) {
+            if (state === 'stand') return 0;
+            const speed = state === 'walk' ? 8 : 16;
+            const offset = state === 'run' ? 0.2 : 0; // Slight offset for running gait
+            return Math.sin(t * speed + phase) * amplitude + offset;
+        }
+
+        function animateHuman(t, state) {
+            // Base Body Position
+            let bodyY = 0;
+            let bodyX = 0;
+            let bodyZ = 0;
+            let bodyRotZ = 0;
+
+            // Limb Angles
+            let lHip, rHip, lKnee, rKnee;
+            let lArm, rArm, lElbow, rElbow;
+
+            if (state === 'stand') {
+                // Idle standing
+                bodyY = Math.sin(t * 2) * 0.02; // Breathing
+                bodyRotZ = 0;
+                
+                lHip = 0; rHip = 0;
+                lKnee = 0; rKnee = 0;
+                
+                lArm = Math.sin(t * 1.5) * 0.05;
+                rArm = Math.sin(t * 1.5 + Math.PI) * 0.05;
+                lElbow = -0.1; rElbow = -0.1;
+
+            } else if (state === 'walk') {
+                // Walking
+                bodyY = Math.abs(Math.sin(t * 8)) * 0.05;
+                bodyRotZ = 0;
+
+                lHip = swingLimb(t, 'walk', 0.6, 0);
+                rHip = swingLimb(t, 'walk', 0.6, Math.PI);
+                
+                // Knee bends when leg goes back
+                lKnee = Math.max(0, -lHip) * 1.2;
+                rKnee = Math.max(0, -rHip) * 1.2;
+
+                // Arms swing opposite to legs
+                lArm = swingLimb(t, 'walk', 0.5, Math.PI);
+                rArm = swingLimb(t, 'walk', 0.5, 0);
+                
+                // Elbows bend slightly
+                lElbow = -0.5 - Math.abs(lArm) * 0.5;
+                rElbow = -0.5 - Math.abs(rArm) * 0.5;
+
+            } else if (state === 'run') {
+                // Running
+                bodyY = Math.abs(Math.sin(t * 16)) * 0.15;
+                bodyRotZ = -0.3; // Forward lean
+
+                lHip = swingLimb(t, 'run', 1.0, 0);
+                rHip = swingLimb(t, 'run', 1.0, Math.PI);
+
+                // More knee bend
+                lKnee = Math.max(0, -lHip) * 2.0;
+                rKnee = Math.max(0, -rHip) * 2.0;
+
+                // Arms swing harder
+                lArm = swingLimb(t, 'run', 0.8, Math.PI);
+                rArm = swingLimb(t, 'run', 0.8, 0);
+
+                lElbow = -1.0 - Math.abs(lArm) * 0.5;
+                rElbow = -1.0 - Math.abs(rArm) * 0.5;
+            }
+
+            // Apply animations
+            humanGroup.position.y = bodyY;
+            humanGroup.position.x = bodyX;
+            humanGroup.position.z = bodyZ;
+            humanGroup.rotation.z = bodyRotZ;
+
+            lHipJoint.rotation.x = lHip;
+            rHipJoint.rotation.x = rHip;
+            lKneeJoint.rotation.x = lKnee;
+            rKneeJoint.rotation.x = rKnee;
+
+            lShoulderJoint.rotation.x = lArm;
+            rShoulderJoint.rotation.x = rArm;
+            lElbowJoint.rotation.x = lElbow;
+            rElbowJoint.rotation.x = rElbow;
+        }
+
+        function animateBelt(state) {
+            let speed = 0;
+            if (state === 'walk') speed = 2;
+            if (state === 'run') speed = 5;
+            
+            // Simple visual trick: rotate a texture or just move nothing if texture isn't available.
+            // Since no external assets, we can't move texture coordinates easily without a canvas texture.
+            // Let's create a canvas texture for the belt to show movement.
+            if (!belt.material.map) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 128; canvas.height = 128;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#111'; ctx.fillRect(0,0,128,128);
+                ctx.fillStyle = '#333'; 
+                for(let i=0; i<128; i+=16) ctx.fillRect(i, 0, 2, 128);
+                const tex = new THREE.CanvasTexture(canvas);
+                tex.wrapS = THREE.RepeatWrapping;
+                belt.material.map = tex;
+                belt.material.needsUpdate = true;
+            }
+            belt.material.map.offset.x += speed * 0.002;
+        }
+
+        // --- Main Loop ---
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const time = clock.getElapsedTime();
+            const state = getAnimationState(time);
+
+            animateHuman(time, state);
+            animateBelt(state);
+
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
+        // --- Resize Handler ---
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>3D Car Race</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+
+<!-- Import map for three.js -->
+<script type="importmap">
+{
+    "imports": {
+        "three": "./three.module.js"
+    }
+}
+</script>
+
+<script type="module">
+import * as THREE from './three.module.js';
+
+// --- Configuration ---
+const TRACK_LENGTH = 200;
+const START_Z = -100;
+const FINISH_Z = 100;
+const LANE_WIDTH = 4;
+
+// --- Scene Setup ---
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87CEEB); // Sky blue
+scene.fog = new THREE.Fog(0x87CEEB, 50, 250);
+
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 500);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+// --- Lighting ---
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+scene.add(ambientLight);
+
+const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+dirLight.position.set(20, 50, -20);
+dirLight.castShadow = true;
+dirLight.shadow.mapSize.width = 1024;
+dirLight.shadow.mapSize.height = 1024;
+dirLight.shadow.camera.near = 0.5;
+dirLight.shadow.camera.far = 500;
+dirLight.shadow.camera.left = -50;
+dirLight.shadow.camera.right = 50;
+dirLight.shadow.camera.top = 50;
+dirLight.shadow.camera.bottom = -50;
+scene.add(dirLight);
+
+// --- Environment ---
+// Ground
+const groundGeo = new THREE.PlaneGeometry(1000, 1000);
+const groundMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.8 });
+const ground = new THREE.Mesh(groundGeo, groundMat);
+ground.rotation.x = -Math.PI / 2;
+ground.position.y = -0.1;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// Finish Line
+const finishGeo = new THREE.PlaneGeometry(TRACK_LENGTH, 2);
+const finishMat = new THREE.MeshStandardMaterial({ color: 0xffffff }); // White line
+const finishLine = new THREE.Mesh(finishGeo, finishMat);
+finishLine.rotation.x = -Math.PI / 2;
+finishLine.position.set(0, 0.01, FINISH_Z);
+scene.add(finishLine);
+
+// Finish Line Posts
+const postGeo = new THREE.BoxGeometry(1, 5, 1);
+const postMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+const leftPost = new THREE.Mesh(postGeo, postMat);
+leftPost.position.set(-LANE_WIDTH * 1.5, 2.5, FINISH_Z);
+leftPost.castShadow = true;
+scene.add(leftPost);
+
+const rightPost = new THREE.Mesh(postGeo, postMat);
+rightPost.position.set(LANE_WIDTH * 1.5, 2.5, FINISH_Z);
+rightPost.castShadow = true;
+scene.add(rightPost);
+
+// Banner
+const bannerGeo = new THREE.BoxGeometry(LANE_WIDTH * 3, 2, 1);
+const bannerMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+const banner = new THREE.Mesh(bannerGeo, bannerMat);
+banner.position.set(0, 5, FINISH_Z);
+banner.castShadow = true;
+scene.add(banner);
+
+// --- Car Builder ---
+function createCar(colorHex) {
+    const carGroup = new THREE.Group();
+    
+    const bodyGeo = new THREE.BoxGeometry(2, 1, 4.5);
+    const bodyMat = new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.3, metalness: 0.2 });
+    const body = new THREE.Mesh(bodyGeo, bodyMat);
+    body.position.y = 1;
+    body.castShadow = true;
+    carGroup.add(body);
+
+    // Cabin
+    const cabinGeo = new THREE.BoxGeometry(1.8, 0.8, 2);
+    const cabinMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.1 });
+    const cabin = new THREE.Mesh(cabinGeo, cabinMat);
+    cabin.position.y = 1.8;
+    cabin.position.z = -0.5;
+    cabin.castShadow = true;
+    carGroup.add(cabin);
+
+    // Wheels
+    const wheelGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.4, 16);
+    const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+    
+    const positions = [
+        [-1.1, 0.4, 1.5], [1.1, 0.4, 1.5],
+        [-1.1, 0.4, -1.5], [1.1, 0.4, -1.5]
+    ];
+
+    positions.forEach(pos => {
+        const wheel = new THREE.Mesh(wheelGeo, wheelMat);
+        wheel.position.set(...pos);
+        wheel.rotation.z = Math.PI / 2;
+        wheel.castShadow = true;
+        carGroup.add(wheel);
+    });
+
+    return carGroup;
+}
+
+// --- Cars ---
+const redCar = createCar(0xff0000);
+redCar.position.set(0, 0, START_Z);
+redCar.rotation.y = Math.PI; // Face forward (positive Z)
+scene.add(redCar);
+
+const blueCar = createCar(0x0000ff);
+blueCar.position.set(0, 0, START_Z);
+blueCar.rotation.y = Math.PI;
+scene.add(blueCar);
+
+// --- Animation State ---
+let raceState = 'racing'; // racing, resetting
+let startTime = 0;
+let raceDuration = 0;
+const RESET_TIME = 2.0; // seconds to wait before reset
+
+// --- Logic ---
+function updateRace(time) {
+    if (raceState === 'resetting') {
+        // Smoothly move back to start
+        const lerpSpeed = 0.1;
+        redCar.position.z = THREE.MathUtils.lerp(redCar.position.z, START_Z, lerpSpeed);
+        blueCar.position.z = THREE.MathUtils.lerp(blueCar.position.z, START_Z, lerpSpeed);
+        
+        // Reset Camera slightly
+        camera.position.z = THREE.MathUtils.lerp(camera.position.z, START_Z + 25, lerpSpeed);
+
+        if (Math.abs(redCar.position.z - START_Z) < 0.1) {
+            raceState = 'racing';
+            startTime = time;
+        }
+        return;
+    }
+
+    const elapsed = (time - startTime) / 1000; // seconds
+
+    // --- Race Physics / Scripting ---
+    
+    // Blue car: Constant speed, slightly faster start, tires out at the end
+    // Total distance = 200. 
+    // Let's say blue car takes ~10 seconds. Speed = 20 units/sec.
+    // It will be at Z = 100 at t=5s, but decelerates slightly at end.
+    
+    // Red car: Starts slower, accelerates hard, overtakes at t=6s, wins at t=9s.
+    
+    let blueZ, redZ;
+
+    if (elapsed < 9.0) {
+        // Active race phase
+        const progress = elapsed / 9.0; // 0 to 1 (approx)
+
+        // Blue car logic: Linear mostly, slight deceleration at end
+        // Distance = speed * time. 
+        // Let's use a custom curve for "tiring out"
+        const blueSpeed = 22 - (elapsed * 1.5); // slows down
+        blueZ = START_Z + (blueSpeed * elapsed);
+
+        // Red car logic: Quadratic acceleration
+        // Starts behind. 
+        // Formula: distance = 0.5 * a * t^2
+        // We want it to be behind blue at t=5, and ahead at t=9.
+        // At t=5, Blue is at -100 + 110 = 10. Red should be at -20.
+        // Red distance at t=5 = 80. 0.5 * a * 25 = 80 -> a = 6.4
+        const redAccel = 7.0;
+        redZ = START_Z + (0.5 * redAccel * elapsed * elapsed);
+
+        // Cap at finish line to prevent flying off
+        blueZ = Math.min(blueZ, FINISH_Z);
+        redZ = Math.min(redZ, FINISH_Z);
+
+    } else {
+        // Race finished, cars glide to finish line
+        blueZ = FINISH_Z;
+        redZ = FINISH_Z;
+    }
+
+    // Apply positions
+    blueCar.position.z = blueZ;
+    redCar.position.z = redZ;
+
+    // --- Camera Follow ---
+    // Camera follows the lead car (or middle of track)
+    const leadZ = Math.max(redZ, blueZ);
+    const targetCamZ = leadZ + 20; // Look ahead
+    const targetCamX = 15; // Side view angle
+    
+    camera.position.z = THREE.MathUtils.lerp(camera.position.z, targetCamZ, 0.05);
+    camera.position.x = THREE.MathUtils.lerp(camera.position.x, targetCamX, 0.05);
+    camera.position.y = 12;
+    camera.lookAt(leadZ - 10, 0, 0); // Look slightly ahead of the leaders
+
+    // --- Reset Condition ---
+    if (elapsed > 9.5 && redZ >= FINISH_Z && blueZ >= FINISH_Z) {
+        raceState = 'resetting';
+    }
+}
+
+// --- Main Loop ---
+function animate(time) {
+    requestAnimationFrame(animate);
+    
+    // Initial camera setup
+    if (camera.position.z === 0) {
+        camera.position.set(15, 12, START_Z + 25);
+        camera.lookAt(START_Z, 0, 0);
+        startTime = time;
+    }
+
+    updateRace(time);
+    renderer.render(scene, camera);
+}
+
+// Handle resize
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// Start
+animate(0);
+
+</script>
+</body>
+</html>

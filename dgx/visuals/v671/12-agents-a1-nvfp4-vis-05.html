@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Three.js Low Poly Treadmill Animation</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #222; }
+        canvas { display: block; }
+        #info {
+            position: absolute;
+            top: 20px;
+            width: 100%;
+            text-align: center;
+            color: white;
+            font-family: sans-serif;
+            pointer-events: none;
+            text-shadow: 1px 1px 2px black;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">Cycle: Stand (2s) -> Walk (3s) -> Run (3s) -> Stand (2s)</div>
+
+    <!-- Import Map for Three.js -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "./three.module.js"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from './three.module.js';
+
+        // --- Configuration ---
+        const CYCLE_TOTAL = 10.0;
+        const T_STAND = 2.0;
+        const T_WALK = 3.0;
+        const T_RUN = 3.0;
+        const T_STAND_END = 2.0;
+
+        // --- Scene Setup ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x333333);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        // Side-on camera position
+        camera.position.set(0, 2, 8);
+        camera.lookAt(0, 1, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document.body.appendChild(renderer.domElement);
+
+        // --- Lighting ---
+        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.8);
+        scene.add(hemiLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+        dirLight.position.set(2, 5, 2);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 1024;
+        dirLight.shadow.mapSize.height = 1024;
+        scene.add(dirLight);
+
+        // --- Materials ---
+        const skinMat = new THREE.MeshStandardMaterial({ color: 0xffccaa, roughness: 0.5 });
+        const clothesMat = new THREE.MeshStandardMaterial({ color: 0x3366ff, roughness: 0.5 });
+        const shoeMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+        const groundMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+
+        // --- Procedural Low Poly Humanoid ---
+        function createHumanoid() {
+            const group = new THREE.Group();
+
+            // Helper to create limb parts
+            const createLimb = (width, height, depth, x, y, z, isLeg, mat) => {
+                const geometry = new THREE.BoxGeometry(width, height, depth);
+                const mesh = new THREE.Mesh(geometry, mat);
+                mesh.position.set(x, y, z);
+                mesh.castShadow = true;
+                
+                // Pivot logic: For a proper swing, we need the pivot at the shoulder/hip.
+                // We will use a parent pivot group.
+                const pivot = new THREE.Group();
+                pivot.position.set(x, y, z);
+                
+                // Offset the mesh so the pivot is at the top of the limb
+                if (isLeg) {
+                    mesh.position.y = -height / 2;
+                } else {
+                    mesh.position.y = -height / 2;
+                }
+                
+                pivot.add(mesh);
+                group.add(pivot);
+                return pivot;
+            };
+
+            // 1. Torso
+            const torsoGeo = new THREE.BoxGeometry(0.8, 1.0, 0.4);
+            const torso = new THREE.Mesh(torsoGeo, clothesMat);
+            torso.position.y = 1.5;
+            torso.castShadow = true;
+            group.add(torso);
+
+            // 2. Head
+            const headGeo = new THREE.BoxGeometry(0.4, 0.4, 0.4);
+            const head = new THREE.Mesh(headGeo, skinMat);
+            head.position.y = 2.5;
+            head.castShadow = true;
+            group.add(head);
+
+            // 3. Limbs (Pivots are at hips and shoulders)
+            // Left Arm
+            const lArmPivot = createLimb(0.2, 0.8, 0.2, -0.5, 1.8, 0, false, skinMat);
+            // Right Arm
+            const rArmPivot = createLimb(0.2, 0.8, 0.2, 0.5, 1.8, 0, false, skinMat);
+            
+            // Left Leg
+            const lLegPivot = createLimb(0.25, 1.0, 0.25, -0.2, 1.0, 0, true, skinMat);
+            // Right Leg
+            const rLegPivot = createLimb(0.25, 1.0, 0.25, 0.2, 1.0, 0, true, skinMat);
+
+            // Add Shoes
+            const shoeGeo = new THREE.BoxGeometry(0.3, 0.1, 0.4);
+            const lShoe = new THREE.Mesh(shoeGeo, shoeMat);
+            lShoe.position.set(-0.2, 0.0, 0);
+            lLegPivot.add(lShoe);
+
+            const rShoe = new THREE.Mesh(shoeGeo, shoeMat);
+            rShoe.position.set(0.2, 0.0, 0);
+            rLegPivot.add(rShoe);
+
+            // Store references for animation
+            group.userData = {
+                lArmPivot, rArmPivot, lLegPivot, rLegPivot,
+                torso, head
+            };
+
+            return group;
+        }
+
+        const humanoid = createHumanoid();
+        scene.add(humanoid);
+
+        // --- Treadmill Ground ---
+        const groundGeo = new THREE.PlaneGeometry(6, 10);
+        const ground = new THREE.Mesh(groundGeo, groundMat);
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        // Add some lines to simulate movement
+        const lineGeo = new THREE.PlaneGeometry(6, 0.2);
+        const lineMat = new THREE.MeshBasicMaterial({ color: 0x444444 });
+        const line1 = new THREE.Mesh(lineGeo, lineMat);
+        line1.position.y = 0.01;
+        line1.rotation.x = -Math.PI / 2;
+        line1.position.z = -2;
+        scene.add(line1);
+
+        const line2 = new THREE.Mesh(lineGeo, lineMat);
+        line2.position.y = 0.01;
+        line2.rotation.x = -Math.PI / 2;
+        line2.position.z = 2;
+        scene.add(line2);
+
+        // --- Animation Logic ---
+        
+        // Math helpers
+        const lerp = (start, end, t) => start * (1 - t) + end * t;
+        const clamp = (val, min, max) => Math.min(Math.max(val, min), max);
+
+        function updateAnimation(time) {
+            const { lArmPivot, rArmPivot, lLegPivot, rLegPivot, torso, head } = humanoid.userData;
+
+            // Reset transforms (clean slate)
+            lArmPivot.rotation.x = 0;
+            rArmPivot.rotation.x = 0;
+            lLegPivot.rotation.x = 0;
+            rLegPivot.rotation.x = 0;
+            torso.rotation.x = 0;
+            torso.rotation.y = 0;
+            torso.position.y = 1.5;
+            head.rotation.x = 0;
+
+            // --- State 1: Stand Still (0 -> 2s) ---
+            if (time < T_STAND) {
+                // Just keep them still. 
+                // Maybe subtle breathing
+                const breath = Math.sin(time * 2) * 0.02;
+                torso.position.y = 1.5 + breath;
+            }
+
+            // --- State 2: Walk (2s -> 5s) ---
+            else if (time < T_STAND + T_WALK) {
+                const t = (time - T_STAND) / T_WALK; // 0 to 1
+                const speed = 4; // Radians per second
+                
+                // Walking Cycle
+                // Arms swing opposite to legs
+                lArmPivot.rotation.x = Math.sin(speed * t) * 0.6;
+                rArmPivot.rotation.x = -Math.sin(speed * t) * 0.6;
+
+                // Legs swing forward and back
+                lLegPivot.rotation.x = Math.sin(speed * t + Math.PI) * 0.8; // Opposite phase
+                rLegPivot.rotation.x = Math.sin(speed * t) * 0.8;
+
+                // Slight torso bounce
+                torso.position.y = 1.5 + Math.abs(Math.sin(speed * t)) * 0.05;
+            }
+
+            // --- State 3: Run (5s -> 8s) ---
+            else if (time < T_STAND + T_WALK + T_RUN) {
+                const t = (time - (T_STAND + T_WALK)) / T_RUN; // 0 to 1
+                const speed = 10; // Faster
+                const amplitude = 1.2; // Larger swings
+
+                // Running mechanics: Arms swing more vigorously
+                lArmPivot.rotation.x = Math.sin(speed * t) * amplitude;
+                rArmPivot.rotation.x = -Math.sin(speed * t) * amplitude;
+
+                // Legs: High knees, slight forward lean
+                lLegPivot.rotation.x = Math.sin(speed * t + Math.PI) * amplitude;
+                rLegPivot.rotation.x = Math.sin(speed * t) * amplitude;
+
+                // Torso leans forward slightly
+                // Smoothly interpolate lean from 0 to 0.2
+                const lean = lerp(0, 0.2, t); 
+                torso.rotation.x = lean;
+
+                // Bounce is higher in running
+                torso.position.y = 1.5 + Math.abs(Math.sin(speed * t)) * 0.1;
+            }
+
+            // --- State 4: Stand Still Again (8s -> 10s) ---
+            else {
+                const t = (time - (T_STAND + T_WALK + T_RUN)) / T_STAND_END;
+                
+                // Smoothly decay lean
+                torso.rotation.x = lerp(torso.rotation.x, 0, t * 2);
+                
+                // Reset position
+                torso.position.y = 1.5;
+            }
+        }
+
+        // --- Render Loop ---
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            const time = clock.getElapsedTime();
+            const loopTime = time % CYCLE_TOTAL;
+
+            updateAnimation(loopTime);
+
+            // Animate ground lines for treadmill illusion
+            const moveSpeed = 2;
+            line1.position.z = ((-2 + moveSpeed * loopTime) % 4) - 2;
+            line2.position.z = ((2 + moveSpeed * loopTime) % 4) - 2;
+
+            renderer.render(scene, camera);
+        }
+
+        // Start immediately
+        animate();
+
+        // Handle Resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+    </script>
+</body>
+</html>

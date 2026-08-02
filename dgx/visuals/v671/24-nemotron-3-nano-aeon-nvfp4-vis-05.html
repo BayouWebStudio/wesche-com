@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>3D Humanoid Cycle</title>
+    <style>
+        body { margin:0; overflow:hidden; }
+        canvas { display:block; }
+    </style>
+</head>
+<body>
+    <script type="module">
+        import * as THREE from './three.module.js';
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        const ground = new THREE.Mesh(
+            new THREE.BoxGeometry(10, 0.2, 4),
+            new THREE.MeshBasicMaterial({ color: 0x888888 })
+        );
+        ground.position.y = 0.1;
+        scene.add(ground);
+
+        const humanoid = new THREE.Group();
+        scene.add(humanoid);
+
+        const bodyGeom = new THREE.SphereGeometry(0.5, 16, 16);
+        const bodyMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        const body = new THREE.Mesh(bodyGeom, bodyMat);
+        body.position.y = 0.5;
+        humanoid.add(body);
+
+        const legGeom = new THREE.CylinderGeometry(0.1, 0.1, 2, 8, true);
+        const legMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        const leg1 = new THREE.Mesh(legGeom, legMat);
+        const leg2 = new THREE.Mesh(legGeom, legMat);
+        leg1.rotation.x = Math.PI / 2;
+        leg1.position.x = -0.05;
+        leg1.position.y = 0;
+        leg2.rotation.x = Math.PI / 2;
+        leg2.position.x = 0.05;
+        leg2.position.y = 0;
+        humanoid.add(leg1);
+        humanoid.add(leg2);
+
+        const footGeom = new THREE.CylinderGeometry(0.15, 0.15, 0.3, 8, true);
+        const footMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+        const foot1 = new THREE.Mesh(footGeom, footMat);
+        const foot2 = new THREE.Mesh(footGeom, footMat);
+        foot1.position.y = 0;
+        foot1.position.x = -0.05;
+        foot2.position.y = 0;
+        foot2.position.x = 0.05;
+        humanoid.add(foot1);
+        humanoid.add(foot2);
+
+        const armGeom = new THREE.CylinderGeometry(0.07, 0.07, 2, 8, true);
+        const armMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        const arm1 = new THREE.Mesh(armGeom, armMat);
+        const arm2 = new THREE.Mesh(armGeom, armMat);
+        arm1.rotation.z = Math.PI / 2;
+        arm1.position.x = -0.05;
+        arm1.position.y = 0.5;
+        arm2.rotation.z = Math.PI / 2;
+        arm2.position.x = 0.05;
+        arm2.position.y = 0.5;
+        humanoid.add(arm1);
+        humanoid.add(arm2);
+
+        const headGeom = new THREE.ConeGeometry(0.25, 0.5, 8, true);
+        const headMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        const head = new THREE.Mesh(headGeom, headMat);
+        head.rotation.z = Math.PI / 2;
+        head.position.y = 0.8;
+        humanoid.add(head);
+
+        const animate = () => {
+            requestAnimationFrame(animate);
+            const t = performance.now() / 1000; // seconds
+
+            // Cycle: 2s stand, 3s walk, 3s run, 2s stand
+            const phase = Math.floor(t) % 11;
+            const cycle = phase < 2 ? 'stand' : phase < 5 ? 'walk' : phase < 8 ? 'run' : 'stand';
+
+            if (cycle === 'stand') {
+                humanoid.rotation.set(0, 0, 0);
+                humanoid.position.set(0, 0.1, 0);
+            } else if (cycle === 'walk') {
+                humanoid.rotation.set(0, 0, 0);
+                humanoid.position.set(0, 0.1, 0);
+                // walking: slower limb swing
+                const swing = Math.sin(t * 2 * Math.PI);
+                leg1.rotation.z = swing * Math.PI / 2;
+                leg2.rotation.z = -swing * Math.PI / 2;
+                arm1.rotation.z = swing * Math.PI / 4;
+                arm2.rotation.z = -swing * Math.PI / 4;
+            } else if (cycle === 'run') {
+                humanoid.rotation.set(0, 0, -0.2 * Math.sin(t * 2 * Math.PI) * 0.5);
+                humanoid.position.set(0, 0.1, 0);
+                // running: faster limb swing
+                const swing = Math.sin(t * 5 * Math.PI);
+                leg1.rotation.z = swing * Math.PI / 1.2;
+                leg2.rotation.z = -swing * Math.PI / 1.2;
+                arm1.rotation.z = swing * Math.PI / 2;
+                arm2.rotation.z = -swing * Math.PI / 2;
+            }
+
+            renderer.render(scene, camera);
+        };
+        animate();
+    </script>
+</body>
+</html>
