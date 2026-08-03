@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>DNA Double Helix</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+    background: #050810;
+  }
+  canvas {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+  }
+</style>
+</head>
+<body>
+<canvas id="dna"></canvas>
+<script>
+const canvas = document.getElementById('dna');
+const ctx = canvas.getContext('2d');
+
+let width, height, centerX, centerY, scale;
+const NODE_COUNT = 46;
+const HELIX_TURNS = 3.2;
+const ANGULAR_SPACING = (HELIX_TURNS * Math.PI * 2) / NODE_COUNT;
+const VERTICAL_SPACING = 20;
+
+function resize() {
+  width = canvas.width = window.innerWidth;
+  height = canvas.height = window.innerHeight;
+  centerX = width / 2;
+  centerY = height / 2;
+  scale = Math.min(width, height) * 0.22;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// Color helpers: strand A is warm coral, strand B is cool teal
+function strandA(t) {
+  const r = 255;
+  const g = Math.floor(130 + 50 * t);
+  const b = Math.floor(95 + 35 * t);
+  return [r, g, b];
+}
+function strandB(t) {
+  const r = Math.floor(70 + 30 * t);
+  const g = Math.floor(225 - 25 * t);
+  const b = Math.floor(200 + 35 * t);
+  return [r, g, b];
+}
+
+let rotation = 0;
+let lastTime = performance.now();
+
+function draw(now) {
+  const dt = Math.min(0.05, (now - lastTime) / 1000);
+  lastTime = now;
+  rotation += dt * 0.9;
+
+  // Background
+  ctx.fillStyle = '#050810';
+  ctx.fillRect(0, 0, width, height);
+
+  // Subtle radial glow behind the helix
+  const glow = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, scale * 3);
+  glow.addColorStop(0, 'rgba(60, 90, 140, 0.18)');
+  glow.addColorStop(0.5, 'rgba(30, 50, 90, 0.08)');
+  glow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, width, height);
+
+  const totalHeight = (NODE_COUNT - 1) * VERTICAL_SPACING;
+  const startY = centerY - totalHeight / 2;
+
+  // Precompute node positions and depths
+  const nodesA = [];
+  const nodesB = [];
+  for (let i = 0; i < NODE_COUNT; i++) {
+    const baseAngle = i * ANGULAR_SPACING;
+    const y = startY + i * VERTICAL_SPACING;
+    const angleA = baseAngle + rotation;
+    const angleB = baseAngle + rotation + Math.PI;
+    const xA = centerX + Math.sin(angleA) * scale;
+    const xB = centerX + Math.sin(angleB) * scale;
+    const depthA = Math.cos(angleA); // -1 (back) to 1 (front)
+    const depthB = Math.cos(angleB);
+    nodesA.push({ x: xA, y, depth: depthA });
+    nodesB.push({ x: xB, y, depth: depthB });
+  }
+
+  // Draw strand backbones as smooth curves through nodes
+  function drawBackbone(nodes, colorFn) {
+    if (nodes.length < 2) return;
+    const segments = nodes.length - 1;
+    for (let i = 0; i < segments; i++) {
+      const a = nodes[i];
+      const b = nodes[i + 1];
+      const avgDepth = (a.depth + b.depth) / 2;
+      const t = i / segments;
+      const [r, g, bl] = colorFn(t);
+      const alpha = 0.25 + 0.55 * ((avgDepth + 1) / 2);
+      const lw = 1.5 + 1.8 * ((avgDepth + 1) / 2);
+      ctx.strokeStyle = `rgba(${r}, ${g}, ${bl}, ${alpha})`;
+      ctx.lineWidth = lw;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+    }
+  }
+
+  // Draw rungs first (so node spheres sit on top)
+  for (let i = 0; i < NODE_COUNT; i++) {
+    const a = nodesA[i];
+    const b = nodesB[i];
+    const avgDepth = (a.depth + b.depth) / 2;
+    const alpha = 0.12 + 0.4 * ((avgDepth + 1) / 2);
+    const lw = 0.8 + 1.4 * ((avgDepth + 1) / 2);
+    const t = i / (NODE_COUNT - 1);
+    // Run gradient shifts hue along the helix
+    const hue = 280 - t * 200; // violet -> cyan-ish
+    const grad = ctx.createLinearGradient(a.x, a.y, b.x, b.y);
+    grad.addColorStop(0, `hsla(${hue + 20}, 70%, 65%, ${alpha})`);
+    grad.addColorStop(0.5, `hsla(${hue}, 60%, 55%, ${alpha * 0.85})`);
+    grad.addColorStop(1, `hsla(${hue - 20}, 70%, 65%, ${alpha})`);
+    ctx.strokeStyle = grad;
+    ctx.lineWidth = lw;
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+  }
+
+  // Draw backbones
+  drawBackbone(nodesA, strandA);
+  drawBackbone(nodesB, strandB);
+
+  // Draw nodes as shaded spheres
+  function drawNode(node, colorFn, t) {
+    const [r, g, bl] = colorFn(t);
+    const d = (node.depth + 1) / 2; // 0..1
+    const radius = 3 + 4 * d;
+    const brightness = 0.4 + 0.6 * d;
+
+    // Outer halo
+    const halo = ctx.createRadialGradient(node.x, node.y, 0, node.x, node.y, radius * 2.6);
+    halo.addColorStop(0, `rgba(${r}, ${g}, ${bl}, ${0.35 * brightness})`);
+    halo.addColorStop(1, `rgba(${r}, ${g}, ${bl}, 0)`);
+    ctx.fillStyle = halo;
+    ctx.beginPath();
+    ctx.arc(node.x, node.y, radius * 2.6, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Sphere body with light from upper-left
+    const sphere = ctx.createRadialGradient(
+      node.x - radius * 0.4, node.y - radius * 0.4, 0,
+      node.x, node.y, radius
+    );
+    const lr = Math.min(255, r + 80);
+    const lg = Math.min(255, g + 80);
+    const lbl = Math.min(255, bl + 80);
+    sphere.addColorStop(0, `rgba(${lr}, ${lg}, ${lbl}, ${brightness})`);
+    sphere.addColorStop(0.5, `rgba(${r}, ${g}, ${bl}, ${brightness})`);
+    sphere.addColorStop(1, `rgba(${Math.floor(r * 0.25)}, ${Math.floor(g * 0.25)}, ${Math.floor(bl * 0.25)}, ${brightness})`);
+    ctx.fillStyle = sphere;
+    ctx.beginPath();
+    ctx.arc(node.x, node.y, radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  for (let i = 0; i < NODE_COUNT; i++) {
+    const t = i / (NODE_COUNT - 1);
+    drawNode(nodesA[i], strandA, t);
+    drawNode(nodesB[i], strandB, t);
+  }
+
+  requestAnimationFrame(draw);
+}
+
+requestAnimationFrame((t) => { lastTime = t; draw(t); });
+</script>
+</body>
+</html>

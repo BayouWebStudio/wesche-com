@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spiral Galaxy</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: #000;
+    width: 100%;
+    height: 100%;
+  }
+  canvas {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+  }
+</style>
+</head>
+<body>
+<canvas id="galaxy"></canvas>
+<script>
+(() => {
+  'use strict';
+
+  const canvas = document.getElementById('galaxy');
+  const ctx = canvas.getContext('2d');
+
+  let W = 0, H = 0, cx = 0, cy = 0, scale = 1;
+  let stars = [];
+  let nebulaCanvas = null;
+  let time = 0;
+  let lastFrame = performance.now();
+
+  const NUM_STARS = 900;
+  const ARMS = 4;
+  const ARM_TIGHTNESS = 0.22;
+  const CORE_RADIUS = 32;
+  const GALAXY_RADIUS = 460;
+  const BASE_OMEGA = 0.00055;
+
+  function resize() {
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = W;
+    canvas.height = H;
+    cx = W / 2;
+    cy = H / 2;
+    scale = Math.min(W, H) / 1000;
+    buildNebula();
+  }
+
+  function gaussian() {
+    // Box-Muller transform
+    let u = 0, v = 0;
+    while (u === 0) u = Math.random();
+    while (v === 0) v = Math.random();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+
+  function clamp(x, lo, hi) { return Math.max(lo, Math.min(hi, x)); }
+
+  function createStars() {
+    stars = [];
+
+    // Core stars — dense, bright, warm
+    for (let i = 0; i < 260; i++) {
+      const r = Math.abs(gaussian()) * 26 + 1;
+      const theta = Math.random() * Math.PI * 2;
+      const roll = Math.random();
+      let hue;
+      if (roll < 0.55) hue = 30 + Math.random() * 25;       // gold/amber
+      else if (roll < 0.85) hue = 18 + Math.random() * 12;  // orange-red
+      else hue = 50 + Math.random() * 10;                   // pale yellow-white
+      stars.push({
+        r, theta,
+        size: 0.5 + Math.random() * 1.3 + (r < 14 ? 0.6 : 0),
+        hue,
+        sat: 70 + Math.random() * 25,
+        light: 72 + Math.random() * 22,
+        twinkleSpeed: 0.4 + Math.random() * 2.6,
+        twinklePhase: Math.random() * Math.PI * 2,
+        twinkleAmp: 0.2 + Math.random() * 0.45,
+        core: true
+      });
+    }
+
+    // Spiral arm stars — varied palette
+    for (let i = 0; i < NUM_STARS; i++) {
+      const arm = Math.floor(Math.random() * ARMS);
+      const t = Math.pow(Math.random(), 0.55);
+      const r = CORE_RADIUS + t * (GALAXY_RADIUS - CORE_RADIUS);
+      const armOffset = (arm / ARMS) * Math.PI * 2;
+      const spiralAngle = r * ARM_TIGHTNESS + armOffset;
+      const spread = 0.32 + 0.12 * (1 - t);
+      const theta = spiralAngle + gaussian() * spread;
+
+      // Color distribution: mostly warm with cool accents
+      const roll = Math.random();
+      let hue;
+      if (roll < 0.42) hue = 28 + Math.random() * 28;       // warm orange/gold
+      else if (roll < 0.66) hue = 200 + Math.random() * 35; // blue-white
+      else if (roll < 0.84) hue = 48 + Math.random() * 12;  // pale yellow
+      else if (roll < 0.94) hue = 340 + Math.random() * 25; // pink/magenta
+      else hue = 275 + Math.random() * 25;                  // violet
+
+      stars.push({
+        r, theta,
+        size: 0.35 + Math.random() * 1.3 + (Math.random() < 0.025 ? 1.0 : 0),
+        hue,
+        sat: 55 + Math.random() * 35,
+        light: 62 + Math.random() * 28,
+        twinkleSpeed: 0.3 + Math.random() * 2.8,
+        twinklePhase: Math.random() * Math.PI * 2,
+        twinkleAmp: 0.15 + Math.random() * 0.55,
+        core: false
+      });
+    }
+
+    // Halo stars — faint, scattered
+    for (let i = 0; i < 220; i++) {
+      const r = GALAXY_RADIUS * (0.85 + Math.random() * 0.55);
+      const theta = Math.random() * Math.PI * 2;
+      stars.push({
+        r, theta,
+        size: 0.25 + Math.random() * 0.7,
+        hue: 30 + Math.random() * 30,
+        sat: 20 + Math.random() * 30,
+        light: 55 + Math.random() * 25,
+        twinkleSpeed: 0.2 + Math.random() * 1.8,
+        twinklePhase: Math.random() * Math.PI * 2,
+        twinkleAmp: 0.25 + Math.random() * 0.5,
+        core: false,
+        halo: true
+      });
+    }
+  }
+
+  function buildNebula() {
+    nebulaCanvas = document.createElement('canvas');
+    nebulaCanvas.width = W;
+    nebulaCanvas.height = H;
+    const nctx = nebulaCanvas.getContext('2d');
+
+    // Distant star field
+    for (let i = 0; i < 700; i++) {
+      const x = Math.random() * W;
+      const y = Math.random() * H;
+      const s = Math.random() * 1.1;
+      const a = 0.2 + Math.random() * 0.55;
+      nctx.fillStyle = `rgba(255, 245, 230, ${a})`;
+      nctx.fillRect(x, y, s, s);
+    }
+
+    // Soft nebula clouds along the spiral arms
+    nctx.globalCompositeOperation = 'lighter';
+    const cloudCount = 90;
+    for (let i = 0; i < cloudCount; i++) {
+      const arm = i % ARMS;
+      const t = 0.08 + Math.random() * 0.92;
+      const r = CORE_RADIUS + t * (GALAXY_RADIUS - CORE_RADIUS);
+      const armOffset = (arm / ARMS) * Math.PI * 2;
+      const spiralAngle = r * ARM_TIGHTNESS + armOffset;
+      const theta = spiralAngle + gaussian() * 0.28;
+      const px = cx + Math.cos(theta) * r * scale;
+      const py = cy + Math.sin(theta) * r * scale;
+      const radius = Math.max(20, (45 + Math.random() * 95) * scale);
+
+      const roll = Math.random();
+      let hue, sat, light;
+      if (roll < 0.45) { hue = 28; sat = 85; light = 55; }      // warm orange
+      else if (roll < 0.72) { hue = 210; sat = 80; light = 55; } // blue
+      else if (roll < 0.88) { hue = 340; sat = 75; light = 60; } // pink
+      else { hue = 270; sat = 75; light = 55; }                  // violet
+
+      const grad = nctx.createRadialGradient(px, py, 0, px, py, radius);
+      grad.addColorStop(0, `hsla(${hue}, ${sat}%, ${light}%, 0.16)`);
+      grad.addColorStop(0.5, `hsla(${hue}, ${sat}%, ${light}%, 0.05)`);
+      grad.addColorStop(1, `hsla(${hue}, ${sat}%, ${light}%, 0)`);
+      nctx.fillStyle = grad;
+      nctx.fillRect(px - radius, py - radius, radius * 2, radius * 2);
+    }
+
+    // Core glow
+    const coreR = Math.max(60, 220 * scale);
+    const coreGrad = nctx.createRadialGradient(cx, cy, 0, cx, cy, coreR);
+    coreGrad.addColorStop(0, 'rgba(255, 230, 180, 0.55)');
+    coreGrad.addColorStop(0.25, 'rgba(255, 200, 140, 0.28)');
+    coreGrad.addColorStop(0.6, 'rgba(220, 130, 80, 0.10)');
+    coreGrad.addColorStop(1, 'rgba(180, 80, 50, 0)');
+    nctx.fillStyle = coreGrad;
+    nctx.fillRect(0, 0, W, H);
+
+    // Outer halo
+    const haloR = Math.max(120, 480 * scale);
+    const haloGrad = nctx.createRadialGradient(cx, cy, coreR * 0.6, cx, cy, haloR);
+    haloGrad.addColorStop(0, 'rgba(120, 80, 140, 0.10)');
+    haloGrad.addColorStop(0.5, 'rgba(80, 60, 120, 0.05)');
+    haloGrad.addColorStop(1, 'rgba(40, 30, 80, 0)');
+    nctx.fillStyle = haloGrad;
+    nctx.fillRect(0, 0, W, H);
+  }
+
+  function drawStar(s, dt) {
+    // Differential rotation: inner stars rotate faster (Keplerian-ish)
+    const omega = BASE_OMEGA * (1 + 55 / Math.max(8, s.r));
+    s.theta += omega * dt;
+    if (s.theta > Math.PI * 2) s.theta -= Math.PI * 2;
+
+    const px = cx + Math.cos(s.theta) * s.r * scale;
+    const py = cy + Math.sin(s.theta) * s.r * scale;
+
+    // Cull off-screen
+    if (px < -20 || px > W + 20 || py < -20 || py > H + 20) return;
+
+    const twinkle = 1 + Math.sin(time * s.twinkleSpeed + s.twinklePhase) * s.twinkleAmp;
+    const brightness = clamp(twinkle, 0.25, 1.6);
+    const size = Math.max(0.2, s.size * scale * (0.85 + 0.3 * brightness));
+    const alpha = clamp(0.35 + 0.5 * brightness, 0.2, 1);
+
+    const color = `hsla(${s.hue}, ${s.sat}%, ${s.light}%, ${alpha})`;
+    const glowColor = `hsla(${s.hue}, ${s.sat}%, ${s.light}%, ${alpha * 0.18})`;
+
+    // Halo glow (only for brighter stars, perf)
+    if (size > 1.0) {
+      const glowR = size * 4.5;
+      ctx.fillStyle = glowColor;
+      ctx.beginPath();
+      ctx.arc(px, py, glowR, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Star core
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(px, py, size, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Cross spike for the brightest stars
+    if (size > 1.7) {
+      const spike = size * 5;
+      ctx.strokeStyle = `hsla(${s.hue}, ${s.sat}%, ${s.light}%, ${alpha * 0.35})`;
+      ctx.lineWidth = 0.6;
+      ctx.beginPath();
+      ctx.moveTo(px - spike, py);
+      ctx.lineTo(px + spike, py);
+      ctx.moveTo(px, py - spike);
+      ctx.lineTo(px, py + spike);
+      ctx.stroke();
+    }
+  }
+
+  function drawCore() {
+    // Pulsing bright core
+    const pulse = 0.92 + 0.08 * Math.sin(time * 0.8);
+    const coreR = Math.max(8, 26 * scale * pulse);
+
+    // Outer warm envelope
+    const env = ctx.createRadialGradient(cx, cy, 0, cx, cy, coreR * 5);
+    env.addColorStop(0, 'rgba(255, 240, 200, 0.55)');
+    env.addColorStop(0.3, 'rgba(255, 210, 150, 0.22)');
+    env.addColorStop(0.7, 'rgba(240, 160, 100, 0.08)');
+    env.addColorStop(1, 'rgba(200, 100, 60, 0)');
+    ctx.fillStyle = env;
+    ctx.beginPath();
+    ctx.arc(cx, cy, coreR * 5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Bright nucleus
+    const nuc = ctx.createRadialGradient(cx, cy, 0, cx, cy, coreR);
+    nuc.addColorStop(0, 'rgba(255, 252, 240, 1)');
+    nuc.addColorStop(0.4, 'rgba(255, 240, 200, 0.85)');
+    nuc.addColorStop(1, 'rgba(255, 200, 140, 0)');
+    ctx.fillStyle = nuc;
+    ctx.beginPath();
+    ctx.arc(cx, cy, coreR, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function frame(now) {
+    const dt = Math.min(50, now - lastFrame);
+    lastFrame = now;
+    time += dt * 0.001;
+
+    // Black background
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, W, H);
+
+    // Pre-rendered nebula + background stars
+    if (nebulaCanvas) ctx.drawImage(nebulaCanvas, 0, 0);
+
+    // Additive blending for stars
+    ctx.globalCompositeOperation = 'lighter';
+
+    // Draw stars sorted by size so bright ones end up on top
+    for (let i = 0; i < stars.length; i++) {
+      drawStar(stars[i], dt);
+    }
+
+    drawCore();
+
+    ctx.globalCompositeOperation = 'source-over';
+
+    requestAnimationFrame(frame);
+  }
+
+  // Init
+  resize();
+  createStars();
+  window.addEventListener('resize', resize);
+  requestAnimationFrame((t) => { lastFrame = t; frame(t); });
+})();
+</script>
+</body>
+</html>

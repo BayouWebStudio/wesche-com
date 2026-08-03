@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Walk · Run · Rest</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 100%; height: 100%; overflow: hidden;
+    background: #0a0a10;
+    font-family: 'Courier New', monospace;
+  }
+  #c { display: block; width: 100vw; height: 100vh; }
+  .hud {
+    position: fixed; pointer-events: none;
+    color: #f5e6d3; text-transform: uppercase;
+    letter-spacing: 0.32em; font-size: 11px;
+    text-shadow: 0 0 12px rgba(0,0,0,0.85);
+  }
+  #phase {
+    top: 28px; left: 32px;
+    font-size: 14px; letter-spacing: 0.42em;
+    color: #ffb86b;
+  }
+  #phase .num {
+    color: #f5e6d3; opacity: 0.55; margin-right: 14px;
+  }
+  #phase::before {
+    content: ''; display: inline-block;
+    width: 28px; height: 1px;
+    background: #ffb86b; margin-right: 14px;
+    vertical-align: middle;
+  }
+  #timer {
+    bottom: 28px; left: 32px;
+    font-size: 11px; opacity: 0.7;
+  }
+  #title {
+    top: 28px; right: 32px;
+    font-size: 11px; opacity: 0.55;
+    text-align: right;
+  }
+  #legend {
+    bottom: 28px; right: 32px;
+    font-size: 10px; opacity: 0.55;
+    text-align: right; line-height: 1.7;
+  }
+  #legend span { color: #ffb86b; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="phase" class="hud"><span class="num">01</span>standing</div>
+<div id="timer" class="hud">t = 0.00s</div>
+<div id="title" class="hud">locomotion study<br>side view · looped</div>
+<div id="legend" class="hud">
+  cycle <span>10.00s</span><br>
+  rest 2 · walk 3 · run 3 · rest 2
+</div>
+
+<script type="module">
+import * as THREE from '../three.module.js';
+
+// ===== renderer / scene / camera =====
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0d0d14);
+scene.fog = new THREE.Fog(0x0d0d14, 18, 42);
+
+const camera = new THREE.PerspectiveCamera(36, window.innerWidth / window.innerHeight, 0.1, 100);
+camera.position.set(7.5, 3.0, 0);
+camera.lookAt(0, 1.4, 0);
+
+// ===== lights =====
+scene.add(new THREE.AmbientLight(0x3a3a52, 0.55));
+
+const keyLight = new THREE.DirectionalLight(0xffd9a8, 1.55);
+keyLight.position.set(5, 9, 6);
+keyLight.castShadow = true;
+keyLight.shadow.mapSize.set(2048, 2048);
+keyLight.shadow.camera.left = -8; keyLight.shadow.camera.right = 8;
+keyLight.shadow.camera.top = 8;   keyLight.shadow.camera.bottom = -4;
+keyLight.shadow.camera.near = 0.5; keyLight.shadow.camera.far = 25;
+keyLight.shadow.bias = -0.0006;
+keyLight.shadow.radius = 4;
+scene.add(keyLight);
+
+const rimLight = new THREE.DirectionalLight(0x4a6fff, 0.7);
+rimLight.position.set(-4, 4, -5);
+scene.add(rimLight);
+
+const fillLight = new THREE.PointLight(0xff7a3d, 0.35, 18, 2);
+fillLight.position.set(-3, 1.2, 2);
+scene.add(fillLight);
+
+// ===== palette =====
+const COL = {
+  skin: 0xd8a878, shirt: 0xe84a3d, pants: 0x2a3340,
+  shoe: 0x141821, ground: 0x1c1c26, belt: 0x0e0e14
+};
+
+// ===== build humanoid =====
+const figure = new THREE.Group();
+scene.add(figure);
+
+function mat(color, opts = {}) {
+  return new THREE.MeshStandardMaterial({ color, roughness: 0.62, metalness: 0.06, ...opts });
+}
+
+// torso
+const torso = new THREE.Mesh(
+  new THREE.BoxGeometry(0.78, 0.95, 0.38),
+  mat(COL.shirt)
+);
+torso.position.y = 1.55;
+torso.castShadow = true; torso.receiveShadow = true;
+figure.add(torso);
+
+// belt accent
+const belt = new THREE.Mesh(
+  new THREE.BoxGeometry(0.82, 0.08, 0.42),
+  mat(COL.belt, { roughness: 0.4 })
+);
+belt.position.y = 1.08;
+figure.add(belt);
+
+// hips
+const hips = new THREE.Mesh(
+  new THREE.BoxGeometry(0.74, 0.22, 0.38),
+  mat(COL.pants)
+);
+hips.position.y = 1.0;
+hips.castShadow = true;
+figure.add(hips);
+
+// neck
+const neck = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.1, 0.12, 0.12, 8),
+  mat(COL.skin)
+);
+neck.position.y = 2.08;
+figure.add(neck);
+
+// head
+const head = new THREE.Mesh(
+  new THREE.BoxGeometry(0.42, 0.46, 0.4),
+  mat(COL.skin)
+);
+head.position.y = 2.38;
+head.castShadow = true;
+figure.add(head);
+
+// hair cap
+const hair = new THREE.Mesh(
+  new THREE.BoxGeometry(0.45, 0.14, 0.43),
+  mat(0x2a1d12, { roughness: 0.85 })
+);
+hair.position.set(0, 2.6, -0.02);
+figure.add(hair);
+
+// arms (upper + lower) — pivots at shoulders
+function makeArm(side) {
+  const s = side; // 1 right, -1 left
+  const upper = new THREE.Group();
+  upper.position.set(s * 0.49, 1.95, 0);
+  figure.add(upper);
+
+  const uMesh = new THREE.Mesh(
+    new THREE.BoxGeometry(0.2, 0.62, 0.2),
+    mat(COL.shirt)
+  );
+  uMesh.position.y = -0.31;
+  uMesh.castShadow = true;
+  upper.add(uMesh);
+
+  const lower = new THREE.Group();
+  lower.position.y = -0.62;
+  upper.add(lower);
+
+  const lMesh = new THREE.Mesh(
+    new THREE.BoxGeometry(0.17, 0.58, 0.17),
+    mat(COL.skin)
+  );
+  lMesh.position.y = -0.29;
+  lMesh.castShadow = true;
+  lower.add(lMesh);
+
+  const hand = new THREE.Mesh(
+    new THREE.BoxGeometry(0.18, 0.18, 0.18),
+    mat(COL.skin)
+  );
+  hand.position.y = -0.62;
+  hand.castShadow = true;
+  lower.add(hand);
+
+  return { upper, lower };
+}
+const armR = makeArm(1);
+const armL = makeArm(-1);
+
+// legs (thigh + shin + foot) — pivots at hips
+function makeLeg(side) {
+  const s = side;
+  const thigh = new THREE.Group();
+  thigh.position.set(s * 0.2, 0.96, 0);
+  figure.add(thigh);
+
+  const tMesh = new THREE.Mesh(
+    new THREE.BoxGeometry(0.26, 0.6, 0.26),
+    mat(COL.pants)
+  );
+  tMesh.position.y = -0.3;
+  tMesh.castShadow = true;
+  thigh.add(tMesh);
+
+  const shin = new THREE.Group();
+  shin.position.y = -0.6;
+  thigh.add(shin);
+
+  const sMesh = new THREE.Mesh(
+    new THREE.BoxGeometry(0.22, 0.56, 0.22),
+    mat(COL.pants)
+  );
+  sMesh.position.y = -0.28;
+  sMesh.castShadow = true;
+  shin.add(sMesh);
+
+  const foot = new THREE.Mesh(
+    new THREE.BoxGeometry(0.26, 0.16, 0.5),
+    mat(COL.shoe, { roughness: 0.45 })
+  );
+  foot.position.set(0, -0.62, 0.12);
+  foot.castShadow = true;
+  shin.add(foot);
+
+  return { thigh, shin };
+}
+const legR = makeLeg(1);
+const legL = makeLeg(-1);
+
+// ===== ground (treadmill) =====
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(60, 60),
+  new THREE.MeshStandardMaterial({ color: COL.ground, roughness: 0.95 })
+);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// treadmill belt
+const beltMesh = new THREE.Mesh(
+  new THREE.PlaneGeometry(4.4, 3.2),
+  new THREE.MeshStandardMaterial({ color: 0x07070d, roughness: 0.55 })
+);
+beltMesh.rotation.x = -Math.PI / 2;
+beltMesh.position.set(0, 0.012, 0);
+beltMesh.receiveShadow = true;
+scene.add(beltMesh);
+
+// belt edge rails
+function rail(z) {
+  const r = new THREE.Mesh(
+    new THREE.BoxGeometry(4.6, 0.05, 0.08),
+    mat(0x3a3a48, { metalness: 0.6, roughness: 0.4 })
+  );
+  r.position.set(0, 0.04, z);
+  scene.add(r);
+}
+rail(1.65); rail(-1.65);
+
+// moving stripes on belt (visualize motion)
+const stripes = [];
+for (let i = 0; i < 14; i++) {
+  const s = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.08, 2.9),
+    new THREE.MeshStandardMaterial({ color: 0xff8a3d, emissive: 0xff5a1a, emissiveIntensity: 0.7 })
+  );
+  s.rotation.x = -Math.PI / 2;
+  s.position.set(-3 + i * 0.6, 0.02, 0);
+  scene.add(s);
+  stripes.push(s);
+}
+
+// ===== animation cycle =====
+const CYCLE = 10; // seconds
+const PHASES = [
+  { name: 'standing', start: 0, end: 2 },
+  { name: 'walking',  start: 2, end: 5 },
+  { name: 'running',  start: 5, end: 8 },
+  { name: 'standing', start: 8, end: 10 }
+];
+
+const phaseLabel = document.getElementById('phase');
+const timerLabel = document.getElementById('timer');
+
+// smoothstep ease for transitions
+function ease(t) { return t * t * (3 - 2 * t); }
+
+function getMotion(t) {
+  const c = t % CYCLE;
+  let phase = 'standing';
+  for (const p of PHASES) if (c >= p.start && c < p.end) { phase = p.name; break; }
+
+  let intensity = 0;
+  if (phase === 'walking') {
+    intensity = 1;
+    const eIn  = Math.min(1, (c - 2) / 0.35);
+    const eOut = Math.min(1, (5 - c) / 0.35);
+    intensity *= ease(Math.min(eIn, eOut));
+  } else if (phase === 'running') {
+    intensity = 1;
+    const eIn  = Math.min(1, (c - 5) / 0.35);
+    const eOut = Math.min(1, (8 - c) / 0.35);
+    intensity *= ease(Math.min(eIn, eOut));
+  }
+
+  // gait frequency (cycles per second): walk ~1.5, run ~3.0
+  let freq = 1.5;
+  if (phase === 'running') freq = 3.0;
+  else if (phase === 'walking') freq = 1.5;
+
+  // continuous phase so transitions stay smooth
+  const phaseT = c * freq * Math.PI * 2;
+
+  // amplitudes
+  let legAmp = 0.55, kneeAmp = 0.75, armAmp = 0.45, elbowAmp = 0.35;
+  let lean = 0, bob = 0, stride = 0;
+
+  if (phase === 'walking') {
+    legAmp = 0.55; kneeAmp = 0.75; armAmp = 0.5; elbowAmp = 0.35;
+    bob = 0.04; stride = 0.06;
+  } else if (phase === 'running') {
+    legAmp = 1.0;  kneeAmp = 1.4;  armAmp = 0.9;  elbowAmp = 0.95;
+    lean = 0.32; bob = 0.12; stride = 0.1;
+  }
+
+  return { phase, intensity, phaseT, legAmp, kneeAmp, armAmp, elbowAmp, lean, bob, stride, c };
+}
+
+function applyMotion(m) {
+  const { intensity, phaseT, legAmp, kneeAmp, armAmp, elbowAmp, lean, bob, stride } = m;
+
+  // global figure lean + bob
+  figure.rotation.x = -lean * intensity;
+  figure.position.y = Math.abs(Math.sin(phaseT)) * bob * intensity;
+
+  // legs — opposite phase
+  const lSwing = Math.sin(phaseT) * legAmp * intensity;
+  const rSwing = Math.sin(phaseT + Math.PI) * legAmp * intensity;
+  legL.thigh.rotation.x = lSwing;
+  legR.thigh.rotation.x = rSwing;
+
+  // knees bend more during swing-through (when thigh moves forward/up)
+  // knee only bends in one direction (fold back), so clamp negative
+  const lKnee = Math.max(0, -Math.sin(phaseT) * kneeAmp * intensity);
+  const rKnee = Math.max(0, -Math.sin(phaseT + Math.PI) * kneeAmp * intensity);
+  legL.shin.rotation.x = lKnee;
+  legR.shin.rotation.x = rKnee;
+
+  // arms — opposite to legs (left arm with right leg)
+  const aSwingL = Math.sin(phaseT + Math.PI) * armAmp * intensity;
+  const aSwingR = Math.sin(phaseT) * armAmp * intensity;
+  armL.upper.rotation.x = aSwingL;
+  armR.upper.rotation.x = aSwingR;
+
+  // elbows — bend more when arm swings forward (running)
+  const lElbow = (0.5 + 0.5 * Math.sin(phaseT + Math.PI)) * elbowAmp * intensity;
+  const rElbow = (0.5 + 0.5 * Math.sin(phaseT)) * elbowAmp * intensity;
+  armL.lower.rotation.x = lElbow;
+  armR.lower.rotation.x = rElbow;
+
+  // subtle torso counter-rotation
+  torso.rotation.y = Math.sin(phaseT) * 0.04 * intensity;
+  head.rotation.y = -Math.sin(phaseT) * 0.03 * intensity;
+
+  // belt stripe motion (visualize speed)
+  let beltSpeed = 0;
+  if (m.phase === 'walking') beltSpeed = 1.6;
+  else if (m.phase === 'running') beltSpeed = 4.2;
+  beltSpeed *= intensity;
+  const dt = 1/60;
+  for (const s of stripes) {
+    s.position.x += beltSpeed * dt;
+    if (s.position.x > 2.3) s.position.x -= 5.6;
+  }
+}
+
+// ===== HUD update =====
+function updateHUD(m) {
+  const idx = PHASES.findIndex(p => p.name === m.phase) + 1;
+  phaseLabel.innerHTML = `<span class="num">0${idx}</span>${m.phase}`;
+  timerLabel.textContent = `t = ${m.c.toFixed(2)}s`;
+}
+
+// ===== main loop =====
+const clock = new THREE.Clock();
+function animate() {
+  requestAnimationFrame(animate);
+  const t = clock.getElapsedTime();
+  const m = getMotion(t);
+  applyMotion(m);
+  updateHUD(m);
+  renderer.render(scene, camera);
+}
+animate();
+
+// ===== resize =====
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+</body>
+</html>

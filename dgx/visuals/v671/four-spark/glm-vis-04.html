@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Red vs Blue — Endless Race</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #050810; }
+  canvas { display: block; }
+  #ui {
+    position: fixed; inset: 0; pointer-events: none;
+    font-family: 'Courier New', monospace; color: #fff;
+  }
+  #title {
+    position: absolute; top: 26px; left: 50%;
+    transform: translateX(-50%);
+    font-size: 13px; letter-spacing: 10px;
+    color: rgba(255,255,255,0.78); text-transform: uppercase;
+    text-shadow: 0 2px 18px rgba(0,0,0,0.7);
+  }
+  #title .sep { color: rgba(255,255,255,0.35); margin: 0 14px; }
+  #title .r { color: #ff5a5a; }
+  #title .b { color: #6aa8ff; }
+  #progress {
+    position: absolute; bottom: 30px; left: 50%;
+    transform: translateX(-50%);
+    width: min(60vw, 760px);
+  }
+  .track-label {
+    display: flex; justify-content: space-between;
+    font-size: 10px; letter-spacing: 3px;
+    color: rgba(255,255,255,0.55); margin-bottom: 6px;
+    text-transform: uppercase;
+  }
+  .track-bar {
+    position: relative; height: 8px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 4px;
+    border: 1px solid rgba(255,255,255,0.14);
+  }
+  .mark {
+    position: absolute; top: -6px;
+    width: 2px; height: 20px;
+    background: rgba(255,255,255,0.32);
+  }
+  .mark.start { left: 0; }
+  .mark.finish { right: 0; }
+  .car-dot {
+    position: absolute; top: -4px;
+    width: 14px; height: 16px;
+    border-radius: 3px; margin-left: -7px;
+    transition: left 0.05s linear;
+    box-shadow: 0 0 12px currentColor;
+  }
+  .car-dot.red { background: #ff3030; color: #ff3030; }
+  .car-dot.blue { background: #3080ff; color: #3080ff; }
+  #status {
+    position: absolute; top: 64px; left: 50%;
+    transform: translateX(-50%);
+    font-size: 11px; letter-spacing: 6px;
+    color: rgba(255,255,255,0.45); text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+<div id="ui">
+  <div id="title"><span class="r">RED</span><span class="sep">VS</span><span class="b">BLUE</span></div>
+  <div id="status">LAP IN PROGRESS</div>
+  <div id="progress">
+    <div class="track-label"><span>START</span><span>FINISH</span></div>
+    <div class="track-bar">
+      <div class="mark start"></div>
+      <div class="mark finish"></div>
+      <div class="car-dot blue" id="dotBlue"></div>
+      <div class="car-dot red" id="dotRed"></div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from '../three.module.js';
+
+// ===================== Renderer & Scene =====================
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0xe8b884, 90, 280);
+
+// ===================== Sky =====================
+const skyGeo = new THREE.SphereGeometry(400, 32, 24);
+const skyMat = new THREE.ShaderMaterial({
+  uniforms: {
+    topColor:    { value: new THREE.Color(0x1a2a55) },
+    horizonColor:{ value: new THREE.Color(0xf2c890) },
+    bottomColor: { value: new THREE.Color(0x6a4530) }
+  },
+  vertexShader: `
+    varying vec3 vWorldPos;
+    void main() {
+      vec4 wp = modelMatrix * vec4(position, 1.0);
+      vWorldPos = wp.xyz;
+      gl_Position = projectionMatrix * viewMatrix * wp;
+    }
+  `,
+  fragmentShader: `
+    uniform vec3 topColor;
+    uniform vec3 horizonColor;
+    uniform vec3 bottomColor;
+    varying vec3 vWorldPos;
+    void main() {
+      float h = normalize(vWorldPos).y;
+      vec3 col;
+      if (h > 0.0) col = mix(horizonColor, topColor, smoothstep(0.0, 0.55, h));
+      else         col = mix(horizonColor, bottomColor, smoothstep(0.0, -0.3, h));
+      gl_FragColor = vec4(col, 1.0);
+    }
+  `,
+  side: THREE.BackSide,
+  depthWrite: false
+});
+scene.add(new THREE.Mesh(skyGeo, skyMat));
+
+// ===================== Lights =====================
+scene.add(new THREE.AmbientLight(0xc8b090, 0.55));
+const sun = new THREE.DirectionalLight(0xfff0d0, 1.15);
+sun.position.set(-40, 60, 30);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.near = 1;
+sun.shadow.camera.far = 250;
+sun.shadow.camera.left = -60;
+sun.shadow.camera.right = 60;
+sun.shadow.camera.top = 60;
+sun.shadow.camera.bottom = -60;
+sun.shadow.bias = -0.0004;
+scene.add(sun);
+
+const hemi = new THREE.HemisphereLight(0xffe0b0, 0x402818, 0.45);
+scene.add(hemi);
+
+// ===================== Ground =====================
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(800, 400),
+  new THREE.MeshStandardMaterial({ color: 0x6b5238, roughness: 0.95 })
+);
+ground.rotation.x = -Math.PI / 2;
+ground.position.z = 80;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// Grass patches for texture
+for (let i = 0; i < 90; i++) {
+  const patch = new THREE.Mesh(
+    new THREE.CircleGeometry(2 + Math.random() * 5, 6),
+    new THREE.MeshStandardMaterial({
+      color: new THREE.Color().setHSL(0.28 + Math.random() * 0.08, 0.5, 0.22 + Math.random() * 0.1),
+      roughness: 1
+    })
+  );
+  patch.rotation.x = -Math.PI / 2;
+  const side = Math.random() < 0.5 ? -1 : 1;
+  patch.position.set(
+    side * (16 + Math.random() * 90),
+    0.02,
+    -40 + Math.random() * 280
+  );
+  patch.receiveShadow = true;
+  scene.add(patch);
+}
+
+// ===================== Track =====================
+const TRACK_WIDTH = 11;
+const TRACK_LENGTH = 220;
+
+const track = new THREE.Mesh(
+  new THREE.PlaneGeometry(TRACK_WIDTH, TRACK_LENGTH),
+  new THREE.MeshStandardMaterial({ color: 0x2a2a30, roughness: 0.85 })
+);
+track.rotation.x = -Math.PI / 2;
+track.position.set(0, 0.02, TRACK_LENGTH / 2 - 5);
+track.receiveShadow = true;
+scene.add(track);
+
+// Lane divider (dashed yellow)
+for (let z = -5; z < TRACK_LENGTH - 5; z += 6) {
+  const dash = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.22, 3),
+    new THREE.MeshStandardMaterial({ color: 0xf0c020, emissive: 0x6a4a00, emissiveIntensity: 0.4 })
+  );
+  dash.rotation.x = -Math.PI / 2;
+  dash.position.set(0, 0.04, z);
+  scene.add(dash);
+}
+
+// Track edge lines (white)
+[-TRACK_WIDTH/2 + 0.4, TRACK_WIDTH/2 - 0.4].forEach(x => {
+  const line = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.3, TRACK_LENGTH),
+    new THREE.MeshStandardMaterial({ color: 0xf0f0f0, emissive: 0x444444, emissiveIntensity: 0.3 })
+  );
+  line.rotation.x = -Math.PI / 2;
+  line.position.set(x, 0.035, TRACK_LENGTH / 2 - 5);
+  scene.add(line);
+});
+
+// Curbs (red/white striped) along edges
+for (let z = -5; z < TRACK_LENGTH - 5; z += 4) {
+  const isRed = Math.floor(z / 4) % 2 === 0;
+  const color = isRed ? 0xcc2020 : 0xe8e8e8;
+  [-TRACK_WIDTH/2 - 0.5, TRACK_WIDTH/2 + 0.5].forEach(x => {
+    const curb = new THREE.Mesh(
+      new THREE.BoxGeometry(0.6, 0.15, 4),
+      new THREE.MeshStandardMaterial({ color, roughness: 0.7 })
+    );
+    curb.position.set(x, 0.075, z + 2);
+    curb.castShadow = true;
+    curb.receiveShadow = true;
+    scene.add(curb);
+  });
+}
+
+// Distance markers every 40 units
+for (let z = 40; z < TRACK_LENGTH - 5; z += 40) {
+  [-1, 1].forEach(side => {
+    const post = new THREE.Mesh(
+      new THREE.BoxGeometry(0.4, 3, 0.4),
+      new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.6 })
+    );
+    post.position.set(side * (TRACK_WIDTH/2 + 1.5), 1.5, z);
+    post.castShadow = true;
+    scene.add(post);
+  });
+}
+
+// ===================== Finish Line (Banner) =====================
+const finishZ = TRACK_LENGTH - 8;
+const banner = new THREE.Group();
+banner.position.set(0, 0, finishZ);
+scene.add(banner);
+
+// Posts
+const postMat = new THREE.MeshStandardMaterial({ color: 0x222226, roughness: 0.6, metalness: 0.3 });
+[-TRACK_WIDTH/2 - 1.2, TRACK_WIDTH/2 + 1.2].forEach(x => {
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.45, 9, 12), postMat);
+  post.position.set(x, 4.5, 0);
+  post.castShadow = true;
+  banner.add(post);
+  // Post caps
+  const cap = new THREE.Mesh(
+    new THREE.SphereGeometry(0.5, 12, 8),
+    new THREE.MeshStandardMaterial({ color: 0xd4a040, metalness: 0.7, roughness: 0.3 })
+  );
+  cap.position.set(x, 9.1, 0);
+  banner.add(cap);
+});
+
+// Top banner sign
+const sign = new THREE.Mesh(
+  new THREE.BoxGeometry(TRACK_WIDTH + 3, 1.6, 0.4),
+  new THREE.MeshStandardMaterial({ color: 0x1a1a1f, roughness: 0.6 })
+);
+sign.position.set(0, 8.2, 0);
+sign.castShadow = true;
+banner.add(sign);
+
+// "FINISH" text — built from small emissive cubes
+function buildTextPixels(text, pixelSize, color) {
+  const g = new THREE.Group();
+  // Simple 3x5 pixel font
+  const FONT = {
+    'F': [[1,1,1],[1,0,0],[1,1,0],[1,0,0],[1,0,0]],
+    'I': [[1,1,1],[0,1,0],[0,1,0],[0,1,0],[1,1,1]],
+    'N': [[1,1,1],[1,0,1],[1,0,1],[1,0,1],[1,0,1]],
+    'S': [[0,1,1],[1,0,0],[0,1,1],[0,0,1],[1,1,0]],
+    'H': [[1,0,1],[1,0,1],[1,1,1],[1,0,1],[1,0,1]]
+  };
+  const mat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1.2 });
+  let cursor = 0;
+  for (const ch of text) {
+    const grid = FONT[ch];
+    if (!grid) { cursor += 4; continue; }
+    for (let r = 0; r < 5; r++) {
+      for (let c = 0; c < 3; c++) {
+        if (grid[r][c]) {
+          const px = new THREE.Mesh(new THREE.BoxGeometry(pixelSize, pixelSize, 0.1), mat);
+          px.position.set((cursor + c) * pixelSize, (4 - r) * pixelSize, 0.25);
+          g.add(px);
+        }
+      }
+    }
+    cursor += 4;
+  }
+  // Center the whole text
+  const totalWidth = cursor * pixelSize;
+  g.position.x = -totalWidth / 2 + pixelSize * 1.5;
+  g.position.y = -1.2;
+  return g;
+}
+const finishText = buildTextPixels('FINISH', 0.28, 0xffe040);
+finishText.position.z = 0.25;
+banner.add(finishText);
+
+// Checkered band hanging below sign
+const checkerGroup = new THREE.Group();
+checkerGroup.position.set(0, 6.6, 0);
+banner.add(checkerGroup);
+const checkerMat1 = new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 0.6 });
+const checkerMat2 = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 });
+const sqSize = 0.5;
+const sqCount = Math.floor((TRACK_WIDTH + 2) / sqSize);
+for (let i = 0; i < sqCount; i++) {
+  const m = (i % 2 === 0) ? checkerMat1 : checkerMat2;
+  const sq = new THREE.Mesh(new THREE.BoxGeometry(sqSize, 0.9, 0.08), m);
+  sq.position.set(-((sqCount * sqSize) / 2) + i * sqSize + sqSize/2, 0, 0.1);
+  checkerGroup.add(sq);
+}
+
+// Checkered line on the ground at finish
+for (let i = 0; i < sqCount; i++) {
+  const m = (i % 2 === 0) ? checkerMat1 : checkerMat2;
+  const sq = new THREE.Mesh(new THREE.PlaneGeometry(sqSize, 1.2), m);
+  sq.rotation.x = -Math.PI / 2;
+  sq.position.set(-((sqCount * sqSize) / 2) + i * sqSize + sqSize/2, 0.05, 0);
+  banner.add(sq);
+}
+
+// ===================== Cars =====================
+function createCar(mainColor, accentColor) {
+  const car = new THREE.Group();
+
+  // Body
+  const body = new THREE.Mesh(
+    new THREE.BoxGeometry(2.0, 0.55, 4.4),
+    new THREE.MeshStandardMaterial({ color: mainColor, roughness: 0.35, metalness: 0.45 })
+  );
+  body.position.y = 0.65;
+  body.castShadow = true;
+  body.receiveShadow = true;
+  car.add(body);
+
+  // Lower body trim
+  const trim = new THREE.Mesh(
+    new THREE.BoxGeometry(2.05, 0.18, 4.42),
+    new THREE.MeshStandardMaterial({ color: 0x14141a, roughness: 0.6, metalness: 0.4 })
+  );
+  trim.position.y = 0.4;
+  car.add(trim);
+
+  // Cabin
+  const cabin = new THREE.Mesh(
+    new THREE.BoxGeometry(1.65, 0.55, 2.0),
+    new THREE.MeshStandardMaterial({ color: mainColor, roughness: 0.3, metalness: 0.5 })
+  );
+  cabin.position.set(0, 1.18, -0.1);
+  cabin.castShadow = true;
+  car.add(cabin);
+
+  // Windshield (front)
+  const wsGeo = new THREE.PlaneGeometry(1.5, 0.7);
+  const glassMat = new THREE.MeshStandardMaterial({
+    color: 0x0a0a14, roughness: 0.05, metalness: 0.9,
+    transparent: true, opacity: 0.75
+  });
+  const windshield = new THREE.Mesh(wsGeo, glassMat);
+  windshield.position.set(0, 1.18, 0.92);
+  windshield.rotation.x = -Math.PI / 2 + 1.0;
+  car.add(windshield);
+
+  // Rear window
+  const rearWin = new THREE.Mesh(wsGeo, glassMat);
+  rearWin.position.set(0, 1.18, -1.12);
+  rearWin.rotation.x = -Math.PI / 2 - 1.0;
+  car.add(rearWin);
+
+  // Side windows
+  const sideWinGeo = new THREE.PlaneGeometry(1.6, 0.35);
+  [1, -1].forEach(s => {
+    const sw = new THREE.Mesh(sideWinGeo, glassMat);
+    sw.position.set(s * 0.83, 1.22, -0.1);
+    sw.rotation.y = -s * Math.PI / 2;
+    car.add(sw);
+  });
+
+  // Roof accent stripe
+  const roof = new THREE.Mesh(
+    new THREE.BoxGeometry(1.5, 0.06, 1.8),
+    new THREE.MeshStandardMaterial({ color: accentColor, roughness: 0.4, metalness: 0.4 })
+  );
+  roof.position.set(0, 1.48, -0.1);
+  car.add(roof);
+
+  // Hood scoop
+  const scoop = new THREE.Mesh(
+    new THREE.BoxGeometry(0.7, 0.18, 0.5),
+    new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.5 })
+  );
+  scoop.position.set(0, 0.99, 1.4);
+  car.add(scoop);
+
+  // Rear spoiler
+  const spoilerLeg = new THREE.BoxGeometry(0.12, 0.35, 0.12);
+  const spoilerMat = new THREE.MeshStandardMaterial({ color: 0x14141a, roughness: 0.6 });
+  [-0.7, 0.7].forEach(x => {
+    const leg = new THREE.Mesh(spoilerLeg, spoilerMat);
+    leg.position.set(x, 1.0, -2.0);
+    leg.castShadow = true;
+    car.add(leg);
+  });
+  const wing = new THREE.Mesh(
+    new THREE.BoxGeometry(1.9, 0.1, 0.55),
+    new THREE.MeshStandardMaterial({ color: accentColor, roughness: 0.4, metalness: 0.4 })
+  );
+  wing.position.set(0, 1.18, -2.05);
+  wing.castShadow = true;
+  car.add(wing);
+
+  // Headlights
+  const hlMat = new THREE.MeshStandardMaterial({
+    color: 0xffffff, emissive: 0xffffcc, emissiveIntensity: 1.4
+  });
+  [-0.6, 0.6].forEach(x => {
+    const hl = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.22, 0.1), hlMat);
+    hl.position.set(x, 0.72, 2.22);
+    car.add(hl);
+  });
+
+  // Tail lights
+  const tlMat = new THREE.MeshStandardMaterial({
+    color: 0x440000, emissive: 0xff2020, emissiveIntensity: 1.0
+  });
+  [-0.7, 0.7].forEach(x => {
+    const tl = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.2, 0.08), tlMat);
+    tl.position.set(x, 0.75, -2.22);
+    car.add(tl);
+  });
+
+  // Front bumper
+  const frontBumper = new THREE.Mesh(
+    new THREE.BoxGeometry(2.0, 0.3, 0.25),
+    new THREE.MeshStandardMaterial({ color: 0x14141a, roughness: 0.6 })
+  );
+  frontBumper.position.set(0, 0.45, 2.25);
+  car.add(frontBumper);
+
+  // Wheels
+  const wheelMat = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.85 });
+  const rimMat = new THREE.MeshStandardMaterial({ color: 0xb0b0b8, roughness: 0.3, metalness: 0.8 });
+  const wheels = [];
+  [[-0.95, 1.45], [0.95, 1.45], [-0.95, -1.45], [0.95, -1.45]].forEach(([x, z]) => {
+    const wheel = new THREE.Group();
+    const tire = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.32, 18), wheelMat);
+    tire.rotation.z = Math.PI / 2;
+    tire.castShadow = true;
+    wheel.add(tire);
+    // Rim
+    const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.34, 12), rimMat);
+    rim.rotation.z = Math.PI / 2;
+    wheel.add(rim);
+    // Spokes
+    for (let i = 0; i < 5; i++) {
+      const spoke = new THREE.Mesh(
+        new THREE.BoxGeometry(0.06, 0.5, 0.34),
+        rimMat
+      );
+      spoke.rotation.x = (i / 5) * Math.PI * 2;
+      wheel.add(spoke);
+    }
+    wheel.position.set(x, 0.5, z);
+    car.add(wheel);
+    wheels.push(wheel);
+  });
+
+  // Ground shadow blob (extra contrast)
+  const blob = new THREE.Mesh(
+    new THREE.CircleGeometry(1.6, 16),
+    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.25 })
+  );
+  blob.rotation.x = -Math.PI / 2;
+  blob.position.y = 0.03;
+  car.add(blob);
+
+  car.userData = { wheels };
+  return car;
+}
+
+const redCar = createCar(0xe01020, 0xffe040);
+redCar.position.set(-2.6, 0, 0);
+scene.add(redCar);
+
+const blueCar = createCar(0x1860ff, 0x80c0ff);
+blueCar.position.set(2.6, 0, 0);
+scene.add(blueCar);
+
+// ===================== Race Logic =====================
+const START_Z = 0;
+const FINISH_Z = finishZ;
+const RACE_DURATION = 11; // seconds per lap
+
+function getPositions(t) {
+  // t in [0, 1]
+  // Blue: steady, slightly accelerating pace
+  const blueT = t * (0.55 + 0.45 * t);
+  // Red: slow start, dramatic late surge
+  const redT = t < 0.42
+    ? t * 0.55
+    : 0.42 * 0.55 + (t - 0.42) * (1.5 + 0.5 * (t - 0.42));
+  return {
+    blue: START_Z + blueT * (FINISH_Z - START_Z),
+    red:  START_Z + redT  * (FINISH_Z - START_Z)
+  };
+}
+
+// ===================== Camera =====================
+const camera = new THREE.PerspectiveCamera(52, window.innerWidth / window.innerHeight, 0.1, 600);
+camera.position.set(0, 9, -16);
+camera.lookAt(0, 1, 6);
+
+// ===================== Dust / Speed Lines =====================
+const particleCount = 220;
+const particleGeo = new THREE.BufferGeometry();
+const pPos = new Float32Array(particleCount * 3);
+const pVel = new Float32Array(particleCount);
+const pLife = new Float32Array(particleCount);
+const pSide = new Float32Array(particleCount);
+
+for (let i = 0; i < particleCount; i++) {
+  pPos[i*3]   = (Math.random() - 0.5) * 40;
+  pPos[i*3+1] = Math.random() * 3 + 0.2;
+  pPos[i*3+2] = Math.random() * 220 - 5;
+  pVel[i] = 0;
+  pLife[i] = 0;
+  pSide[i] = 0;
+}
+particleGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+
+const particleMat = new THREE.PointsMaterial({
+  color: 0xd8c0a0,
+  size: 0.18,
+  transparent: true,
+  opacity: 0.55,
+  depthWrite: false,
+  sizeAttenuation: true
+});
+const particles = new THREE.Points(particleGeo, particleMat);
+scene.add(particles);
+
+// ===================== Helpers =====================
+const dotRed = document.getElementById('dotRed');
+const dotBlue = document.getElementById('dotBlue');
+const statusEl = document.getElementById('status');
+
+function updateDots(redZ, blueZ) {
+  const range = FINISH_Z - START_Z;
+  dotRed.style.left = ((redZ - START_Z) / range * 100) + '%';
+  dotBlue.style.left = ((blueZ - START_Z) / range * 100) + '%';
+}
+
+function updateStatus(text) {
+  statusEl.textContent = text;
+}
+
+// ===================== Animation Loop =====================
+const clock = new THREE.Clock();
+let elapsed = 0;
+let resetTimer = 0;
+let phase = 'racing'; // 'racing' | 'celebrating'
+let prevRed = 0, prevBlue = 0;
+
+function animate() {
+  const dt = Math.min(clock.getDelta(), 0.05);
+  elapsed += dt;
+
+  if (phase === 'racing') {
+    let t = elapsed / RACE_DURATION;
+    if (t >= 1) t = 1;
+    const pos = getPositions(t);
+
+    // Move cars
+    redCar.position.z = pos.red;
+    blueCar.position.z = pos.blue;
+
+    // Wheel rotation based on delta movement
+    const dRed = pos.red - prevRed;
+    const dBlue = pos.blue - prevBlue;
+    const wheelRadius = 0.5;
+    redCar.userData.wheels.forEach(w => w.rotation.x -= dRed / wheelRadius);
+    blueCar.userData.wheels.forEach(w => w.rotation.x -= dBlue / wheelRadius);
+    prevRed = pos.red;
+    prevBlue = pos.blue;
+
+    // Slight body roll/tilt based on acceleration
+    const redAccel = t > 0.4 && t < 0.5 ? 1 : 0;
+    redCar.rotation.z = Math.sin(elapsed * 8) * 0.005 * redAccel;
+    blueCar.rotation.z = -Math.sin(elapsed * 8) * 0.003;
+
+    // Update progress UI
+    updateDots(pos.red, pos.blue);
+
+    // Status text
+    if (t < 0.3) updateStatus('BLUE LEADS');
+    else if (t < 0.55) updateStatus('RED ACCELERATES');
+    else if (pos.red > pos.blue) updateStatus('RED OVERTAKES');
+    else updateStatus('NECK AND NECK');
+
+    // Camera: side tracking shot, slightly biased toward leader
+    const leaderZ = Math.max(pos.red, pos.blue);
+    const targetX = (pos.red - pos.blue) * 0.15;
+    const camTargetZ = leaderZ - 14;
+    const camTargetY = 8.5;
+    camera.position.x += (targetX - camera.position.x) * 0.06;
+    camera.position.y += (camTargetY - camera.position.y) * 0.04;
+    camera.position.z += (camTargetZ - camera.position.z) * 0.08;
+    camera.lookAt((pos.red + pos.blue) / 2, 1.2, (pos.red + pos.blue) / 2 + 4);
+
+    // Trigger celebration
+    if (t >= 1) {
+      phase = 'celebrating';
+      resetTimer = 0;
+      updateStatus('RED WINS');
+    }
+  } else {
+    // Celebrating phase — hold, then reset
+    resetTimer += dt;
+    // Slight camera push-in
+    const leaderZ = FINISH_Z;
+    camera.position.z += ((leaderZ - 12) - camera.position.z) * 0.04;
+    camera.position.y += (7.5 - camera.position.y) * 0.04;
+    camera.lookAt((redCar.position.z + blueCar.position.z) / 2, 1.2, (redCar.position.z + blueCar.position.z) / 2 + 2);
+
+    if (resetTimer > 2.6) {
+      phase = 'racing';
+      elapsed = 0;
+      prevRed = 0;
+      prevBlue = 0;
+      redCar.position.z = 0;
+      blueCar.position.z = 0;
+      redCar.rotation.z = 0;
+      blueCar.rotation.z = 0;
+      updateStatus('LAP IN PROGRESS');
+    }
+  }
+
+  // Animate particles (dust kicked up by cars)
+  const positions = particleGeo.attributes.position.array;
+  for (let i = 0; i < particleCount; i++) {
+    if (pLife[i] > 0) {
+      pLife[i] -= dt;
+      positions[i*3+1] += dt * 0.8;
+      positions[i*3]   += pSide[i] * dt * 1.5;
+      if (pLife[i] <= 0) {
+        positions[i*3+1] = -10; // hide
+      }
+    } else {
+      // Randomly spawn near a car
+      if (Math.random() < 0.04) {
+        const useRed = Math.random() < 0.5;
+        const carZ = useRed ? redCar.position.z : blueCar.position.z;
+        const carX = useRed ? redCar.position.x : blueCar.position.x;
+        positions[i*3]   = carX + (Math.random() - 0.5) * 1.5;
+        positions[i*3+1] = 0.3 + Math.random() * 0.4;
+        positions[i*3+2] = carZ - 2.2 - Math.random() * 0.6;
+        pLife[i] = 0.6 + Math.random() * 0.4;
+        pSide[i] = (Math.random() - 0.5) * 2;
+      }
+    }
+  }
+  particleGeo.attributes.position.needsUpdate = true;
+
+  renderer.render(scene, camera);
+  requestAnimationFrame(animate);
+}
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+animate();
+</script>
+</body>
+</html>
