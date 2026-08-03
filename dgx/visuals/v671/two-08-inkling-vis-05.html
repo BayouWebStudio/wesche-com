@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Low-Poly Humanoid Treadmill</title>
+<style>
+  body { margin: 0; overflow: hidden; background: #0b0c15; font-family: system-ui, sans-serif; }
+  #info {
+    position: absolute; top: 12px; left: 12px; color: #e6e6e6;
+    background: rgba(0,0,0,0.45); padding: 10px 14px; border-radius: 8px;
+    pointer-events: none; user-select: none; font-size: 13px; line-height: 1.4;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  #info strong { color: #ffd166; }
+  canvas { display: block; }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "./three.module.js"
+  }
+}
+</script>
+</head>
+<body>
+<div id="info">
+  <strong>Low-Poly Humanoid</strong><br>
+  Side view • 10 s loop • Stand 2s • Walk 3s • Run 3s • Stand 2s
+</div>
+<script type="module">
+  import * as THREE from 'three';
+
+  // Scene setup
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0b0c15);
+  scene.fog = new THREE.FogExp2(0x0b0c15, 0.035);
+
+  const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 50);
+  camera.position.set(3.5, 2.2, 6.5);
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  document.body.appendChild(renderer.domElement);
+
+  // Lights
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 1.2);
+  scene.add(hemi);
+
+  const dir = new THREE.DirectionalLight(0xffffff, 2.2);
+  dir.position.set(5, 10, 5);
+  dir.castShadow = true;
+  dir.shadow.mapSize.set(1024, 1024);
+  scene.add(dir);
+
+  const fill = new THREE.DirectionalLight(0xaaccff, 0.8);
+  fill.position.set(-5, 2, -5);
+  scene.add(fill);
+
+  // Ground / treadmill
+  const groundGeo = new THREE.BoxGeometry(12, 0.4, 4);
+  const groundMat = new THREE.MeshStandardMaterial({ color: 0x2a2d3e, roughness: 0.8, metalness: 0.2 });
+  const ground = new THREE.Mesh(groundGeo, groundMat);
+  ground.position.y = -0.2;
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  // Tread lines
+  const lineMat = new THREE.MeshStandardMaterial({ color: 0x555577, roughness: 0.9 });
+  for (let i = -5; i <= 5; i += 1.2) {
+    const line = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.02, 3.8), lineMat);
+    line.position.set(i, 0.01, 0);
+    scene.add(line);
+  }
+
+  // Helper: low-poly box body parts
+  function box(w, h, d, color) {
+    const m = new THREE.MeshStandardMaterial({ color, roughness: 0.7, metalness: 0.1 });
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    return mesh;
+  }
+
+  // Humanoid group
+  const humanoid = new THREE.Group();
+  scene.add(humanoid);
+
+  // Torso
+  const torso = box(0.7, 1.0, 0.4, 0x5c7a96);
+  torso.position.y = 1.7;
+  humanoid.add(torso);
+
+  // Head
+  const head = box(0.45, 0.45, 0.45, 0xf2c08d);
+  head.position.y = 2.35;
+  humanoid.add(head);
+
+  // Shoulders
+  const shoulderL = box(0.2, 0.2, 0.25, 0x5c7a96);
+  shoulderL.position.set(-0.45, 2.15, 0);
+  humanoid.add(shoulderL);
+
+  const shoulderR = box(0.2, 0.2, 0.25, 0x5c7a96);
+  shoulderR.position.set(0.45, 2.15, 0);
+  humanoid.add(shoulderR);
+
+  // Upper arms
+  const armL = box(0.22, 0.7, 0.22, 0x6e8ab5);
+  armL.position.set(-0.55, 1.7, 0);
+  humanoid.add(armL);
+
+  const armR = box(0.22, 0.7, 0.22, 0x6e8ab5);
+  armR.position.set(0.55, 1.7, 0);
+  humanoid.add(armR);
+
+  // Forearms
+  const foreL = box(0.2, 0.55, 0.2, 0x8aa6c8);
+  foreL.position.set(-0.55, 1.25, 0);
+  humanoid.add(foreL);
+
+  const foreR = box(0.2, 0.55, 0.2, 0x8aa6c8);
+  foreR.position.set(0.55, 1.25, 0);
+  humanoid.add(foreR);
+
+  // Hips
+  const hipL = box(0.2, 0.2, 0.25, 0x5c7a96);
+  hipL.position.set(-0.25, 1.15, 0);
+  humanoid.add(hipL);
+
+  const hipR = box(0.2, 0.2, 0.25, 0x5c7a96);
+  hipR.position.set(0.25, 1.15, 0);
+  humanoid.add(hipR);
+
+  // Thighs
+  const thighL = box(0.28, 0.7, 0.28, 0x4a6b8a);
+  thighL.position.set(-0.25, 0.7, 0);
+  humanoid.add(thighL);
+
+  const thighR = box(0.28, 0.7, 0.28, 0x4a6b8a);
+  thighR.position.set(0.25, 0.7, 0);
+  humanoid.add(thighR);
+
+  // Shins
+  const shinL = box(0.22, 0.7, 0.22, 0x3d5a7a);
+  shinL.position.set(-0.25, 0.25, 0);
+  humanoid.add(shinL);
+
+  const shinR = box(0.22, 0.7, 0.22, 0x3d5a7a);
+  shinR.position.set(0.25, 0.25, 0);
+  humanoid.add(shinR);
+
+  // Feet
+  const footL = box(0.28, 0.15, 0.45, 0x2a3f5c);
+  footL.position.set(-0.25, 0.05, 0.15);
+  humanoid.add(footL);
+
+  const footR = box(0.28, 0.15, 0.45, 0x2a3f5c);
+  footR.position.set(0.25, 0.05, 0.15);
+  humanoid.add(footR);
+
+  // Animation state references
+  const parts = {
+    armL, foreL, armR, foreR,
+    thighL, shinL, footL,
+    thighR, shinR, footR,
+    torso
+  };
+
+  // Cycle timing (10 seconds total)
+  const CYCLE = 10;
+  const STAND1 = 2;
+  const WALK = 3;
+  const RUN = 3;
+  const STAND2 = 2;
+
+  // Helper: smoothstep ease
+  function ease(t) {
+    return t * t * (3 - 2 * t);
+  }
+
+  // Animation loop
+  const clock = new THREE.Clock();
+
+  function animate() {
+    requestAnimationFrame(animate);
+    const t = clock.getElapsedTime();
+    const phase = (t % CYCLE) / CYCLE; // 0..1
+    const sec = t % CYCLE;
+
+    // Determine phase and local time (0..1) within phase
+    let local = 0;
+    let mode = 'stand'; // stand, walk, run
+
+    if (sec < STAND1) {
+      mode = 'stand';
+      local = sec / STAND1;
+    } else if (sec < STAND1 + WALK) {
+      mode = 'walk';
+      local = (sec - STAND1) / WALK;
+    } else if (sec < STAND1 + WALK + RUN) {
+      mode = 'run';
+      local = (sec - STAND1 - WALK) / RUN;
+    } else {
+      mode = 'stand';
+      local = (sec - STAND1 - WALK - RUN) / STAND2;
+    }
+
+    // Reset all to base pose first (simpler to just apply per mode)
+    // We will set angles directly per mode using local time
+
+    // Base angles (standing)
+    let aArmL = 0, aForeL = 0, aArmR = 0, aForeR = 0;
+    let aThighL = 0, aShinL = 0, aFootL = 0;
+    let aThighR = 0, aShinR = 0, aFootR = 0;
+    let torsoLean = 0;
+
+    if (mode === 'walk') {
+      // Walking pace: moderate swings, opposite limbs
+      // Use a sine wave over local time with 2 cycles in 3 sec => ~0.67 Hz
+      const w = Math.sin(local * Math.PI * 2 * 2); // 2 cycles over walk duration
+      const w2 = Math.sin(local * Math.PI * 2 * 2 + Math.PI); // opposite phase
+
+      // Arms swing forward/back
+      aArmL = w * 0.7; // ~40 deg
+      aForeL = Math.abs(w) * 0.3 + 0.2; // slight bend
+      aArmR = w2 * 0.7;
+      aForeR = Math.abs(w2) * 0.3 + 0.2;
+
+      // Legs: thigh swings, shin bends
+      aThighL = w2 * 0.6; // opposite to arm
+      aShinL = Math.abs(w2) * 0.9 + 0.2; // bend when forward
+      aFootL = 0;
+
+      aThighR = w * 0.6;
+      aShinR = Math.abs(w) * 0.9 + 0.2;
+      aFootR = 0;
+
+      // Small bounce
+      humanoid.position.y = 1.0 + Math.abs(w) * 0.08;
+    } else if (mode === 'run') {
+      // Running: faster, larger swings, lean
+      const r = Math.sin(local * Math.PI * 2 * 3); // 3 cycles over 3 sec => 1 Hz
+      const r2 = Math.sin(local * Math.PI * 2 * 3 + Math.PI);
+
+      // Stronger arm swing
+      aArmL = r * 1.1; // ~63 deg
+      aForeL = Math.abs(r) * 0.8 + 0.3;
+
+      aArmR = r2 * 1.1;
+      aForeR = Math.abs(r2) * 0.8 + 0.3;
+
+      // Legs: bigger thigh, more knee bend, slight foot tilt
+      aThighL = r2 * 1.0;
+      aShinL = Math.abs(r2) * 1.2 + 0.4;
+      aFootL = Math.sin(local * Math.PI * 2 * 3 + Math.PI * 0.5) * 0.2;
+
+      aThighR = r * 1.0;
+      aShinR = Math.abs(r) * 1.2 + 0.4;
+      aFootR = Math.sin(local * Math.PI * 2 * 3 + Math.PI * 1.5) * 0.2;
+
+      // Forward lean
+      torsoLean = 0.25; // ~14 deg
+
+      // More vertical bounce
+      humanoid.position.y = 1.0 + Math.abs(r) * 0.15;
+    } else {
+      // Stand: subtle idle breath / sway
+      const s = Math.sin(t * 3);
+      aArmL = s * 0.05;
+      aForeL = 0;
+      aArmR = -s * 0.05;
+      aForeR = 0;
+
+      aThighL = s * 0.05;
+      aShinL = 0;
+      aThighR = -s * 0.05;
+      aShinR = 0;
+
+      humanoid.position.y = 1.0 + s * 0.02;
+    }
+
+    // Apply rotations (pivot points are at joint positions, but since parts are centered we rotate around local axes at their positions; easiest is to rotate the mesh itself around its local origin, which is at its center. For limbs, we need to rotate around shoulder/hip. Since mesh centers are at joint centers roughly, this works for simple approximation.)
+    // Note: For more accurate joint rotation, we'd use pivot objects, but for low-poly approximation rotating the mesh around its center is acceptable if positioned at joint.
+
+    // Arms: rotate around X (swing forward/back)
+    armL.rotation.z = aArmL; // using z for side-view swing (actually x might be better, but let's use z for simplicity in side view? Wait: side view is along Z, so swinging arms forward/back is rotation around Z axis? Let's think: In side view, X is horizontal, Y is up. Forward is +X or -X? Actually camera is at (3.5,2.2,6.5) looking at origin. So side view sees X (left-right) and Y (up). The figure faces +X or -X? We set arms at +/- X, so figure faces +Z? Wait: If shoulders are at x=-0.45 and x=0.45, and arms extend in x, that means arms go left/right, not forward/back. For a side view, we want the figure facing left/right (along X or Z). Actually the camera is positioned to see the side: if figure faces +Z (toward camera), side view would see left/right of figure (X axis) and height (Y). But arms would be visible extending sideways (along X) which is correct for a side profile? Actually in a side profile, arms should be visible extending forward/back (into the scene, along Z) or slightly out. But our arms are placed along X, which makes them visible as left/right limbs in side view, which is okay for a stylized low-poly figure.
+
+    // To make limbs swing "forward/back" in the scene (along Z), we should rotate around X axis. But since limbs are oriented along X, rotating around X does nothing (they are aligned with axis). So we need to orient limbs differently.
+
+    // Let's reorient: Make limbs extend along Z (depth) so they can swing in X (side-to-side in view) or rotate around Z? Actually for walking, arms swing forward/back relative to body. If body faces +Z, then forward is +Z. So arms should extend along Z. But in side view, arms extending along Z would be seen edge-on (thin). That's okay for low-poly but might look bad.
+
+    // Alternative: Keep limbs extending along X (visible width), and swing them by rotating around Y? No, that rotates left/right.
+
+    // Better: Make figure face +X (so side view sees profile along Z). Then arms extend along Z (depth). But then in side view, arms are edge-on. Hmm.
+
+    // Actually easiest for side-view animation: Make figure face the camera (along -Z), and have limbs extend in X (left/right). Then "walking" can be simulated by rotating limbs around X axis (up-down) and around Y axis (forward/back). But walking requires forward/back swing.
+
+    // Let's just rotate arms around Z axis to simulate forward/back in a stylized way, and rotate legs around X axis (up/down) for stepping. Actually for legs, if they extend down along Y, rotating around X swings them forward/back (good). For arms, if they extend along X (left/right), rotating around Y swings them forward/back (good). Let's do that.
+
+    // Re-evaluate part orientations:
+    // Arms: currently positioned at x +/- 0.55, y 1.7, z 0, with width 0.22 (x), height 0.7 (y), depth 0.22 (z). So arm extends along Y (up/down). Wait: box(w,h,d) where w is width (x), h is height (y), d is depth (z). So armL is 0.22 wide, 0.7 tall, 0.22 deep. That means it extends along Y, not X. So it's a vertical segment at shoulder. To make it a proper arm, we might want it to extend downward from shoulder. Actually shoulder is at y=2.15, arm at y=1.7, height 0.7 => bottom at y=1.35. So it extends downward. Good.
+
+    // To swing arm forward/back (along Z), rotate around X axis? Wait: If arm is vertical (along Y), rotating around X axis tilts it forward/back (along Z). Yes! Rotation around X axis changes Y and Z. So aArmL should be rotation.x.
+
+    // For leg: thigh is vertical (along Y), rotate around X for forward/back swing. Good.
+
+    // For forearm: also vertical? Actually forearm is at y=1.25, height 0.55, so vertical. It should bend relative to upper arm. Bending is rotation around X (or Z depending on orientation). If upper arm tilts forward, forearm should bend at elbow. We can approximate by setting forearm rotation.x differently.
+
+    // So apply rotation.x for arms and legs.
+
+    armL.rotation.x = aArmL;
+    foreL.rotation.x = aForeL;
+    armR.rotation.x = aArmR;
+    foreR.rotation.x = aForeR;
+
+    thighL.rotation.x = aThighL;
+    shinL.rotation.x = aShinL;
+    footL.rotation.x = aFootL;
+
+    thighR.rotation.x = aThighR;
+    shinR.rotation.x = aShinR;
+    footR.rotation.x = aFootR;
+
+    // Torso lean: rotate around Z (side tilt) or X? Lean forward is rotation around Z? Wait: If figure faces +Z, lean forward is rotation around X (pitch). If figure faces +X, lean is around Z? Actually we have figure facing +Z? Let's assume figure faces +Z (toward camera slightly). Then lean forward is rotation around X axis (pitch down). But we also rotate arms/legs around X. If torso rotates around X, it affects everything because parts are children of humanoid. Actually humanoid group contains all parts. If we rotate humanoid.rotation.x, the whole figure leans. That's good.
+
+    humanoid.rotation.x = torsoLean;
+
+    // Small bobbing via position.y already set
+
+    renderer.render(scene, camera);
+  }
+
+  animate();
+
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+</script>
+</body>
+</html>

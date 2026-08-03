@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3D Humanoid Animation</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { overflow: hidden; background: #000; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<script type="importmap">
+{
+  "imports": {
+    "three": "./three.module.js"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+
+// --- Scene Setup ---
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1a1a2e);
+scene.fog = new THREE.Fog(0x1a1a2e, 10, 50);
+
+const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 100);
+camera.position.set(0, 1.5, 5);
+camera.lookAt(0, 1.5, 0);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+// --- Lighting ---
+const ambientLight = new THREE.AmbientLight(0x404060, 1.5);
+scene.add(ambientLight);
+
+const dirLight = new THREE.DirectionalLight(0xffffff, 2);
+dirLight.position.set(5, 8, 3);
+dirLight.castShadow = true;
+dirLight.shadow.mapSize.set(1024, 1024);
+dirLight.shadow.camera.near = 0.5;
+dirLight.shadow.camera.far = 20;
+dirLight.shadow.camera.left = -5;
+dirLight.shadow.camera.right = 5;
+dirLight.shadow.camera.top = 5;
+dirLight.shadow.camera.bottom = -5;
+scene.add(dirLight);
+
+const fillLight = new THREE.DirectionalLight(0x8888ff, 0.8);
+fillLight.position.set(-3, 4, -2);
+scene.add(fillLight);
+
+// --- Ground (Treadmill) ---
+const groundGeo = new THREE.PlaneGeometry(20, 20);
+const groundMat = new THREE.MeshStandardMaterial({
+  color: 0x2d2d44,
+  roughness: 0.8,
+  metalness: 0.2
+});
+const ground = new THREE.Mesh(groundGeo, groundMat);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// Treadmill belt visual
+const beltGeo = new THREE.PlaneGeometry(4, 0.6);
+const beltMat = new THREE.MeshStandardMaterial({
+  color: 0x3a3a5c,
+  roughness: 0.6,
+  metalness: 0.4
+});
+const belt = new THREE.Mesh(beltGeo, beltMat);
+belt.rotation.x = -Math.PI / 2;
+belt.position.y = 0.01;
+belt.receiveShadow = true;
+scene.add(belt);
+
+// Treadmill side rails
+const railGeo = new THREE.BoxGeometry(4.2, 0.08, 0.08);
+const railMat = new THREE.MeshStandardMaterial({ color: 0x555577, metalness: 0.6, roughness: 0.3 });
+const railL = new THREE.Mesh(railGeo, railMat);
+railL.position.set(0, 0.05, 0.3);
+railL.castShadow = true;
+scene.add(railL);
+const railR = new THREE.Mesh(railGeo, railMat);
+railR.position.set(0, 0.05, -0.3);
+railR.castShadow = true;
+scene.add(railR);
+
+// Treadmill side panels
+const panelGeo = new THREE.BoxGeometry(0.08, 0.6, 4);
+const panelMat = new THREE.MeshStandardMaterial({ color: 0x444466, metalness: 0.5, roughness: 0.4 });
+const panelL = new THREE.Mesh(panelGeo, panelMat);
+panelL.position.set(-2.05, 0.3, 0);
+panelL.castShadow = true;
+scene.add(panelL);
+const panelR = new THREE.Mesh(panelGeo, panelMat);
+panelR.position.set(2.05, 0.3, 0);
+panelR.castShadow = true;
+scene.add(panelR);
+
+// --- Build Low-Poly Humanoid ---
+const humanoid = new THREE.Group();
+scene.add(humanoid);
+
+const skinMat = new THREE.MeshStandardMaterial({ color: 0xf5d0a9, roughness: 0.7, metalness: 0.0 });
+const clothMat = new THREE.MeshStandardMaterial({ color: 0xcc3333, roughness: 0.8, metalness: 0.1 });
+const shoeMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.5, metalness: 0.3 });
+const hairMat = new THREE.MeshStandardMaterial({ color: 0x3a2a1a, roughness: 0.9, metalness: 0.0 });
+
+function createBox(w, h, d, material) {
+  const geo = new THREE.BoxGeometry(w, h, d);
+  const mesh = new THREE.Mesh(geo, material);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  return mesh;
+}
+
+// Torso
+const torso = createBox(0.5, 0.6, 0.25, clothMat);
+torso.position.y = 1.15;
+humanoid.add(torso);
+
+// Head
+const head = createBox(0.22, 0.22, 0.22, skinMat);
+head.position.y = 1.62;
+humanoid.add(head);
+
+// Hair
+const hair = createBox(0.23, 0.1, 0.23, hairMat);
+hair.position.y = 1.74;
+humanoid.add(hair);
+
+// Neck
+const neck = createBox(0.1, 0.1, 0.1, skinMat);
+neck.position.y = 1.42;
+humanoid.add(neck);
+
+// Left Arm
+const leftShoulder = createBox(0.12, 0.12, 0.12, skinMat);
+leftShoulder.position.set(-0.33, 1.35, 0);
+humanoid.add(leftShoulder);
+
+const leftUpperArm = createBox(0.1, 0.3, 0.1, skinMat);
+leftUpperArm.position.set(-0.33, 1.05, 0);
+humanoid.add(leftUpperArm);
+
+const leftElbow = createBox(0.08, 0.08, 0.08, skinMat);
+leftElbow.position.set(-0.33, 0.85, 0);
+humanoid.add(leftElbow);
+
+const leftLowerArm = createBox(0.1, 0.3, 0.1, skinMat);
+leftLowerArm.position.set(-0.33, 0.65, 0);
+humanoid.add(leftLowerArm);
+
+const leftHand = createBox(0.08, 0.08, 0.08, skinMat);
+leftHand.position.set(-0.33, 0.47, 0);
+humanoid.add(leftHand);
+
+// Right Arm
+const rightShoulder = createBox(0.12, 0.12, 0.12, skinMat);
+rightShoulder.position.set(0.33, 1.35, 0);
+humanoid.add(rightShoulder);
+
+const rightUpperArm = createBox(0.1, 0.3, 0.1, skinMat);
+rightUpperArm.position.set(0.33, 1.05, 0);
+humanoid.add(rightUpperArm);
+
+const rightElbow = createBox(0.08, 0.08, 0.08, skinMat);
+rightElbow.position.set(0.33, 0.85, 0);
+humanoid.add(rightElbow);
+
+const rightLowerArm = createBox(0.1, 0.3, 0.1, skinMat);
+rightLowerArm.position.set(0.33, 0.65, 0);
+humanoid.add(rightLowerArm);
+
+const rightHand = createBox(0.08, 0.08, 0.08, skinMat);
+rightHand.position.set(0.33, 0.47, 0);
+humanoid.add(rightHand);
+
+// Left Leg
+const leftHip = createBox(0.12, 0.12, 0.12, clothMat);
+leftHip.position.set(-0.15, 0.85, 0);
+humanoid.add(leftHip);
+
+const leftUpperLeg = createBox(0.12, 0.35, 0.12, clothMat);
+leftUpperLeg.position.set(-0.15, 0.58, 0);
+humanoid.add(leftUpperLeg);
+
+const leftKnee = createBox(0.1, 0.1, 0.1, clothMat);
+leftKnee.position.set(-0.15, 0.35, 0);
+humanoid.add(leftKnee);
+
+const leftLowerLeg = createBox(0.1, 0.35, 0.1, clothMat);
+leftLowerLeg.position.set(-0.15, 0.14, 0);
+humanoid.add(leftLowerLeg);
+
+const leftAnkle = createBox(0.08, 0.08, 0.08, shoeMat);
+leftAnkle.position.set(-0.15, -0.04, 0);
+humanoid.add(leftAnkle);
+
+const leftFoot = createBox(0.12, 0.06, 0.2, shoeMat);
+leftFoot.position.set(-0.15, -0.09, 0.05);
+humanoid.add(leftFoot);
+
+// Right Leg
+const rightHip = createBox(0.12, 0.12, 0.12, clothMat);
+rightHip.position.set(0.15, 0.85, 0);
+humanoid.add(rightHip);
+
+const rightUpperLeg = createBox(0.12, 0.35, 0.12, clothMat);
+rightUpperLeg.position.set(0.15, 0.58, 0);
+humanoid.add(rightUpperLeg);
+
+const rightKnee = createBox(0.1, 0.1, 0.1, clothMat);
+rightKnee.position.set(0.15, 0.35, 0);
+humanoid.add(rightKnee);
+
+const rightLowerLeg = createBox(0.1, 0.35, 0.1, clothMat);
+rightLowerLeg.position.set(0.15, 0.14, 0);
+humanoid.add(rightLowerLeg);
+
+const rightAnkle = createBox(0.08, 0.08, 0.08, shoeMat);
+rightAnkle.position.set(0.15, -0.04, 0);
+humanoid.add(rightAnkle);
+
+const rightFoot = createBox(0.12, 0.06, 0.2, shoeMat);
+rightFoot.position.set(0.15, -0.09, 0.05);
+humanoid.add(rightFoot);
+
+// --- Animation State Machine ---
+// States: 0=stand, 1=walk, 2=run
+// Timeline: 0-2s stand, 2-5s walk, 5-8s run, 8-10s stand
+const CYCLE_DURATION = 10;
+const WALK_START = 2;
+const WALK_END = 5;
+const RUN_START = 5;
+const RUN_END = 8;
+
+// Limb rotation targets
+// We animate: leftUpperArm, leftLowerArm, leftUpperLeg, leftLowerLeg (and right counterparts)
+// Using pivot-based rotation for more natural movement
+
+// Create pivot groups for limb animation
+function createLimbPivot(childMesh, offset) {
+  const pivot = new THREE.Group();
+  pivot.position.copy(childMesh.position);
+  pivot.add(childMesh);
+  childMesh.position.copy(offset);
+  // Replace child with pivot in parent
+  const parent = childMesh.parent;
+  const index = parent.children.indexOf(childMesh);
+  parent.children[index] = pivot;
+  parent.add(pivot);
+  return pivot;
+}
+
+// We need to restructure: the limbs are direct children of humanoid.
+// Let's create pivot groups properly.
+
+// Remove all limb meshes from humanoid and re-add with pivots
+const limbMeshes = [];
+humanoid.traverse((child) => {
+  if (child.isMesh && child !== torso && child !== head && child !== hair && child !== neck) {
+    limbMeshes.push(child);
+  }
+});
+
+// Remove all limb meshes
+limbMeshes.forEach(mesh => {
+  humanoid.remove(mesh);
+});
+
+// Create pivot groups for each limb
+const leftUpperArmPivot = new THREE.Group();
+leftUpperArmPivot.position.set(-0.33, 1.05, 0);
+humanoid.add(leftUpperArmPivot);
+leftUpperArmPivot.add(leftUpperArm);
+leftUpperArm.position.set(0, 0, 0);
+
+const leftLowerArmPivot = new THREE.Group();
+leftLowerArmPivot.position.set(-0.33, 0.65, 0);
+humanoid.add(leftLowerArmPivot);
+leftLowerArmPivot.add(leftLowerArm);
+leftLowerArm.position.set(0, 0, 0);
+
+const rightUpperArmPivot = new THREE.Group();
+rightUpperArmPivot.position.set(0.33, 1.05, 0);
+humanoid.add(rightUpperArmPivot);
+rightUpperArmPivot.add(rightUpperArm);
+rightUpperArm.position.set(0, 0, 0);
+
+const rightLowerArmPivot = new THREE.Group();
+rightLowerArmPivot.position.set(0.33, 0.65, 0);
+humanoid.add(rightLowerArmPivot);
+rightLowerArmPivot.add(rightLowerArm);
+rightLowerArm.position.set(0, 0, 0);
+
+const leftUpperLegPivot = new THREE.Group();
+leftUpperLegPivot.position.set(-0.15, 0.58, 0);
+humanoid.add(leftUpperLegPivot);
+leftUpperLegPivot.add(leftUpperLeg);
+leftUpperLeg.position.set(0, 0, 0);
+
+const leftLowerLegPivot = new THREE.Group();
+leftLowerLegPivot.position.set(-0.15, 0.14, 0);
+humanoid.add(leftLowerLegPivot);
+leftLowerLegPivot.add(leftLowerLeg);
+leftLowerLeg.position.set(0, 0, 0);
+
+const rightUpperLegPivot = new THREE.Group();
+rightUpperLegPivot.position.set(0.15, 0.58, 0);
+humanoid.add(rightUpperLegPivot);
+rightUpperLegPivot.add(rightUpperLeg);
+rightUpperLeg.position.set(0, 0, 0);
+
+const rightLowerLegPivot = new THREE.Group();
+rightLowerLegPivot.position.set(0.15, 0.14, 0);
+humanoid.add(rightLowerLegPivot);
+rightLowerLegPivot.add(rightLowerLeg);
+rightLowerLeg.position.set(0, 0, 0);
+
+// Keep static parts in place
+humanoid.add(torso);
+humanoid.add(head);
+humanoid.add(hair);
+humanoid.add(neck);
+humanoid.add(leftShoulder);
+humanoid.add(leftElbow);
+humanoid.add(leftHand);
+humanoid.add(rightShoulder);
+humanoid.add(rightElbow);
+humanoid.add(rightHand);
+humanoid.add(leftHip);
+humanoid.add(leftKnee);
+humanoid.add(leftAnkle);
+humanoid.add(leftFoot);
+humanoid.add(rightHip);
+humanoid.add(rightKnee);
+humanoid.add(rightAnkle);
+humanoid.add(rightFoot);
+
+// --- Animation Variables ---
+let startTime = performance.now();
+
+// Walking parameters
+const walkArmSwing = Math.PI * 0.5;
+const walkLegSwing = Math.PI * 0.5;
+const walkSpeed = (Math.PI * 2) / 3; // Full cycle in 3 seconds
+
+// Running parameters
+const runArmSwing = Math.PI * 0.8;
+const runLegSwing = Math.PI * 0.9;
+const runSpeed = (Math.PI * 2) / 3; // Faster cycle in 3 seconds
+
+// Lean forward during run
+const runLean = 0.15;
+
+function easeInOut(t) {
+  return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+}
+
+function getPhase(time) {
+  const cycleTime = time % CYCLE_DURATION;
+  if (cycleTime < WALK_START) return 0; // stand
+  if (cycleTime < WALK_END) return 1; // walk
+  if (cycleTime < RUN_END) return 2; // run
+  return 3; // stand
+}
+
+function getBlendFactor(time, stateStart, stateEnd) {
+  const cycleTime = time % CYCLE_DURATION;
+  const duration = stateEnd - stateStart;
+  const localTime = cycleTime - stateStart;
+  const blendZone = 0.15;
+  if (localTime < blendZone) return easeInOut(localTime / blendZone);
+  if (localTime > duration - blendZone) return easeInOut((duration - localTime) / blendZone);
+  return 1;
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+
+  const now = performance.now();
+  const elapsed = (now - startTime) / 1000;
+  const phase = getPhase(elapsed);
+  const cycleTime = elapsed % CYCLE_DURATION;
+
+  // Reset all rotations
+  leftUpperArmPivot.rotation.z = 0;
+  leftLowerArmPivot.rotation.z = 0;
+  rightUpperArmPivot.rotation.z = 0;
+  rightLowerArmPivot.rotation.z = 0;
+  leftUpperLegPivot.rotation.z = 0;
+  leftLowerLegPivot.rotation.z = 0;
+  rightUpperLegPivot.rotation.z = 0;
+  rightLowerLegPivot.rotation.z = 0;
+  humanoid.rotation.z = 0;
+  torso.rotation.z = 0;
+
+  if (phase === 0 || phase === 3) {
+    // Standing still - slight breathing
+    const breathe = Math.sin(elapsed * 2) * 0.005;
+    torso.scale.y = 1 + breathe;
+    torso.scale.x = 1 - breathe * 0.5;
+  }
+
+  if (phase === 1) {
+    // Walking in place
+    const walkCycle = cycleTime * walkSpeed;
+    const armSwing = Math.sin(walkCycle) * walkArmSwing;
+    const legSwing = Math.sin(walkCycle) * walkLegSwing;
+
+    leftUpperArmPivot.rotation.z = armSwing;
+    rightUpperArmPivot.rotation.z = -armSwing;
+    leftLowerArmPivot.rotation.z = -armSwing * 0.3;
+    rightLowerArmPivot.rotation.z = armSwing * 0.3;
+
+    leftUpperLegPivot.rotation.z = legSwing;
+    rightUpperLegPivot.rotation.z = -legSwing;
+    leftLowerLegPivot.rotation.z = -legSwing * 0.5;
+    rightLowerLegPivot.rotation.z = legSwing * 0.5;
+
+    // Slight bounce
+    const bounce = Math.abs(Math.sin(walkCycle)) * 0.02;
+    humanoid.position.y = bounce;
+  }
+
+  if (phase === 2) {
+    // Running in place
+    const runCycle = cycleTime * runSpeed;
+    const armSwing = Math.sin(runCycle) * runArmSwing;
+    const legSwing = Math.sin(runCycle) * runLegSwing;
+
+    leftUpperArmPivot.rotation.z = armSwing;
+    rightUpperArmPivot.rotation.z = -armSwing;
+    leftLowerArmPivot.rotation.z = -armSwing * 0.5;
+    rightLowerArmPivot.rotation.z = armSwing * 0.5;
+
+    leftUpperLegPivot.rotation.z = legSwing;
+    rightUpperLegPivot.rotation.z = -legSwing;
+    leftLowerLegPivot.rotation.z = -legSwing * 0.7;
+    rightLowerLegPivot.rotation.z = legSwing * 0.7;
+
+    // Forward lean
+    humanoid.rotation.z = -runLean;
+    torso.rotation.z = runLean * 0.6;
+
+    // More bounce
+    const bounce = Math.abs(Math.sin(runCycle)) * 0.06;
+    humanoid.position.y = bounce;
+
+    // Slight forward-back movement
+    humanoid.position.x = Math.sin(runCycle * 0.5) * 0.05;
+  }
+
+  // Smooth transitions between states
+  const prevPhase = getPhase(elapsed - 0.016);
+  if (prevPhase !== phase) {
+    // Transition handled by blending in next frame
+  }
+
+  // Belt animation - moves backwards to simulate treadmill
+  const beltSpeed = (phase === 2) ? 0.5 : (phase === 1 ? 0.2 : 0);
+  belt.position.z = (elapsed * beltSpeed) % 4 - 2;
+
+  renderer.render(scene, camera);
+}
+
+// Handle resize
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+animate();
+</script>
+</body>
+</html>

@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Low-Poly Humanoid Treadmill Animation</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #1a1a1a; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <script type="module">
+        import * as THREE from './three.module.js';
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x1a1a1a);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(0, 1.5, 4);
+        camera.lookAt(0, 1, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(5, 10, 5);
+        scene.add(dirLight);
+
+        // Ground (treadmill-style)
+        const groundGeometry = new THREE.PlaneGeometry(10, 10);
+        const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x404040, roughness: 0.8, metalness: 0.2 });
+        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        ground.rotation.x = -Math.PI / 2;
+        ground.position.y = 0;
+        scene.add(ground);
+
+        // Humanoid figure (low-poly)
+        const humanoid = new THREE.Group();
+        scene.add(humanoid);
+
+        // Body parts
+        const torso = new THREE.Mesh(
+            new THREE.BoxGeometry(0.4, 0.6, 0.2),
+            new THREE.MeshStandardMaterial({ color: 0x0066cc })
+        );
+        torso.position.y = 0.8;
+        humanoid.add(torso);
+
+        const head = new THREE.Mesh(
+            new THREE.BoxGeometry(0.25, 0.25, 0.25),
+            new THREE.MeshStandardMaterial({ color: 0xffcc99 })
+        );
+        head.position.y = 1.3;
+        humanoid.add(head);
+
+        const upperArmL = new THREE.Mesh(
+            new THREE.BoxGeometry(0.08, 0.3, 0.08),
+            new THREE.MeshStandardMaterial({ color: 0x0066cc })
+        );
+        upperArmL.position.set(-0.2, 0.9, 0);
+        humanoid.add(upperArmL);
+
+        const forearmL = new THREE.Mesh(
+            new THREE.BoxGeometry(0.07, 0.25, 0.07),
+            new THREE.MeshStandardMaterial({ color: 0x0066cc })
+        );
+        forearmL.position.set(-0.2, 0.6, 0);
+        upperArmL.add(forearmL);
+
+        const upperArmR = new THREE.Mesh(
+            new THREE.BoxGeometry(0.08, 0.3, 0.08),
+            new THREE.MeshStandardMaterial({ color: 0x0066cc })
+        );
+        upperArmR.position.set(0.2, 0.9, 0);
+        humanoid.add(upperArmR);
+
+        const forearmR = new THREE.Mesh(
+            new THREE.BoxGeometry(0.07, 0.25, 0.07),
+            new THREE.MeshStandardMaterial({ color: 0x0066cc })
+        );
+        forearmR.position.set(0.2, 0.6, 0);
+        upperArmR.add(forearmR);
+
+        const thighL = new THREE.Mesh(
+            new THREE.BoxGeometry(0.08, 0.4, 0.08),
+            new THREE.MeshStandardMaterial({ color: 0x0066cc })
+        );
+        thighL.position.set(-0.1, 0.3, 0);
+        humanoid.add(thighL);
+
+        const shinL = new THREE.Mesh(
+            new THREE.BoxGeometry(0.07, 0.35, 0.07),
+            new THREE.MeshStandardMaterial({ color: 0x0066cc })
+        );
+        shinL.position.set(-0.1, 0.05, 0);
+        thighL.add(shinL);
+
+        const thighR = new THREE.Mesh(
+            new THREE.BoxGeometry(0.08, 0.4, 0.08),
+            new THREE.MeshStandardMaterial({ color: 0x0066cc })
+        );
+        thighR.position.set(0.1, 0.3, 0);
+        humanoid.add(thighR);
+
+        const shinR = new THREE.Mesh(
+            new THREE.BoxGeometry(0.07, 0.35, 0.07),
+            new THREE.MeshStandardMaterial({ color: 0x0066cc })
+        );
+        shinR.position.set(0.1, 0.05, 0);
+        thighR.add(shinR);
+
+        // Animation parameters
+        const clock = new THREE.Clock();
+        let elapsedTime = 0;
+
+        // Define pose functions for walking and running
+        function setWalkingPose(t) {
+            const phase = (t % 1.0) * 2 * Math.PI; // 1 second per step cycle
+            const swing = Math.sin(phase);
+
+            // Arms: opposite phase to legs
+            upperArmL.rotation.z = -swing * 0.5;
+            forearmL.rotation.z = swing * 0.3;
+            upperArmR.rotation.z = swing * 0.5;
+            forearmR.rotation.z = -swing * 0.3;
+
+            // Legs
+            thighL.rotation.x = swing * 0.4;
+            shinL.rotation.x = -swing * 0.6;
+            thighR.rotation.x = -swing * 0.4;
+            shinR.rotation.x = swing * 0.6;
+
+            // Torso slight sway
+            torso.rotation.z = Math.sin(phase * 0.5) * 0.05;
+        }
+
+        function setRunningPose(t) {
+            const phase = (t % 0.6) * 2 * Math.PI / 0.6; // Faster cycle: 0.6s per step
+            const swing = Math.sin(phase);
+
+            // Arms: larger swing, more pronounced
+            upperArmL.rotation.z = -swing * 0.8;
+            forearmL.rotation.z = swing * 0.5;
+            upperArmR.rotation.z = swing * 0.8;
+            forearmR.rotation.z = -swing * 0.5;
+
+            // Legs: larger swing, slight forward lean
+            thighL.rotation.x = swing * 0.7;
+            shinL.rotation.x = -swing * 1.0;
+            thighR.rotation.x = -swing * 0.7;
+            shinR.rotation.x = swing * 1.0;
+
+            // Torso: forward lean during run
+            torso.rotation.x = -0.2 + Math.abs(swing) * 0.1; // Lean forward, oscillate slightly
+            torso.rotation.z = Math.sin(phase * 0.5) * 0.1; // More sway
+        }
+
+        function setIdlePose() {
+            // Reset to neutral
+            upperArmL.rotation.set(0, 0, 0);
+            forearmL.rotation.set(0, 0, 0);
+            upperArmR.rotation.set(0, 0, 0);
+            forearmR.rotation.set(0, 0, 0);
+            thighL.rotation.set(0, 0, 0);
+            shinL.rotation.set(0, 0, 0);
+            thighR.rotation.set(0, 0, 0);
+            shinR.rotation.set(0, 0, 0);
+            torso.rotation.set(0, 0, 0);
+        }
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            elapsedTime = clock.getElapsedTime();
+
+            const cycleTime = elapsedTime % 10; // 10-second loop
+
+            if (cycleTime < 2) {
+                // Stand still (0-2s)
+                setIdlePose();
+            } else if (cycleTime < 5) {
+                // Walk in place (2-5s)
+                setWalkingPose(cycleTime - 2);
+            } else if (cycleTime < 8) {
+                // Run in place (5-8s)
+                setRunningPose(cycleTime - 5);
+            } else {
+                // Stand still again (8-10s)
+                setIdlePose();
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // Handle resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>

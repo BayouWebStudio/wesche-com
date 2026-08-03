@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Low-Poly Walk / Run Cycle</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Arial', sans-serif; }
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            background: rgba(0,0,0,0.6);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            pointer-events: none;
+            z-index: 100;
+            letter-spacing: 1px;
+        }
+        #phase-label {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #ffaa00;
+            background: rgba(0,0,0,0.7);
+            padding: 8px 24px;
+            border-radius: 40px;
+            font-size: 18px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            border: 1px solid #ffaa00;
+            box-shadow: 0 0 20px rgba(255,170,0,0.3);
+            pointer-events: none;
+            z-index: 100;
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">🏃‍♂️ LOOP: STAND → WALK → RUN → STAND</div>
+    <div id="phase-label">⏳ STAND</div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "./three.module.js"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from './three.module.js';
+
+        // --- Setup Scene, Camera, Renderer ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x1a1a2e);
+
+        // Camera: side-on view
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(5, 2.5, 8);
+        camera.lookAt(0, 1.2, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+
+        // --- Lights ---
+        const ambientLight = new THREE.AmbientLight(0x404060);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xfff5d1, 1.2);
+        dirLight.position.set(3, 5, 4);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 1024;
+        dirLight.shadow.mapSize.height = 1024;
+        scene.add(dirLight);
+
+        const fillLight = new THREE.DirectionalLight(0x4466ff, 0.4);
+        fillLight.position.set(-2, 1, -3);
+        scene.add(fillLight);
+
+        // --- Ground (Treadmill style) ---
+        const groundMat = new THREE.MeshStandardMaterial({ color: 0x2a3a4a, roughness: 0.8, metalness: 0.1 });
+        const ground = new THREE.Mesh(new THREE.BoxGeometry(8, 0.2, 3), groundMat);
+        ground.position.set(0, -0.1, 0);
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        // Treadmill stripes
+        const stripeMat = new THREE.MeshStandardMaterial({ color: 0x4a6a7a, roughness: 0.6 });
+        for (let i = -3; i <= 3; i++) {
+            const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.21, 2.8), stripeMat);
+            stripe.position.set(i * 1.2, 0.01, 0);
+            stripe.receiveShadow = true;
+            scene.add(stripe);
+        }
+
+        // Side rails (visual)
+        const railMat = new THREE.MeshStandardMaterial({ color: 0x8a9a5a, roughness: 0.7 });
+        const railLeft = new THREE.Mesh(new THREE.BoxGeometry(8, 0.3, 0.2), railMat);
+        railLeft.position.set(0, 0.2, -1.5);
+        scene.add(railLeft);
+        const railRight = railLeft.clone();
+        railRight.position.z = 1.5;
+        scene.add(railRight);
+
+        // --- Build Low-Poly Humanoid ---
+        const human = new THREE.Group();
+        human.position.set(0, 0.5, 0);
+
+        // Materials
+        const bodyMat = new THREE.MeshStandardMaterial({ color: 0x4a90d9, roughness: 0.5, flatShading: true });
+        const limbMat = new THREE.MeshStandardMaterial({ color: 0x3a7bd5, roughness: 0.5, flatShading: true });
+        const headMat = new THREE.MeshStandardMaterial({ color: 0xf9d3a0, roughness: 0.4, flatShading: true });
+        const eyeMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+        const shoeMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.8 });
+
+        // Torso (low-poly box)
+        const torso = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.0, 0.5), bodyMat);
+        torso.position.y = 1.2;
+        torso.castShadow = true;
+        human.add(torso);
+
+        // Head (cube + eyes)
+        const head = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.6), headMat);
+        head.position.y = 2.0;
+        head.castShadow = true;
+        human.add(head);
+
+        // Eyes (two small cubes)
+        const eyeGeo = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+        const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
+        eyeL.position.set(-0.15, 2.1, 0.3);
+        human.add(eyeL);
+        const eyeR = new THREE.Mesh(eyeGeo, eyeMat);
+        eyeR.position.set(0.15, 2.1, 0.3);
+        human.add(eyeR);
+
+        // Arms (groups for pivots)
+        // Left arm (from viewer's perspective, character faces to the right, so left arm is behind)
+        const leftArmGroup = new THREE.Group();
+        leftArmGroup.position.set(-0.5, 1.6, 0);
+        human.add(leftArmGroup);
+        const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.9, 0.25), limbMat);
+        leftArm.position.y = -0.45;
+        leftArm.castShadow = true;
+        leftArmGroup.add(leftArm);
+        // Hand
+        const leftHand = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.2), shoeMat);
+        leftHand.position.y = -0.95;
+        leftArmGroup.add(leftHand);
+
+        // Right arm (front)
+        const rightArmGroup = new THREE.Group();
+        rightArmGroup.position.set(0.5, 1.6, 0);
+        human.add(rightArmGroup);
+        const rightArm = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.9, 0.25), limbMat);
+        rightArm.position.y = -0.45;
+        rightArm.castShadow = true;
+        rightArmGroup.add(rightArm);
+        const rightHand = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.2), shoeMat);
+        rightHand.position.y = -0.95;
+        rightArmGroup.add(rightHand);
+
+        // Legs (groups for pivots)
+        // Left leg (behind)
+        const leftLegGroup = new THREE.Group();
+        leftLegGroup.position.set(-0.25, 0.7, 0);
+        human.add(leftLegGroup);
+        const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.8, 0.3), limbMat);
+        leftLeg.position.y = -0.4;
+        leftLeg.castShadow = true;
+        leftLegGroup.add(leftLeg);
+        // Shoe
+        const leftShoe = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.5), shoeMat);
+        leftShoe.position.set(0, -0.85, 0.1);
+        leftLegGroup.add(leftShoe);
+
+        // Right leg (front)
+        const rightLegGroup = new THREE.Group();
+        rightLegGroup.position.set(0.25, 0.7, 0);
+        human.add(rightLegGroup);
+        const rightLeg = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.8, 0.3), limbMat);
+        rightLeg.position.y = -0.4;
+        rightLeg.castShadow = true;
+        rightLegGroup.add(rightLeg);
+        const rightShoe = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.5), shoeMat);
+        rightShoe.position.set(0, -0.85, 0.1);
+        rightLegGroup.add(rightShoe);
+
+        // Slight forward lean for run (apply to whole human, but we'll do in animation)
+        scene.add(human);
+
+        // --- Animation State ---
+        const cycleDuration = 10.0; // seconds
+        let clock = new THREE.Clock();
+
+        // Helper to update UI label
+        const labelElem = document.getElementById('phase-label');
+
+        // --- Animation Loop ---
+        function animate() {
+            const elapsed = clock.getElapsedTime();
+            const t = elapsed % cycleDuration; // 0..10
+
+            // Determine phase
+            let phase = 'stand';
+            let phaseTime = 0;
+            if (t < 2) {
+                phase = 'stand';
+                phaseTime = t;
+            } else if (t < 5) {
+                phase = 'walk';
+                phaseTime = t - 2;
+            } else if (t < 8) {
+                phase = 'run';
+                phaseTime = t - 5;
+            } else {
+                phase = 'stand2';
+                phaseTime = t - 8;
+            }
+
+            // Update label
+            if (phase === 'stand' || phase === 'stand2') {
+                labelElem.textContent = '🧍 STAND';
+                labelElem.style.color = '#aaccff';
+                labelElem.style.borderColor = '#aaccff';
+            } else if (phase === 'walk') {
+                labelElem.textContent = '🚶 WALK';
+                labelElem.style.color = '#66ff99';
+                labelElem.style.borderColor = '#66ff99';
+            } else if (phase === 'run') {
+                labelElem.textContent = '🏃 RUN';
+                labelElem.style.color = '#ffaa00';
+                labelElem.style.borderColor = '#ffaa00';
+            }
+
+            // --- Compute limb angles based on phase ---
+            let leftArmAngle = 0, rightArmAngle = 0;
+            let leftLegAngle = 0, rightLegAngle = 0;
+            let forwardLean = 0;
+
+            const walkFreq = 2.2; // steps per second (3 steps in 3 sec)
+            const runFreq = 3.2;  // faster
+
+            if (phase === 'walk') {
+                const p = phaseTime * walkFreq * Math.PI * 2; // radians
+                // Arms swing opposite to legs
+                leftArmAngle = Math.sin(p) * 0.6;
+                rightArmAngle = Math.sin(p + Math.PI) * 0.6;
+                leftLegAngle = Math.sin(p + Math.PI) * 0.7;
+                rightLegAngle = Math.sin(p) * 0.7;
+                forwardLean = 0.05; // slight
+            } else if (phase === 'run') {
+                const p = phaseTime * runFreq * Math.PI * 2;
+                // Larger amplitude, faster
+                leftArmAngle = Math.sin(p) * 1.0;
+                rightArmAngle = Math.sin(p + Math.PI) * 1.0;
+                leftLegAngle = Math.sin(p + Math.PI) * 1.2;
+                rightLegAngle = Math.sin(p) * 1.2;
+                forwardLean = 0.15; // noticeable lean
+            } else {
+                // stand: all angles zero
+                leftArmAngle = 0;
+                rightArmAngle = 0;
+                leftLegAngle = 0;
+                rightLegAngle = 0;
+                forwardLean = 0;
+            }
+
+            // Apply rotations (in radians)
+            // Arms: positive rotates forward (counter-clockwise around X? Let's check: side view, character faces +Z?
+            // Actually character faces to the right (positive Z). For side-on camera, we want limbs to swing in Z-Y plane.
+            // Rotation around X axis will swing in Z-Y plane. Positive rotation around X moves limb forward (towards +Z) for right side?
+            // We'll adjust: for right arm, positive rotation around X lifts forward; for left arm, same direction.
+            // But we want opposite phase. We'll set rotation.x directly.
+            leftArmGroup.rotation.x = leftArmAngle;
+            rightArmGroup.rotation.x = rightArmAngle;
+            leftLegGroup.rotation.x = leftLegAngle;
+            rightLegGroup.rotation.x = rightLegAngle;
+
+            // Apply forward lean to whole human (rotate around Z? Actually side-on, lean forward means rotate around Z?
+            // Camera looks from +X, +Z, so forward is +Z. Lean forward = rotate around X? No, rotate around Z would tilt sideways.
+            // To lean forward (towards +Z) we rotate around X axis? Actually if character faces +Z, leaning forward is rotation around X axis.
+            // But we already rotate limbs around X, so we can rotate the whole human group around X as well.
+            // However, careful: the pivot is at feet. We'll set human.rotation.x = forwardLean.
+            human.rotation.x = forwardLean;
+
+            // Slight bounce for run/walk (vertical bob)
+            let bob = 0;
+            if (phase === 'walk') {
+                bob = Math.sin(phaseTime * walkFreq * Math.PI * 2) * 0.05;
+            } else if (phase === 'run') {
+                bob = Math.abs(Math.sin(phaseTime * runFreq * Math.PI * 2)) * 0.15;
+            }
+            human.position.y = 0.5 + bob;
+
+            // Render
+            renderer.render(scene, camera);
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+
+        // --- Resize Handler ---
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Add some floating particles for atmosphere (optional)
+        const particleGeo = new THREE.BufferGeometry();
+        const particleCount = 200;
+        const posArray = new Float32Array(particleCount * 3);
+        for (let i = 0; i < particleCount * 3; i += 3) {
+            posArray[i] = (Math.random() - 0.5) * 10;
+            posArray[i+1] = Math.random() * 4;
+            posArray[i+2] = (Math.random() - 0.5) * 6;
+        }
+        particleGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+        const particleMat = new THREE.PointsMaterial({ color: 0x88aaff, size: 0.03, transparent: true });
+        const particles = new THREE.Points(particleGeo, particleMat);
+        scene.add(particles);
+
+        // Add a subtle grid helper for style (optional)
+        const gridHelper = new THREE.GridHelper(6, 12, 0x336699, 0x224466);
+        gridHelper.position.y = 0.01;
+        scene.add(gridHelper);
+
+        console.log('Animation started: Stand -> Walk -> Run -> Stand loop');
+    </script>
+</body>
+</html>

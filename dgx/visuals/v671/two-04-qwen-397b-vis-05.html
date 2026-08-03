@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Low Poly Runner</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #222; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <script type="module">
+        import * as THREE from './three.module.js';
+
+        // --- Configuration ---
+        const COLORS = {
+            skin: 0xe0ac69,
+            shirt: 0x3366cc,
+            pants: 0x222222,
+            shoes: 0xffffff,
+            ground: 0x333333,
+            treadmill: 0x111111
+        };
+
+        // --- Scene Setup ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87CEEB);
+        scene.fog = new THREE.Fog(0x87CEEB, 10, 50);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(0, 2.5, 8);
+        camera.lookAt(0, 1, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document.body.appendChild(renderer.domElement);
+
+        // --- Lighting ---
+        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);
+        scene.add(hemiLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(5, 10, 7);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 1024;
+        dirLight.shadow.mapSize.height = 1024;
+        scene.add(dirLight);
+
+        // --- Environment ---
+        // Treadmill Base
+        const baseGeo = new THREE.BoxGeometry(3, 0.5, 6);
+        const baseMat = new THREE.MeshStandardMaterial({ color: COLORS.ground });
+        const base = new THREE.Mesh(baseGeo, baseMat);
+        base.position.y = -0.25;
+        base.receiveShadow = true;
+        scene.add(base);
+
+        // Treadmill Belt
+        const beltGeo = new THREE.BoxGeometry(2.6, 0.05, 5);
+        const beltMat = new THREE.MeshStandardMaterial({ color: COLORS.treadmill });
+        const belt = new THREE.Mesh(beltGeo, beltMat);
+        belt.position.set(0, 0.05, 0);
+        belt.receiveShadow = true;
+        scene.add(belt);
+
+        // --- Character Construction ---
+        const characterGroup = new THREE.Group();
+        scene.add(characterGroup);
+
+        // Materials
+        const skinMat = new THREE.MeshStandardMaterial({ color: COLORS.skin, flatShading: true });
+        const shirtMat = new THREE.MeshStandardMaterial({ color: COLORS.shirt, flatShading: true });
+        const pantsMat = new THREE.MeshStandardMaterial({ color: COLORS.pants, flatShading: true });
+        const shoeMat = new THREE.MeshStandardMaterial({ color: COLORS.shoes, flatShading: true });
+
+        // Helper to create limbs
+        function createLimb(width, height, depth, material, x, y, z) {
+            const geo = new THREE.BoxGeometry(width, height, depth);
+            const mesh = new THREE.Mesh(geo, material);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+
+            const pivot = new THREE.Group();
+            pivot.position.set(x, y, z);
+            // Offset geometry so it rotates from the top
+            mesh.position.y = -height / 2;
+            pivot.add(mesh);
+
+            return { pivot, mesh };
+        }
+
+        // Torso
+        const torsoGeo = new THREE.BoxGeometry(0.8, 1.0, 0.5);
+        const torso = new THREE.Mesh(torsoGeo, shirtMat);
+        torso.position.y = 2.0; // Center of torso
+        torso.castShadow = true;
+        characterGroup.add(torso);
+
+        // Head
+        const headGeo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+        const head = new THREE.Mesh(headGeo, skinMat);
+        head.position.y = 0.75;
+        head.castShadow = true;
+        torso.add(head);
+
+        // Limbs
+        const armL = createLimb(0.25, 0.8, 0.25, shirtMat, 0.55, 0.4, 0);
+        const armR = createLimb(0.25, 0.8, 0.25, shirtMat, -0.55, 0.4, 0);
+        const legL = createLimb(0.3, 1.0, 0.3, pantsMat, 0.2, 1.0, 0);
+        const legR = createLimb(0.3, 1.0, 0.3, pantsMat, -0.2, 1.0, 0);
+
+        characterGroup.add(armL.pivot, armR.pivot, legL.pivot, legR.pivot);
+
+        // --- Animation Logic ---
+        const clock = new THREE.Clock();
+
+        // Animation States
+        const STATE = {
+            IDLE_START: 0,
+            WALK: 1,
+            RUN: 2,
+            IDLE_END: 3
+        };
+
+        let currentState = STATE.IDLE_START;
+        let stateTimer = 0;
+
+        // Timing constants
+        const TIME_IDLE_START = 2.0;
+        const TIME_WALK = 3.0;
+        const TIME_RUN = 3.0;
+        const TIME_IDLE_END = 2.0;
+        const TOTAL_CYCLE = TIME_IDLE_START + TIME_WALK + TIME_RUN + TIME_IDLE_END;
+
+        function updateAnimation(dt) {
+            stateTimer += dt;
+
+            // Reset cycle
+            if (stateTimer >= TOTAL_CYCLE) {
+                stateTimer = 0;
+                currentState = STATE.IDLE_START;
+            }
+
+            // State Machine
+            if (stateTimer < TIME_IDLE_START) {
+                currentState = STATE.IDLE_START;
+            } else if (stateTimer < TIME_IDLE_START + TIME_WALK) {
+                currentState = STATE.WALK;
+            } else if (stateTimer < TIME_IDLE_START + TIME_WALK + TIME_RUN) {
+                currentState = STATE.RUN;
+            } else {
+                currentState = STATE.IDLE_END;
+            }
+
+            const t = stateTimer; // Global time within cycle
+
+            // --- Idle Logic ---
+            if (currentState === STATE.IDLE_START || currentState === STATE.IDLE_END) {
+                // Reset limbs to neutral
+                armL.pivot.rotation.x = 0;
+                armR.pivot.rotation.x = 0;
+                legL.pivot.rotation.x = 0;
+                legR.pivot.rotation.x = 0;
+
+                // Slight breathing effect
+                torso.scale.y = 1 + Math.sin(t * 5) * 0.02;
+                torso.position.y = 2.0 + Math.sin(t * 5) * 0.01;
+                return;
+            }
+
+            // --- Walking Logic ---
+            // Walk speed factor
+            const walkSpeed = 3.0;
+            const walkAmp = 0.6; // Amplitude of swing
+
+            if (currentState === STATE.WALK) {
+                // Smooth transition logic could go here, but direct sine is snappy for low poly
+                const angle = Math.sin(t * walkSpeed) * walkAmp;
+
+                // Arms opposite to legs
+                armL.pivot.rotation.x = -angle;
+                armR.pivot.rotation.x = angle;
+
+                // Legs
+                legL.pivot.rotation.x = angle;
+                legR.pivot.rotation.x = -angle;
+
+                // Bobbing
+                torso.position.y = 2.0 + Math.abs(Math.sin(t * walkSpeed)) * 0.05;
+
+                // Reset scale
+                torso.scale.set(1, 1, 1);
+            }
+
+            // --- Running Logic ---
+            const runSpeed = 6.0;
+            const runAmp = 1.0; // Larger swing
+
+            if (currentState === STATE.RUN) {
+                const angle = Math.sin(t * runSpeed) * runAmp;
+
+                // Arms
+                armL.pivot.rotation.x = -angle * 1.2; // Arms swing wider
+                armR.pivot.rotation.x = angle * 1.2;
+
+                // Legs
+                legL.pivot.rotation.x = angle;
+                legR.pivot.rotation.x = -angle;
+
+                // Forward Lean (Rotate entire character group slightly forward)
+                // We interpolate the lean based on the sine wave to match the stride
+                characterGroup.rotation.x = -0.2 * Math.sin(t * runSpeed);
+
+                // More aggressive bobbing
+                torso.position.y = 2.0 + Math.abs(Math.sin(t * runSpeed)) * 0.1;
+
+                // Reset scale
+                torso.scale.set(1, 1, 1);
+            }
+        }
+
+        // --- Render Loop ---
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const dt = clock.getDelta();
+            updateAnimation(dt);
+
+            renderer.render(scene, camera);
+        }
+
+        // Handle Resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>

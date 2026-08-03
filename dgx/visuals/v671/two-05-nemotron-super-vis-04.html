@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Car Race Animation</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+<script type="module">
+    import * as THREE from './three.module.js';
+
+    // Scene setup
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x87ceeb); // Sky blue
+
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 10, 20);
+    camera.lookAt(0, 0, 0);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // Ground
+    const groundGeometry = new THREE.PlaneGeometry(200, 200);
+    const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x228b22 }); // Forest green
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    scene.add(ground);
+
+    // Finish line
+    const finishLineGeometry = new THREE.BoxGeometry(0.2, 2, 20);
+    const finishLineMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
+    const finishLine = new THREE.Mesh(finishLineGeometry, finishLineMaterial);
+    finishLine.position.set(0, 1, 50); // Positioned ahead of start
+    scene.add(finishLine);
+
+    // Car class
+    class Car {
+        constructor(color, startZ) {
+            this.group = new THREE.Group();
+            this.mesh = null;
+            this.color = color;
+            this.startZ = startZ;
+            this.positionZ = startZ;
+            this.speed = 0;
+            this.acceleration = 0;
+            this.maxSpeed = 0;
+            this.createCar();
+            this.group.position.z = this.positionZ;
+            scene.add(this.group);
+        }
+
+        createCar() {
+            // Car body
+            const body = new THREE.Mesh(
+                new THREE.BoxGeometry(4, 1.5, 6),
+                new THREE.MeshStandardMaterial({ color: this.color })
+            );
+            body.position.y = 0.75;
+            this.group.add(body);
+
+            // Wheels
+            const wheelGeometry = new THREE.CylinderGeometry(0.6, 0.6, 0.4, 32);
+            const wheelMaterial = new THREE.MeshStandardMaterial({ color: 0x000000 });
+            const wheelPositions = [
+                [-1.5, 0, -2.5], [1.5, 0, -2.5],
+                [-1.5, 0, 2.5], [1.5, 0, 2.5]
+            ];
+            wheelPositions.forEach(pos => {
+                const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+                wheel.rotation.z = Math.PI / 2;
+                wheel.position.set(pos[0], 0.3, pos[2]);
+                this.group.add(wheel);
+            });
+        }
+
+        update(deltaTime) {
+            // Update speed with acceleration
+            this.speed += this.acceleration * deltaTime;
+            this.speed = Math.min(this.speed, this.maxSpeed);
+
+            // Move car
+            this.positionZ += this.speed * deltaTime;
+            this.group.position.z = this.positionZ;
+
+            // Rotate wheels based on speed
+            this.group.children.forEach(child => {
+                if (child.geometry && child.geometry.type === 'CylinderGeometry') {
+                    child.rotation.x += (this.speed * deltaTime) / 0.6; // Approximate wheel rotation
+                }
+            });
+        }
+
+        setAcceleration(acc) { this.acceleration = acc; }
+        setMaxSpeed(speed) { this.maxSpeed = speed; }
+        getPositionZ() { return this.positionZ; }
+        reset() {
+            this.positionZ = this.startZ;
+            this.group.position.z = this.positionZ;
+            this.speed = 0;
+        }
+    }
+
+    // Create cars
+    const redCar = new Car(0xff0000, -40); // Red car starts behind
+    const blueCar = new Car(0x0000ff, -40); // Blue car starts at same point
+
+    // Set car behaviors
+    blueCar.setAcceleration(5);   // Blue accelerates early
+    blueCar.setMaxSpeed(15);      // But lower top speed
+
+    redCar.setAcceleration(2);    // Red accelerates slower initially
+    redCar.setMaxSpeed(25);       // But higher top speed -> overtakes later
+
+    // Animation loop
+    const clock = new THREE.Clock();
+    let raceResetTimer = 0;
+    const RACE_DURATION = 8; // Seconds before reset if not finished
+
+    function animate() {
+        requestAnimationFrame(animate);
+
+        const deltaTime = clock.getDelta();
+
+        // Update cars
+        redCar.update(deltaTime);
+        blueCar.update(deltaTime);
+
+        // Check if red car passed finish line
+        if (redCar.getPositionZ() > 50) {
+            // Reset race after short delay
+            raceResetTimer += deltaTime;
+            if (raceResetTimer > 1.5) {
+                redCar.reset();
+                blueCar.reset();
+                raceResetTimer = 0;
+            }
+        } else {
+            raceResetTimer = 0; // Reset timer if race ongoing
+        }
+
+        // Optional: reset if race takes too long (failsafe)
+        if (raceResetTimer > RACE_DURATION) {
+            redCar.reset();
+            blueCar.reset();
+            raceResetTimer = 0;
+        }
+
+        // Camera: keep both cars in view
+        const avgZ = (redCar.getPositionZ() + blueCar.getPositionZ()) / 2;
+        camera.position.z = avgZ + 15; // Follow behind
+        camera.position.y = 8 + Math.sin(performance.now() * 0.001) * 0.5; // Slight float
+        camera.lookAt(0, 0.5, avgZ);
+
+        renderer.render(scene, camera);
+    }
+
+    // Handle resize
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    animate();
+</script>
+</body>
+</html>

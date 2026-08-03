@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>3D Car Race</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <script type="module">
+        import * as THREE from './three.module.js';
+
+        // Scene setup
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87CEEB); // Light sky blue
+
+        // Camera (positioned to keep both cars in view)
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 200);
+        camera.position.set(0, 7, -50);
+        camera.lookAt(0, 0, 0);
+
+        // Renderer
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document.body.appendChild(renderer.domElement);
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(10, 20, 10);
+        scene.add(dirLight);
+
+        // Ground track
+        const groundGeo = new THREE.PlaneGeometry(30, 120);
+        const groundMat = new THREE.MeshStandardMaterial({ color: 0x666666 });
+        const ground = new THREE.Mesh(groundGeo, groundMat);
+        ground.rotation.x = -Math.PI / 2;
+        ground.position.y = -1;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        // Programmatic checkered finish line (no external assets)
+        const finishCanvas = document.createElement('canvas');
+        finishCanvas.width = 64;
+        finishCanvas.height = 64;
+        const fCtx = finishCanvas.getContext('2d');
+        fCtx.fillStyle = '#ffffff';
+        fCtx.fillRect(0, 0, 64, 64);
+        fCtx.fillStyle = '#000000';
+        fCtx.fillRect(0, 0, 32, 32);
+        fCtx.fillRect(32, 32, 32, 32);
+        const finishTexture = new THREE.CanvasTexture(finishCanvas);
+        const finishGeo = new THREE.PlaneGeometry(30, 2);
+        const finishMat = new THREE.MeshStandardMaterial({ map: finishTexture });
+        const finishLine = new THREE.Mesh(finishGeo, finishMat);
+        finishLine.rotation.x = -Math.PI / 2;
+        finishLine.position.set(0, -0.9, 50);
+        scene.add(finishLine);
+
+        // Car creation helper
+        function createCar(bodyColor) {
+            const car = new THREE.Group();
+
+            // Main body
+            const bodyGeo = new THREE.BoxGeometry(2, 1, 4);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: bodyColor });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.castShadow = true;
+            car.add(body);
+
+            // Cabin
+            const cabinGeo = new THREE.BoxGeometry(1.6, 0.8, 2);
+            const cabin = new THREE.Mesh(cabinGeo, bodyMat);
+            cabin.position.set(0, 0.9, -0.5);
+            cabin.castShadow = true;
+            car.add(cabin);
+
+            // Wheels
+            const wheelGeo = new THREE.CylinderGeometry(0.5, 0.5, 0.2, 16);
+            const wheelMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+            const wheelPos = [
+                [1, -0.5, 1.5], [-1, -0.5, 1.5],
+                [1, -0.5, -1.5], [-1, -0.5, -1.5]
+            ];
+            wheelPos.forEach(p => {
+                const wheel = new THREE.Mesh(wheelGeo, wheelMat);
+                wheel.rotation.x = Math.PI / 2;
+                wheel.position.set(p[0], p[1], p[2]);
+                wheel.castShadow = true;
+                car.add(wheel);
+            });
+
+            return car;
+        }
+
+        // Instantiate cars, offset left/right so both are visible
+        const redCar = createCar(0xff0000);
+        const blueCar = createCar(0x0000ff);
+        redCar.position.set(1, 0, -50);
+        blueCar.position.set(-1, 0, -50);
+        scene.add(redCar);
+        scene.add(blueCar);
+
+        // Race parameters
+        const startZ = -50;
+        const finishZ = 50;
+        const blueSpeed = 0.35; // Faster initial speed
+        const redBaseSpeed = 0.2;
+        const redAccel = 0.012; // Acceleration per second
+        let raceStart = Date.now();
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            const t = (Date.now() - raceStart) / 1000; // Elapsed race time in seconds
+
+            // Update positions
+            blueCar.position.z = startZ + blueSpeed * t;
+            redCar.position.z = startZ + redBaseSpeed * t + 0.5 * redAccel * t * t;
+
+            // Reset race when red car finishes
+            if (redCar.position.z >= finishZ) {
+                raceStart = Date.now();
+                redCar.position.z = startZ;
+                blueCar.position.z = startZ;
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // Handle window resizing
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>

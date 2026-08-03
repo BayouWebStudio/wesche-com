@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>three.js car race – red overtakes blue</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            color: white;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.8);
+            font-size: 1.2rem;
+            letter-spacing: 2px;
+            pointer-events: none;
+            z-index: 10;
+        }
+        .label {
+            font-weight: bold;
+            padding: 4px 12px;
+            border-radius: 30px;
+            background: rgba(0,0,0,0.5);
+            display: inline-block;
+            margin: 0 10px;
+        }
+        .red-label { background: rgba(200, 30, 30, 0.7); }
+        .blue-label { background: rgba(30, 30, 200, 0.7); }
+        #status {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            color: #ddd;
+            font-size: 1rem;
+            text-shadow: 0 2px 8px black;
+            letter-spacing: 1px;
+            background: rgba(0,0,0,0.3);
+            padding: 8px 0;
+            backdrop-filter: blur(2px);
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <span class="label red-label">🏎️ RED</span>
+        <span style="color:white;"> vs </span>
+        <span class="label blue-label">BLUE 🏎️</span>
+    </div>
+    <div id="status">🔴 RED OVERTAKES & WINS 🏁</div>
+
+    <!-- three.js will be injected into this container -->
+    <div id="canvas-container" style="position: fixed; inset: 0; z-index: 1;"></div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "./three.module.js"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from './three.module.js';
+
+        // --- SCENE SETUP ---
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87CEEB); // sky blue
+
+        // Camera: perspective, positioned to see both cars and finish line
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 5.5, 14);
+        camera.lookAt(0, 0.8, 4);
+
+        // Renderer
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        container.appendChild(renderer.domElement);
+
+        // --- LIGHTS ---
+        // Ambient for base illumination
+        const ambient = new THREE.AmbientLight(0x404060);
+        scene.add(ambient);
+
+        // Main directional light (sun)
+        const sunLight = new THREE.DirectionalLight(0xfff5e6, 1.2);
+        sunLight.position.set(5, 12, 8);
+        sunLight.castShadow = true;
+        sunLight.receiveShadow = true;
+        sunLight.shadow.mapSize.width = 1024;
+        sunLight.shadow.mapSize.height = 1024;
+        const d = 15;
+        sunLight.shadow.camera.left = -d;
+        sunLight.shadow.camera.right = d;
+        sunLight.shadow.camera.top = d;
+        sunLight.shadow.camera.bottom = -d;
+        sunLight.shadow.camera.near = 1;
+        sunLight.shadow.camera.far = 30;
+        scene.add(sunLight);
+
+        // Fill light from front
+        const fillLight = new THREE.DirectionalLight(0xccddff, 0.5);
+        fillLight.position.set(-3, 4, 10);
+        scene.add(fillLight);
+
+        // --- GROUND ---
+        const groundGeometry = new THREE.PlaneGeometry(20, 40);
+        const groundMaterial = new THREE.MeshStandardMaterial({
+            color: 0x3a7d3a,
+            roughness: 0.8,
+            metalness: 0.1
+        });
+        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        ground.rotation.x = -Math.PI / 2;
+        ground.position.set(0, -0.01, 2);
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        // Road (asphalt)
+        const roadGeometry = new THREE.PlaneGeometry(4, 40);
+        const roadMaterial = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.9 });
+        const road = new THREE.Mesh(roadGeometry, roadMaterial);
+        road.rotation.x = -Math.PI / 2;
+        road.position.set(0, 0.001, 2);
+        road.receiveShadow = true;
+        scene.add(road);
+
+        // Road markings (dashed center line)
+        const dashMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x444444 });
+        for (let z = -8; z <= 12; z += 2.5) {
+            const dashGeo = new THREE.BoxGeometry(0.1, 0.01, 0.8);
+            const dash = new THREE.Mesh(dashGeo, dashMat);
+            dash.position.set(0, 0.02, z);
+            dash.receiveShadow = true;
+            scene.add(dash);
+        }
+
+        // --- FINISH LINE (checkered pattern) ---
+        const finishGroup = new THREE.Group();
+        const checkerMat1 = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4 });
+        const checkerMat2 = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.4 });
+        const tileSize = 0.4;
+        const tilesAcross = 8; // 8 tiles across width (4 units / 0.5)
+        const tilesDeep = 2;
+        for (let i = 0; i < tilesAcross; i++) {
+            for (let j = 0; j < tilesDeep; j++) {
+                const tileGeo = new THREE.BoxGeometry(tileSize, 0.05, tileSize);
+                const isBlack = (i + j) % 2 === 0;
+                const tileMat = isBlack ? checkerMat2 : checkerMat1;
+                const tile = new THREE.Mesh(tileGeo, tileMat);
+                tile.position.set(
+                    -1.8 + i * tileSize + 0.2,
+                    0.03,
+                    10 + j * tileSize + 0.2
+                );
+                tile.receiveShadow = true;
+                finishGroup.add(tile);
+            }
+        }
+        // Two vertical poles for the finish line
+        const poleMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, emissive: 0x222222 });
+        const poleGeo = new THREE.BoxGeometry(0.2, 1.2, 0.2);
+        const poleLeft = new THREE.Mesh(poleGeo, poleMat);
+        poleLeft.position.set(-2.0, 0.6, 10.4);
+        poleLeft.castShadow = true;
+        finishGroup.add(poleLeft);
+        const poleRight = new THREE.Mesh(poleGeo, poleMat);
+        poleRight.position.set(2.0, 0.6, 10.4);
+        poleRight.castShadow = true;
+        finishGroup.add(poleRight);
+        // Banner
+        const bannerMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, emissive: 0x333333 });
+        const bannerGeo = new THREE.BoxGeometry(4.2, 0.2, 0.1);
+        const banner = new THREE.Mesh(bannerGeo, bannerMat);
+        banner.position.set(0, 1.2, 10.4);
+        banner.castShadow = true;
+        finishGroup.add(banner);
+        scene.add(finishGroup);
+
+        // --- HELPER: CREATE CAR ---
+        function createCar(color) {
+            const car = new THREE.Group();
+
+            // Body
+            const bodyGeo = new THREE.BoxGeometry(1.2, 0.6, 2.2);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.3, metalness: 0.6 });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.position.y = 0.35;
+            body.castShadow = true;
+            body.receiveShadow = true;
+            car.add(body);
+
+            // Cabin / roof
+            const cabinGeo = new THREE.BoxGeometry(0.8, 0.4, 1.0);
+            const cabinMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.2, metalness: 0.2 });
+            const cabin = new THREE.Mesh(cabinGeo, cabinMat);
+            cabin.position.set(0, 0.75, -0.2);
+            cabin.castShadow = true;
+            cabin.receiveShadow = true;
+            car.add(cabin);
+
+            // Wheels (black cylinders)
+            const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 });
+            const wheelGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.2, 16);
+            const positions = [
+                [-0.7, 0.3, 0.8], [0.7, 0.3, 0.8],
+                [-0.7, 0.3, -0.8], [0.7, 0.3, -0.8]
+            ];
+            positions.forEach(pos => {
+                const wheel = new THREE.Mesh(wheelGeo, wheelMat);
+                wheel.rotation.z = Math.PI / 2;
+                wheel.position.set(pos[0], pos[1], pos[2]);
+                wheel.castShadow = true;
+                wheel.receiveShadow = true;
+                car.add(wheel);
+            });
+
+            // Headlights (small white boxes)
+            const lightMat = new THREE.MeshStandardMaterial({ color: 0xffdd99, emissive: 0x442200 });
+            const lightGeo = new THREE.BoxGeometry(0.2, 0.2, 0.1);
+            const headL = new THREE.Mesh(lightGeo, lightMat);
+            headL.position.set(-0.5, 0.4, 1.1);
+            car.add(headL);
+            const headR = new THREE.Mesh(lightGeo, lightMat);
+            headR.position.set(0.5, 0.4, 1.1);
+            car.add(headR);
+
+            // Tail lights (red emissive)
+            const tailMat = new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0x550000 });
+            const tailGeo = new THREE.BoxGeometry(0.2, 0.2, 0.1);
+            const tailL = new THREE.Mesh(tailGeo, tailMat);
+            tailL.position.set(-0.5, 0.4, -1.1);
+            car.add(tailL);
+            const tailR = new THREE.Mesh(tailGeo, tailMat);
+            tailR.position.set(0.5, 0.4, -1.1);
+            car.add(tailR);
+
+            return car;
+        }
+
+        // --- CREATE CARS ---
+        const redCar = createCar(0xff3333); // bright red
+        const blueCar = createCar(0x3333ff); // bright blue
+
+        // Add a little identifier: colored stripe on roof
+        const stripeMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+        const stripeGeo = new THREE.BoxGeometry(0.3, 0.05, 0.8);
+        const stripeRed = new THREE.Mesh(stripeGeo, stripeMat);
+        stripeRed.position.set(0, 0.95, -0.2);
+        redCar.add(stripeRed);
+        const stripeBlue = new THREE.Mesh(stripeGeo, stripeMat);
+        stripeBlue.position.set(0, 0.95, -0.2);
+        blueCar.add(stripeBlue);
+
+        // Position cars at start line
+        redCar.position.set(-1.0, 0, -5);
+        blueCar.position.set(1.0, 0, -5);
+        scene.add(redCar);
+        scene.add(blueCar);
+
+        // --- ANIMATION VARIABLES ---
+        const startZ = -5;
+        const finishZ = 9.5; // finish line at z=10, but car center should cross a bit before
+        const raceLength = finishZ - startZ; // ~14.5
+
+        let clock = new THREE.Clock();
+        let raceTime = 0; // normalized 0..1
+
+        // Speed profiles: blue leads early, red overtakes mid-race
+        // We'll define acceleration curves using simple functions
+        // Blue: fast start, then slow
+        // Red: slower start, then strong acceleration
+
+        function blueZ(t) {
+            // t from 0 to 1
+            // Blue: quick initial, then plateaus
+            if (t < 0.3) return 0.45 * t / 0.3; // fast start
+            else if (t < 0.7) return 0.45 + 0.25 * (t - 0.3) / 0.4; // moderate
+            else return 0.70 + 0.30 * (t - 0.7) / 0.3; // slower finish
+        }
+
+        function redZ(t) {
+            // Red: slower start, then strong finish
+            if (t < 0.3) return 0.25 * t / 0.3; // slower start
+            else if (t < 0.7) return 0.25 + 0.35 * (t - 0.3) / 0.4; // strong mid
+            else return 0.60 + 0.40 * (t - 0.7) / 0.3; // powerful finish
+        }
+
+        // Ensure red overtakes around mid-race
+        // At t=0.5: blue = 0.45+0.25*(0.2/0.4)=0.45+0.125=0.575
+        //           red = 0.25+0.35*(0.2/0.4)=0.25+0.175=0.425 -> red behind
+        // At t=0.7: blue = 0.70, red = 0.60 -> red still behind
+        // At t=0.8: blue = 0.70+0.30*(0.1/0.3)=0.80, red = 0.60+0.40*(0.1/0.3)=0.733 -> red behind
+        // Need red to overtake mid-race, so adjust: let's make red stronger earlier.
+        // Let's redefine:
+        function redZ2(t) {
+            // Red: linear-ish but with late acceleration
+            // Overtakes around t=0.55
+            if (t < 0.2) return 0.15 * t / 0.2;
+            else if (t < 0.6) return 0.15 + 0.45 * (t - 0.2) / 0.4; // strong mid
+            else return 0.60 + 0.40 * (t - 0.6) / 0.4; // keeps speed
+        }
+
+        function blueZ2(t) {
+            // Blue: fast start, then fades
+            if (t < 0.25) return 0.5 * t / 0.25; // very fast start
+            else if (t < 0.6) return 0.5 + 0.2 * (t - 0.25) / 0.35; // moderate
+            else return 0.70 + 0.3 * (t - 0.6) / 0.4; // slower
+        }
+
+        // Test at t=0.5: blue = 0.5+0.2*(0.25/0.35)=0.5+0.142=0.642
+        //               red = 0.15+0.45*(0.3/0.4)=0.15+0.3375=0.4875 -> red behind
+        // t=0.6: blue = 0.5+0.2*(0.35/0.35)=0.7, red = 0.15+0.45*(0.4/0.4)=0.6 -> red behind
+        // t=0.7: blue = 0.7+0.3*(0.1/0.4)=0.775, red = 0.6+0.4*(0.1/0.4)=0.7 -> red behind
+        // t=0.8: blue = 0.7+0.3*(0.2/0.4)=0.85, red = 0.6+0.4*(0.2/0.4)=0.8 -> red behind
+        // This doesn't overtake. Let's make red accelerate harder after mid.
+        // Let's use a simple piecewise that guarantees overtake around 0.55-0.6.
+        // We'll use:
+        function redZ3(t) {
+            if (t < 0.3) return 0.2 * t / 0.3;
+            else if (t < 0.7) return 0.2 + 0.55 * (t - 0.3) / 0.4; // strong
+            else return 0.75 + 0.25 * (t - 0.7) / 0.3;
+        }
+        function blueZ3(t) {
+            if (t < 0.3) return 0.45 * t / 0.3;
+            else if (t < 0.7) return 0.45 + 0.15 * (t - 0.3) / 0.4;
+            else return 0.60 + 0.40 * (t - 0.7) / 0.3;
+        }
+        // At t=0.5: blue = 0.45+0.15*(0.2/0.4)=0.45+0.075=0.525
+        //           red = 0.2+0.55*(0.2/0.4)=0.2+0.275=0.475 -> red behind
+        // t=0.6: blue = 0.45+0.15*(0.3/0.4)=0.45+0.1125=0.5625
+        //         red = 0.2+0.55*(0.3/0.4)=0.2+0.4125=0.6125 -> RED OVERTAKES!
+        // Perfect! At t=0.6 red passes blue. So we use these.
+
+        const redProgress = redZ3;
+        const blueProgress = blueZ3;
+
+        let animationSpeed = 0.35; // duration factor
+
+        // --- ANIMATION LOOP ---
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const delta = clock.getDelta();
+            raceTime += delta * animationSpeed;
+
+            if (raceTime >= 1.0) {
+                raceTime = 0.0; // reset loop
+            }
+
+            const t = raceTime;
+
+            // Compute positions
+            const redT = redProgress(t);
+            const blueT = blueProgress(t);
+
+            // Map to z: startZ + progress * raceLength
+            const redZPos = startZ + redT * raceLength;
+            const blueZPos = startZ + blueT * raceLength;
+
+            redCar.position.z = redZPos;
+            blueCar.position.z = blueZPos;
+
+            // Slight bounce for effect (optional)
+            redCar.position.y = 0;
+            blueCar.position.y = 0;
+
+            // Update status text based on who is ahead
+            const statusDiv = document.getElementById('status');
+            if (redZPos > blueZPos + 0.1) {
+                statusDiv.innerHTML = '🔴 RED OVERTAKES & WINS 🏁';
+            } else if (blueZPos > redZPos + 0.1) {
+                statusDiv.innerHTML = '🔵 BLUE LEADS EARLY';
+            } else {
+                statusDiv.innerHTML = '⚡ NECK AND NECK ⚡';
+            }
+
+            // Camera follows between cars but keeps both in view
+            const midZ = (redZPos + blueZPos) / 2;
+            const camZ = Math.min(midZ + 5, 12); // keep camera behind, but not too far
+            camera.position.z = camZ;
+            camera.position.x = 0;
+            camera.lookAt(0, 1.0, midZ + 2);
+
+            renderer.render(scene, camera);
+        }
+
+        // Start animation
+        animate();
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Small directional indicator for finish line (already visible)
+    </script>
+</body>
+</html>

@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Car Race</title>
+<style>
+  html, body { margin: 0; padding: 0; overflow: hidden; background: #87CEEB; }
+  canvas { display: block; }
+  #info {
+    position: absolute; top: 10px; left: 10px; z-index: 10;
+    background: rgba(0,0,0,0.55); color: #fff; padding: 10px 14px;
+    border-radius: 8px; font-family: sans-serif; font-size: 14px; pointer-events: none;
+    user-select: none;
+  }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "./three.module.js": "./three.module.js"
+  }
+}
+</script>
+</head>
+<body>
+<div id="info">Red vs Blue — Red overtakes and wins!</div>
+<script type="module">
+import * as THREE from './three.module.js';
+
+// Scene setup
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87CEEB);
+scene.fog = new THREE.FogExp2(0x87CEEB, 0.015);
+
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 200);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+document.body.appendChild(renderer.domElement);
+
+// Lights
+const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 1.2);
+scene.add(hemi);
+const dir = new THREE.DirectionalLight(0xffffff, 1.5);
+dir.position.set(10, 20, 10);
+dir.castShadow = true;
+dir.shadow.mapSize.width = 1024;
+dir.shadow.mapSize.height = 1024;
+dir.shadow.camera.near = 0.5;
+dir.shadow.camera.far = 50;
+dir.shadow.camera.left = -20;
+dir.shadow.camera.right = 20;
+dir.shadow.camera.top = 20;
+dir.shadow.camera.bottom = -20;
+scene.add(dir);
+const amb = new THREE.AmbientLight(0xffffff, 0.4);
+scene.add(amb);
+
+// Ground
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(200, 30),
+  new THREE.MeshStandardMaterial({ color: 0x3a5f0b, roughness: 0.9, metalness: 0.1 })
+);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// Track markings
+const lineMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8 });
+for (let i = -10; i <= 10; i++) {
+  const dash = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.05, 0.3), lineMat);
+  dash.position.set(i * 5, 0.01, 0);
+  dash.receiveShadow = true;
+  scene.add(dash);
+}
+
+// Finish line (visible)
+const finishLine = new THREE.Mesh(
+  new THREE.BoxGeometry(8, 3, 0.1),
+  new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xeeeeee, roughness: 0.2 })
+);
+finishLine.position.set(0, 1.5, 0);
+finishLine.rotation.y = Math.PI / 2;
+scene.add(finishLine);
+// Banner
+const banner = new THREE.Mesh(
+  new THREE.BoxGeometry(8, 0.5, 0.05),
+  new THREE.MeshStandardMaterial({ color: 0xeeeeee })
+);
+banner.position.set(0, 3.25, 0);
+banner.rotation.y = Math.PI / 2;
+scene.add(banner);
+
+// Helper to build a car
+function createCar(colorHex) {
+  const car = new THREE.Group();
+
+  // Body
+  const body = new THREE.Mesh(
+    new THREE.BoxGeometry(2.6, 0.7, 1.2),
+    new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.3, metalness: 0.6 })
+  );
+  body.position.y = 0.35;
+  body.castShadow = true;
+  car.add(body);
+
+  // Cabin
+  const cabin = new THREE.Mesh(
+    new THREE.BoxGeometry(1.2, 0.45, 1.0),
+    new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.4 })
+  );
+  cabin.position.set(0, 0.85, 0);
+  cabin.castShadow = true;
+  car.add(cabin);
+
+  // Windshield
+  const windshield = new THREE.Mesh(
+    new THREE.BoxGeometry(1.0, 0.35, 0.02),
+    new THREE.MeshStandardMaterial({ color: 0x88ccff, roughness: 0.1, metalness: 0.9, transparent: true, opacity: 0.7 })
+  );
+  windshield.position.set(0, 0.85, 0.51);
+  car.add(windshield);
+
+  // Wheels
+  const wheelGeo = new THREE.CylinderGeometry(0.35, 0.35, 0.35, 16);
+  const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
+  const wheelPositions = [
+    [-0.85, 0.35, 0.55],
+    [0.85, 0.35, 0.55],
+    [-0.85, 0.35, -0.55],
+    [0.85, 0.35, -0.55]
+  ];
+  for (const p of wheelPositions) {
+    const w = new THREE.Mesh(wheelGeo, wheelMat);
+    w.position.set(p[0], p[1], p[2]);
+    w.rotation.z = Math.PI / 2;
+    w.castShadow = true;
+    car.add(w);
+  }
+
+  // Headlights
+  const headMat = new THREE.MeshStandardMaterial({ color: 0xffffee, emissive: 0xffffaa, emissiveIntensity: 0.8 });
+  const hl = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.05), headMat);
+  hl.position.set(-1.15, 0.45, 0.61);
+  car.add(hl);
+  const hr = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.05), headMat);
+  hr.position.set(1.15, 0.45, 0.61);
+  car.add(hr);
+
+  // Taillights
+  const tailMat = new THREE.MeshStandardMaterial({ color: 0xff2222, emissive: 0xff0000, emissiveIntensity: 0.6 });
+  const tl = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.05), tailMat);
+  tl.position.set(-1.15, 0.45, -0.61);
+  car.add(tl);
+  const tr = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.05), tailMat);
+  tr.position.set(1.15, 0.45, -0.61);
+  car.add(tr);
+
+  return car;
+}
+
+const blueCar = createCar(0x0066ff);
+blueCar.position.set(-30, 0, 2.5);
+scene.add(blueCar);
+
+const redCar = createCar(0xff2222);
+redCar.position.set(-30, 0, -2.5);
+scene.add(redCar);
+
+// Simple sky dome (optional visual)
+const skyGeo = new THREE.SphereGeometry(90, 32, 16);
+const skyMat = new THREE.MeshBasicMaterial({ color: 0x87CEEB, side: THREE.BackSide });
+const sky = new THREE.Mesh(skyGeo, skyMat);
+scene.add(sky);
+
+// Animation state
+let t = 0;
+const resetZ = -30;
+const finishZ = 10;
+
+function resetRace() {
+  t = 0;
+  blueCar.position.z = 2.5;
+  redCar.position.z = -2.5;
+  blueCar.position.x = resetZ;
+  redCar.position.x = resetZ;
+}
+
+function updateCamera() {
+  const cx = (blueCar.position.x + redCar.position.x) / 2;
+  const cz = (blueCar.position.z + redCar.position.z) / 2;
+  // Camera follows from slightly behind and above, looking at midpoint
+  camera.position.set(cx - 14, 8, cz + 6);
+  camera.lookAt(cx, 1.5, cz);
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  t += 1;
+
+  // Blue car: starts ahead, steady
+  const blueX = resetZ + (t * 0.55);
+  blueCar.position.x = blueX;
+
+  // Red car: starts behind, accelerates and overtakes
+  const redX = resetZ + (t * 0.55) + 0.015 * t * t * 0.08;
+
+  redCar.position.x = redX;
+
+  // Reset when red wins (crosses finish with lead)
+  if (redX > finishZ) {
+    resetRace();
+  }
+
+  // Small wheel rotation for motion
+  const rot = t * 0.4;
+  blueCar.children.forEach(c => {
+    if (c.geometry && c.geometry.type === 'CylinderGeometry') c.rotation.z = rot;
+  });
+  redCar.children.forEach(c => {
+    if (c.geometry && c.geometry.type === 'CylinderGeometry') c.rotation.z = rot;
+  });
+
+  updateCamera();
+  renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+animate();
+</script>
+</body>
+</html>

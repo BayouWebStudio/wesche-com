@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <script type="module">
+        import * as THREE from './three.module.js';
+
+        // Scene setup
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xe0e0e0);
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(5, 1.5, 0);
+        camera.lookAt(0, 1, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        document.body.appendChild(renderer.domElement);
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+        scene.add(ambientLight);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+        dirLight.position.set(5, 10, 5);
+        scene.add(dirLight);
+
+        // Treadmill
+        const treadmillBase = new THREE.Mesh(
+            new THREE.BoxGeometry(10, 0.1, 2),
+            new THREE.MeshStandardMaterial({ color: 0x666666 })
+        );
+        treadmillBase.position.y = -0.65;
+        scene.add(treadmillBase);
+
+        const slatsGroup = new THREE.Group();
+        slatsGroup.position.y = -0.575;
+        for (let i = 0; i < 10; i++) {
+            const slat = new THREE.Mesh(
+                new THREE.BoxGeometry(0.1, 0.05, 2),
+                new THREE.MeshStandardMaterial({ color: 0x888888 })
+            );
+            slat.position.z = -4 + i * 0.8;
+            slatsGroup.add(slat);
+        }
+        scene.add(slatsGroup);
+
+        // Humanoid
+        const human = new THREE.Group();
+        scene.add(human);
+
+        // Body
+        const bodyMat = new THREE.MeshStandardMaterial({ color: 0x3366ff });
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.6, 0.2), bodyMat);
+        human.add(body);
+
+        // Head
+        const headMat = new THREE.MeshStandardMaterial({ color: 0xffcc99 });
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.25, 8, 8), headMat);
+        head.position.y = 0.4;
+        human.add(head);
+
+        // Arms
+        const armGeo = new THREE.BoxGeometry(0.1, 0.5, 0.1);
+        const handGeo = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+
+        const rightArm = new THREE.Group();
+        rightArm.position.set(0.25, 0.25, 0);
+        const rightArmMesh = new THREE.Mesh(armGeo, bodyMat);
+        rightArmMesh.position.y = -0.25;
+        const rightHand = new THREE.Mesh(handGeo, headMat);
+        rightHand.position.y = -0.5;
+        rightArm.add(rightArmMesh);
+        rightArm.add(rightHand);
+        human.add(rightArm);
+
+        const leftArm = new THREE.Group();
+        leftArm.position.set(-0.25, 0.25, 0);
+        const leftArmMesh = new THREE.Mesh(armGeo, bodyMat);
+        leftArmMesh.position.y = -0.25;
+        const leftHand = new THREE.Mesh(handGeo, headMat);
+        leftHand.position.y = -0.5;
+        leftArm.add(leftArmMesh);
+        leftArm.add(leftHand);
+        human.add(leftArm);
+
+        // Legs
+        const legMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+        const legGeo = new THREE.BoxGeometry(0.15, 0.6, 0.15);
+        const footGeo = new THREE.BoxGeometry(0.15, 0.1, 0.2);
+
+        const rightLeg = new THREE.Group();
+        rightLeg.position.set(0.15, -0.3, 0);
+        const rightLegMesh = new THREE.Mesh(legGeo, legMat);
+        rightLegMesh.position.y = -0.3;
+        const rightFoot = new THREE.Mesh(footGeo, legMat);
+        rightFoot.position.y = -0.6;
+        rightLeg.add(rightLegMesh);
+        rightLeg.add(rightFoot);
+        human.add(rightLeg);
+
+        const leftLeg = new THREE.Group();
+        leftLeg.position.set(-0.15, -0.3, 0);
+        const leftLegMesh = new THREE.Mesh(legGeo, legMat);
+        leftLegMesh.position.y = -0.3;
+        const leftFoot = new THREE.Mesh(footGeo, legMat);
+        leftFoot.position.y = -0.6;
+        leftLeg.add(leftLegMesh);
+        leftLeg.add(leftFoot);
+        human.add(leftLeg);
+
+        // Animation
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const elapsed = clock.getElapsedTime();
+            const cycleTime = elapsed % 10;
+
+            // Animate treadmill slats
+            slatsGroup.position.z += 0.02;
+            if (slatsGroup.position.z > 0.8) slatsGroup.position.z = -4;
+
+            // Animation cycle
+            if (cycleTime < 2) {
+                // Stand still
+                rightArm.rotation.x = 0;
+                leftArm.rotation.x = 0;
+                rightLeg.rotation.x = 0;
+                leftLeg.rotation.x = 0;
+                human.rotation.x = 0;
+                human.position.y = 0;
+            } else if (cycleTime < 5) {
+                // Walk (3s)
+                const walkT = cycleTime - 2;
+                const swing = Math.sin(walkT * Math.PI * 2 * 1);
+                rightArm.rotation.x = swing * 0.4;
+                leftArm.rotation.x = -swing * 0.4;
+                rightLeg.rotation.x = -swing * 0.5;
+                leftLeg.rotation.x = swing * 0.5;
+                human.position.y = Math.abs(Math.sin(walkT * Math.PI * 4)) * 0.05;
+                human.rotation.x = 0;
+            } else if (cycleTime < 8) {
+                // Run (3s)
+                const runT = cycleTime - 5;
+                const swing = Math.sin(runT * Math.PI * 2 * 2);
+                rightArm.rotation.x = swing * 0.6;
+                leftArm.rotation.x = -swing * 0.6;
+                rightLeg.rotation.x = -swing * 0.8;
+                leftLeg.rotation.x = swing * 0.8;
+                human.position.y = Math.abs(Math.sin(runT * Math.PI * 4)) * 0.1;
+                human.rotation.x = 0.2; // Forward lean
+            } else {
+                // Stand still again
+                rightArm.rotation.x = 0;
+                leftArm.rotation.x = 0;
+                rightLeg.rotation.x = 0;
+                leftLeg.rotation.x = 0;
+                human.rotation.x = 0;
+                human.position.y = 0;
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // Resize handler
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>
