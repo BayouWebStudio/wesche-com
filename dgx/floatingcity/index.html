@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Floating City Model Comparisons | Wesche DGX</title>
-  <meta name="description" content="Three uncapped, thinking-on voxel floating-city comparisons across Qwen3.8 Max, GLM-5.2, and Qwen3.6-27B.">
+  <title>Interactive Floating City Model Comparisons | Wesche DGX</title>
+  <meta name="description" content="Explore the original interactive voxel floating-city outputs from Qwen3.8 Max, GLM-5.2, and Qwen3.6-27B.">
   <link rel="canonical" href="https://wesche.com/dgx/floatingcity/">
-  <meta property="og:title" content="Floating City Model Comparisons">
-  <meta property="og:description" content="The same voxel floating-city prompt across Qwen3.8 Max, GLM-5.2, and Qwen3.6-27B.">
+  <meta property="og:title" content="Interactive Floating City Model Comparisons">
+  <meta property="og:description" content="Choose a model and explore its original generated 3D scene.">
   <meta property="og:image" content="https://wesche.com/dgx/floatingcity/media/glm-vs-qwen38-smooth-detail.jpg">
   <meta property="og:url" content="https://wesche.com/dgx/floatingcity/">
   <meta property="og:type" content="website">
@@ -24,53 +24,52 @@
 
   <header>
     <div class="shell">
-      <p class="eyebrow">Visual model comparison</p>
+      <p class="eyebrow">Interactive model comparison</p>
       <h1>Floating City</h1>
-      <p class="lede">The same elaborate animated voxel-city prompt, thinking enabled and without an output-token cap. Videos preserve the measured model labels, generation time, and throughput.</p>
+      <p class="lede">Choose a model, then drag, zoom, and use the controls inside its original generated HTML scene. Every artifact used the same prompt with thinking enabled and no output-token cap.</p>
     </div>
   </header>
 
-  <main class="shell gallery">
-    <article class="entry">
-      <div class="entry-head">
-        <div>
-          <h2>GLM-5.2 vs Qwen3.8 Max, smooth detail</h2>
-          <p class="meta">Mirrored movement · deeper synchronized zoom · 60 fps mobile-safe encode</p>
-        </div>
-        <a class="download" href="media/glm-vs-qwen38-smooth-detail.mp4" download>Download</a>
-      </div>
-      <video controls playsinline preload="metadata" poster="media/glm-vs-qwen38-smooth-detail.jpg">
-        <source src="media/glm-vs-qwen38-smooth-detail.mp4" type="video/mp4">
-      </video>
-    </article>
+  <main class="shell">
+    <div class="scene-picker" role="tablist" aria-label="Choose a model">
+      <button class="scene-tab" type="button" role="tab" data-scene="qwen38" data-src="scenes/qwen38/" data-raw="scenes/qwen38/raw-output.html" data-title="Qwen3.8 Max" data-meta="4 Sparks · UD-Q1_0 1-bit · MTP3 · 56,655 tokens · 2h 12m 33s · 7.12 tok/s · mechanical render repair; raw output preserved">Qwen3.8 Max</button>
+      <button class="scene-tab" type="button" role="tab" data-scene="glm52" data-src="scenes/glm52/" data-title="GLM-5.2" data-meta="4 Sparks · QuantTrio NVFP4 · MTP5 · 22,534 tokens · 13m 01s · 28.86 tok/s">GLM-5.2</button>
+      <button class="scene-tab" type="button" role="tab" data-scene="qwen36" data-src="scenes/qwen36/" data-title="Qwen3.6-27B" data-meta="Mac Studio · Q4_K_M · DFlash · 15,203 tokens · 12m 51s · 19.72 tok/s">Qwen3.6-27B</button>
+    </div>
 
-    <article class="entry">
-      <div class="entry-head">
+    <section class="scene-viewer" aria-labelledby="scene-title">
+      <div class="scene-toolbar">
         <div>
-          <h2>GLM-5.2 vs Qwen3.8 Max, original mirrored cut</h2>
-          <p class="meta">Side-by-side · synchronized zoom · model and runtime metrics embedded</p>
+          <h2 id="scene-title"></h2>
+          <p class="meta" id="scene-meta"></p>
         </div>
-        <a class="download" href="media/glm-vs-qwen38-mirrored.mp4" download>Download</a>
+        <div class="scene-actions">
+          <button class="scene-action" id="scene-restart" type="button" title="Restart the current scene">Restart</button>
+          <a class="scene-action" id="scene-raw" href="#" target="_blank" rel="noopener" hidden>Raw</a>
+          <a class="scene-action" id="scene-open" href="scenes/qwen38/" target="_blank" rel="noopener">Open full</a>
+        </div>
       </div>
-      <video controls playsinline preload="metadata" poster="media/glm-vs-qwen38-mirrored.jpg">
-        <source src="media/glm-vs-qwen38-mirrored.mp4" type="video/mp4">
-      </video>
-    </article>
+      <div class="scene-stage is-loading">
+        <iframe class="scene-frame" id="scene-frame" title="Interactive generated floating-city scene" allow="fullscreen" loading="eager"></iframe>
+      </div>
+    </section>
 
-    <article class="entry portrait">
-      <div class="entry-head">
-        <div>
-          <h2>Qwen3.8 Max vs GLM-5.2 vs Qwen3.6-27B</h2>
-          <p class="meta">Three-model vertical comparison · same prompt · thinking on · uncapped</p>
-        </div>
-        <a class="download" href="media/three-model-comparison.mp4" download>Download</a>
+    <details class="recordings">
+      <summary>Comparison recordings</summary>
+      <div class="gallery">
+        <article class="entry">
+          <div class="entry-head"><div><h2>GLM-5.2 vs Qwen3.8 Max</h2><p class="meta">Smooth mirrored detail comparison</p></div><a class="download" href="media/glm-vs-qwen38-smooth-detail.mp4" download>Download</a></div>
+          <video controls playsinline preload="metadata" poster="media/glm-vs-qwen38-smooth-detail.jpg"><source src="media/glm-vs-qwen38-smooth-detail.mp4" type="video/mp4"></video>
+        </article>
+        <article class="entry portrait">
+          <div class="entry-head"><div><h2>Three-model comparison</h2><p class="meta">Qwen3.8 Max vs GLM-5.2 vs Qwen3.6-27B</p></div><a class="download" href="media/three-model-comparison.mp4" download>Download</a></div>
+          <video controls playsinline preload="metadata" poster="media/three-model-comparison.jpg"><source src="media/three-model-comparison.mp4" type="video/mp4"></video>
+        </article>
       </div>
-      <video controls playsinline preload="metadata" poster="media/three-model-comparison.jpg">
-        <source src="media/three-model-comparison.mp4" type="video/mp4">
-      </video>
-    </article>
+    </details>
   </main>
 
-  <footer><div class="shell">Local model visuals generated and recorded on DGX Spark and Apple Silicon.</div></footer>
+  <footer><div class="shell">Original model-generated HTML, presented without recreating the scene.</div></footer>
+  <script src="../interactive-gallery.js"></script>
 </body>
 </html>

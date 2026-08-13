@@ -84,6 +84,127 @@ h1 {
   font-size: 16px;
 }
 
+.scene-picker {
+  display: flex;
+  gap: 6px;
+  padding: 28px 0 14px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.scene-tab {
+  flex: none;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--panel);
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.scene-tab:hover,
+.scene-tab:focus-visible {
+  border-color: #4d5664;
+  color: var(--text);
+  outline: none;
+}
+
+.scene-tab.is-active {
+  border-color: var(--accent);
+  background: #172538;
+  color: var(--text);
+}
+
+.scene-viewer {
+  padding-bottom: 44px;
+}
+
+.scene-toolbar {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 10px 0 14px;
+}
+
+.scene-actions {
+  display: flex;
+  flex: none;
+  gap: 8px;
+}
+
+.scene-action {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.scene-action:hover,
+.scene-action:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.scene-action[hidden] { display: none; }
+
+.scene-stage {
+  position: relative;
+  height: min(76vh, 820px);
+  min-height: 560px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #000;
+}
+
+.scene-stage::after {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: #090a0d;
+  color: var(--muted);
+  content: "Loading scene";
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease;
+}
+
+.scene-stage.is-loading::after { opacity: 1; }
+
+.scene-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #000;
+}
+
+.recordings {
+  border-top: 1px solid var(--line);
+}
+
+.recordings summary {
+  padding: 22px 0;
+  color: var(--muted);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.recordings[open] summary { color: var(--text); }
+
 .gallery {
   display: grid;
   gap: 34px;
@@ -157,6 +278,12 @@ footer {
   .nav a { font-size: 12px; }
   header { padding: 32px 0 22px; }
   h1 { font-size: 36px; }
+  .scene-picker { padding-top: 20px; }
+  .scene-toolbar { align-items: start; }
+  .scene-toolbar h2 { font-size: 17px; }
+  .scene-actions { gap: 6px; }
+  .scene-action { min-height: 34px; padding: 0 9px; font-size: 12px; }
+  .scene-stage { height: 68vh; min-height: 480px; }
   .gallery { gap: 28px; padding-top: 24px; }
   .entry { padding-bottom: 28px; }
   .entry-head { align-items: start; }

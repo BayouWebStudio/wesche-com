@@ -1,0 +1,1462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Steampunk Voxel City</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { overflow: hidden; background: #000; font-family: 'Georgia', serif; }
+canvas { display: block; }
+#ui {
+position: fixed; top: 20px; left: 20px; z-index: 100;
+display: flex; flex-direction: column; gap: 10px;
+}
+.btn {
+background: linear-gradient(135deg, #8B6914, #D4A017);
+border: 2px solid #FFD700; color: #FFF8DC;
+padding: 10px 20px; border-radius: 8px; cursor: pointer;
+font-family: 'Georgia', serif; font-size: 14px;
+text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+box-shadow: 0 4px 15px rgba(212,160,23,0.3);
+transition: all 0.3s;
+}
+.btn:hover {
+background: linear-gradient(135deg, #D4A017, #FFD700);
+box-shadow: 0 4px 20px rgba(255,215,0,0.5);
+transform: translateY(-2px);
+}
+#title {
+position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+color: #FFD700; font-size: 24px; font-family: 'Georgia', serif;
+text-shadow: 0 0 20px rgba(255,215,0,0.5), 2px 2px 4px rgba(0,0,0,0.8);
+z-index: 100; letter-spacing: 3px;
+}
+#info {
+position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+color: #D4A017; font-size: 12px; font-family: 'Georgia', serif;
+text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+z-index: 100; opacity: 0.7;
+}
+</style>
+</head>
+<body>
+<div id="title">⚙ AETHERIA ⚙</div>
+<div id="ui">
+<button class="btn" id="dayNightBtn">🌙 Night Mode</button>
+<button class="btn" id="resetBtn">🔄 Reset View</button>
+</div>
+<div id="info">🖱 Orbit: Left Click | Zoom: Scroll | Pan: Right Click</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ==================== ORBIT CONTROLS (INLINE) ====================
+// Minimal OrbitControls implementation
+THREE.OrbitControls = function(object, domElement) {
+this.object = object;
+this.domElement = domElement;
+this.enabled = true;
+this.target = new THREE.Vector3();
+this.minDistance = 20;
+this.maxDistance = 500;
+this.enableDamping = true;
+this.dampingFactor = 0.08;
+this.rotateSpeed = 0.5;
+this.zoomSpeed = 1.2;
+this.panSpeed = 0.8;
+
+let scope = this;
+let spherical = new THREE.Spherical();
+let sphericalDelta = new THREE.Spherical();
+let scale = 1;
+let panOffset = new THREE.Vector3();
+let rotateStart = new THREE.Vector2();
+let rotateEnd = new THREE.Vector2();
+let rotateDelta = new THREE.Vector2();
+let panStart = new THREE.Vector2();
+let panEnd = new THREE.Vector2();
+let panDelta = new THREE.Vector2();
+let state = -1; // -1: none, 0: rotate, 1: zoom, 2: pan
+
+this.update = function() {
+let offset = new THREE.Vector3();
+let position = scope.object.position;
+offset.copy(position).sub(scope.target);
+spherical.setFromVector3(offset);
+spherical.theta += sphericalDelta.theta * scope.dampingFactor;
+spherical.phi += sphericalDelta.phi * scope.dampingFactor;
+spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, spherical.phi));
+spherical.radius *= scale;
+spherical.radius = Math.max(scope.minDistance, Math.min(scope.maxDistance, spherical.radius));
+scope.target.add(panOffset.multiplyScalar(scope.dampingFactor));
+offset.setFromSpherical(spherical);
+position.copy(scope.target).add(offset);
+scope.object.lookAt(scope.target);
+sphericalDelta.theta *= (1 - scope.dampingFactor);
+sphericalDelta.phi *= (1 - scope.dampingFactor);
+scale = 1;
+panOffset.multiplyScalar(1 - scope.dampingFactor);
+};
+
+function onMouseDown(event) {
+if (!scope.enabled) return;
+event.preventDefault();
+if (event.button === 0) {
+state = 0;
+rotateStart.set(event.clientX, event.clientY);
+} else if (event.button === 2) {
+state = 2;
+panStart.set(event.clientX, event.clientY);
+}
+document.addEventListener('mousemove', onMouseMove, false);
+document.addEventListener('mouseup', onMouseUp, false);
+}
+
+function onMouseMove(event) {
+if (!scope.enabled) return;
+if (state === 0) {
+rotateEnd.set(event.clientX, event.clientY);
+rotateDelta.subVectors(rotateEnd, rotateStart);
+sphericalDelta.theta -= 2 * Math.PI * rotateDelta.x / domElement.clientWidth * scope.rotateSpeed;
+sphericalDelta.phi -= 2 * Math.PI * rotateDelta.y / domElement.clientHeight * scope.rotateSpeed;
+rotateStart.copy(rotateEnd);
+} else if (state === 2) {
+panEnd.set(event.clientX, event.clientY);
+panDelta.subVectors(panEnd, panStart);
+let offset = new THREE.Vector3();
+offset.copy(scope.object.position).sub(scope.target);
+let targetDistance = offset.length() * Math.tan((scope.object.fov / 2) * Math.PI / 180.0);
+let v = new THREE.Vector3();
+v.setFromMatrixColumn(scope.object.matrix, 0);
+v.multiplyScalar(-2 * panDelta.x * targetDistance / domElement.clientHeight * scope.panSpeed);
+panOffset.add(v);
+v.setFromMatrixColumn(scope.object.matrix, 1);
+v.multiplyScalar(2 * panDelta.y * targetDistance / domElement.clientHeight * scope.panSpeed);
+panOffset.add(v);
+panStart.copy(panEnd);
+}
+}
+
+function onMouseUp() {
+state = -1;
+document.removeEventListener('mousemove', onMouseMove, false);
+document.removeEventListener('mouseup', onMouseUp, false);
+}
+
+function onWheel(event) {
+if (!scope.enabled) return;
+event.preventDefault();
+if (event.deltaY < 0) scale /= Math.pow(0.95, scope.zoomSpeed);
+else scale *= Math.pow(0.95, scope.zoomSpeed);
+}
+
+domElement.addEventListener('mousedown', onMouseDown, false);
+domElement.addEventListener('wheel', onWheel, { passive: false });
+domElement.addEventListener('contextmenu', e => e.preventDefault(), false);
+};
+
+// ==================== MAIN APPLICATION ====================
+let scene, camera, renderer, controls;
+let isNight = false;
+let sunLight, ambientLight, moonLight;
+let clock = new THREE.Clock();
+let airships = [];
+let turbines = [];
+let characters = [];
+let clouds = [];
+let waterfallParticles = [];
+let windowLights = [];
+let steamParticles = [];
+
+// Color palettes
+const COLORS = {
+copper: 0xB87333,
+darkCopper: 0x8B5A2B,
+brass: 0xD4A017,
+gold: 0xFFD700,
+steel: 0x71797E,
+darkSteel: 0x4A4A4A,
+rust: 0xA0522D,
+wood: 0x8B6914,
+darkWood: 0x5C4033,
+stone: 0x808080,
+darkStone: 0x505050,
+brick: 0xB22222,
+green: 0x2E8B57,
+darkGreen: 0x1B5E20,
+cloud: 0xF0F0F0,
+water: 0x4682B4,
+glow: 0xFFA500,
+nightGlow: 0xFFD700,
+purple: 0x8B00FF,
+teal: 0x00CED1,
+};
+
+// ==================== VOXEL SYSTEM ====================
+const voxelGeo = new THREE.BoxGeometry(1, 1, 1);
+
+function createVoxelMaterial(color, emissive = 0x000000, emissiveIntensity = 0) {
+return new THREE.MeshPhongMaterial({
+color: color,
+emissive: emissive,
+emissiveIntensity: emissiveIntensity,
+flatShading: true,
+shininess: 30,
+specular: 0x444444
+});
+}
+
+// Instanced voxel builder for performance
+function buildVoxelStructure(voxels, material) {
+const group = new THREE.Group();
+const instancedMesh = new THREE.InstancedMesh(voxelGeo, material, voxels.length);
+const dummy = new THREE.Object3D();
+
+voxels.forEach((v, i) => {
+dummy.position.set(v.x, v.y, v.z);
+dummy.updateMatrix();
+instancedMesh.setMatrixAt(i, dummy.matrix);
+});
+
+instancedMesh.instanceMatrix.needsUpdate = true;
+group.add(instancedMesh);
+return group;
+}
+
+// ==================== SCENE SETUP ====================
+function init() {
+scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x87CEEB, 0.0015);
+
+camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);
+camera.position.set(120, 80, 120);
+
+renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+document.body.appendChild(renderer.domElement);
+
+controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 30, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance = 30;
+controls.maxDistance = 400;
+
+setupLighting();
+createSkybox();
+createClouds();
+createCentralIsland();
+createSatelliteIslands();
+createBridges();
+createClockTower();
+createBuildings();
+createAirships();
+createWindTurbines();
+createWaterfalls();
+createCharacters();
+createSteamParticles();
+createCloudParticles();
+
+window.addEventListener('resize', onResize, false);
+animate();
+}
+
+// ==================== LIGHTING ====================
+function setupLighting() {
+ambientLight = new THREE.AmbientLight(0x6688AA, 0.6);
+scene.add(ambientLight);
+
+sunLight = new THREE.DirectionalLight(0xFFF5E0, 1.2);
+sunLight.position.set(100, 150, 80);
+sunLight.castShadow = true;
+sunLight.shadow.mapSize.width = 2048;
+sunLight.shadow.mapSize.height = 2048;
+sunLight.shadow.camera.near = 1;
+sunLight.shadow.camera.far = 500;
+sunLight.shadow.camera.left = -150;
+sunLight.shadow.camera.right = 150;
+sunLight.shadow.camera.top = 150;
+sunLight.shadow.camera.bottom = -150;
+scene.add(sunLight);
+
+moonLight = new THREE.DirectionalLight(0x4466AA, 0);
+moonLight.position.set(-80, 120, -60);
+scene.add(moonLight);
+
+// Hemisphere light for sky/ground color
+let hemiLight = new THREE.HemisphereLight(0x87CEEB, 0x362907, 0.4);
+scene.add(hemiLight);
+}
+
+// ==================== SKYBOX ====================
+function createSkybox() {
+const skyGeo = new THREE.SphereGeometry(800, 32, 32);
+const skyMat = new THREE.ShaderMaterial({
+uniforms: {
+topColor: { value: new THREE.Color(0x0077FF) },
+bottomColor: { value: new THREE.Color(0x87CEEB) },
+offset: { value: 20 },
+exponent: { value: 0.4 }
+},
+vertexShader: `
+varying vec3 vWorldPosition;
+void main() {
+vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+vWorldPosition = worldPosition.xyz;
+gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}
+`,
+fragmentShader: `
+uniform vec3 topColor;
+uniform vec3 bottomColor;
+uniform float offset;
+uniform float exponent;
+varying vec3 vWorldPosition;
+void main() {
+float h = normalize(vWorldPosition + offset).y;
+gl_FragColor = vec4(mix(bottomColor, topColor, max(pow(max(h, 0.0), exponent), 0.0)), 1.0);
+}
+`,
+side: THREE.BackSide
+});
+const sky = new THREE.Mesh(skyGeo, skyMat);
+scene.add(sky);
+}
+
+// ==================== CLOUDS ====================
+function createClouds() {
+for (let i = 0; i < 40; i++) {
+let cloud = createCloud();
+cloud.position.set(
+(Math.random() - 0.5) * 500,
+-10 + Math.random() * 20,
+(Math.random() - 0.5) * 500
+);
+cloud.userData = {
+speed: 0.02 + Math.random() * 0.05,
+baseX: cloud.position.x,
+baseZ: cloud.position.z
+};
+clouds.push(cloud);
+scene.add(cloud);
+}
+}
+
+function createCloud() {
+const group = new THREE.Group();
+const cloudMat = createVoxelMaterial(COLORS.cloud);
+const voxels = [];
+let size = 3 + Math.floor(Math.random() * 5);
+
+for (let i = 0; i < size * size; i++) {
+let x = Math.floor(Math.random() * size * 2) - size;
+let y = Math.floor(Math.random() * 2);
+let z = Math.floor(Math.random() * size) - Math.floor(size / 2);
+voxels.push({ x, y, z });
+}
+
+let cloudMesh = buildVoxelStructure(voxels, cloudMat);
+group.add(cloudMesh);
+group.traverse(child => {
+if (child.isInstancedMesh) {
+child.material.transparent = true;
+child.material.opacity = 0.85;
+}
+});
+return group;
+}
+
+function createCloudParticles() {
+const cloudGeo = new THREE.BoxGeometry(1, 1, 1);
+const cloudMat = new THREE.MeshPhongMaterial({
+color: 0xFFFFFF, transparent: true, opacity: 0.6, flatShading: true
+});
+
+for (let i = 0; i < 200; i++) {
+let cloud = new THREE.Mesh(cloudGeo, cloudMat.clone());
+cloud.position.set(
+(Math.random() - 0.5) * 600,
+-5 + Math.random() * 15,
+(Math.random() - 0.5) * 600
+);
+cloud.scale.set(
+2 + Math.random() * 4,
+1 + Math.random() * 2,
+2 + Math.random() * 4
+);
+cloud.userData = {
+speed: 0.01 + Math.random() * 0.03,
+baseX: cloud.position.x,
+baseZ: cloud.position.z
+};
+clouds.push(cloud);
+scene.add(cloud);
+}
+}
+
+// ==================== CENTRAL ISLAND ====================
+function createCentralIsland() {
+// Main island base - rocky bottom
+const rockMat = createVoxelMaterial(COLORS.darkStone);
+const rockVoxels = [];
+
+// Create a large dome-shaped island
+for (let x = -25; x <= 25; x++) {
+for (let z = -25; z <= 25; z++) {
+let dist = Math.sqrt(x * x + z * z);
+if (dist < 25) {
+let height = Math.floor(Math.sqrt(1 - (dist / 25) * (dist / 25)) * 12);
+for (let y = -height; y < 0; y++) {
+rockVoxels.push({ x, y, z });
+}
+// Top layer with grass
+if (height > 0) {
+rockVoxels.push({ x, y: 0, z });
+}
+}
+}
+}
+
+let island = buildVoxelStructure(rockVoxels, rockMat);
+scene.add(island);
+
+// Grass top
+const grassMat = createVoxelMaterial(COLORS.green);
+const grassVoxels = [];
+for (let x = -24; x <= 24; x++) {
+for (let z = -24; z <= 24; z++) {
+let dist = Math.sqrt(x * x + z * z);
+if (dist < 24) {
+grassVoxels.push({ x, y: 1, z });
+}
+}
+}
+let grass = buildVoxelStructure(grassVoxels, grassMat);
+scene.add(grass);
+
+// Decorative rocks on surface
+for (let i = 0; i < 30; i++) {
+let rx = (Math.random() - 0.5) * 40;
+let rz = (Math.random() - 0.5) * 40;
+let dist = Math.sqrt(rx * rx + rz * rz);
+if (dist < 22) {
+let rockGroup = new THREE.Group();
+let size = 1 + Math.floor(Math.random() * 2);
+for (let dx = 0; dx < size; dx++) {
+for (let dy = 0; dy < size; dy++) {
+for (let dz = 0; dz < size; dz++) {
+if (Math.random() > 0.3) {
+let v = new THREE.Mesh(voxelGeo, createVoxelMaterial(
+Math.random() > 0.5 ? COLORS.stone : COLORS.darkStone
+));
+v.position.set(dx - size / 2, dy, dz - size / 2);
+rockGroup.add(v);
+}
+}
+}
+}
+rockGroup.position.set(rx, 2, rz);
+scene.add(rockGroup);
+}
+}
+
+// Small trees
+for (let i = 0; i < 15; i++) {
+let tx = (Math.random() - 0.5) * 36;
+let tz = (Math.random() - 0.5) * 36;
+let dist = Math.sqrt(tx * tx + tz * tz);
+if (dist < 20) {
+createTree(tx, 2, tz);
+}
+}
+}
+
+function createTree(x, y, z) {
+const group = new THREE.Group();
+
+// Trunk
+const trunkMat = createVoxelMaterial(COLORS.darkWood);
+for (let i = 0; i < 4; i++) {
+let v = new THREE.Mesh(voxelGeo, trunkMat);
+v.position.set(0, i, 0);
+group.add(v);
+}
+
+// Leaves
+const leafMat = createVoxelMaterial(COLORS.darkGreen);
+for (let lx = -2; lx <= 2; lx++) {
+for (let ly = 0; ly <= 3; ly++) {
+for (let lz = -2; lz <= 2; lz++) {
+if (Math.abs(lx) + Math.abs(ly - 1) + Math.abs(lz) <= 4) {
+if (Math.random() > 0.2) {
+let v = new THREE.Mesh(voxelGeo, leafMat);
+v.position.set(lx, ly + 3, lz);
+group.add(v);
+}
+}
+}
+}
+}
+
+group.position.set(x, y, z);
+scene.add(group);
+}
+
+// ==================== SATELLITE ISLANDS ====================
+function createSatelliteIslands() {
+const islandData = [
+{ pos: [60, 15, 40], size: 12, name: 'East' },
+{ pos: [-55, 25, -35], size: 10, name: 'West' },
+{ pos: [35, 35, -60], size: 8, name: 'North' },
+{ pos: [-40, 10, 55], size: 9, name: 'South' },
+{ pos: [70, 5, -20], size: 7, name: 'FarEast' },
+{ pos: [-65, 20, 20], size: 8, name: 'FarWest' },
+];
+
+islandData.forEach(data => {
+createFloatingIsland(data.pos[0], data.pos[1], data.pos[2], data.size);
+});
+}
+
+function createFloatingIsland(cx, cy, cz, size) {
+const rockMat = createVoxelMaterial(COLORS.darkStone);
+const rockVoxels = [];
+
+for (let x = -size; x <= size; x++) {
+for (let z = -size; z <= size; z++) {
+let dist = Math.sqrt(x * x + z * z);
+if (dist < size) {
+let height = Math.floor(Math.sqrt(1 - (dist / size) * (dist / size)) * (size * 0.6));
+for (let y = -height; y < 0; y++) {
+rockVoxels.push({ x: cx + x, y: cy + y, z: cz + z });
+}
+}
+}
+}
+
+let island = buildVoxelStructure(rockVoxels, rockMat);
+scene.add(island);
+
+// Grass top
+const grassMat = createVoxelMaterial(COLORS.green);
+const grassVoxels = [];
+for (let x = -size + 1; x <= size - 1; x++) {
+for (let z = -size + 1; z <= size - 1; z++) {
+let dist = Math.sqrt(x * x + z * z);
+if (dist < size - 1) {
+grassVoxels.push({ x: cx + x, y: cy + 1, z: cz + z });
+}
+}
+}
+let grass = buildVoxelStructure(grassVoxels, grassMat);
+scene.add(grass);
+
+// Add some buildings on smaller islands
+if (size > 8) {
+createSmallBuilding(cx, cy + 2, cz, size);
+}
+
+// Trees
+for (let i = 0; i < 3; i++) {
+let tx = cx + (Math.random() - 0.5) * (size * 1.5);
+let tz = cz + (Math.random() - 0.5) * (size * 1.5);
+createTree(tx, cy + 2, tz);
+}
+}
+
+function createSmallBuilding(cx, cy, cz, size) {
+const brickMat = createVoxelMaterial(COLORS.brick);
+const copperMat = createVoxelMaterial(COLORS.copper);
+
+let bx = Math.floor((Math.random() - 0.5) * (size - 4));
+let bz = Math.floor((Math.random() - 0.5) * (size - 4));
+let bWidth = 2 + Math.floor(Math.random() * 3);
+let bHeight = 3 + Math.floor(Math.random() * 4);
+let bDepth = 2 + Math.floor(Math.random() * 3);
+
+// Walls
+for (let x = 0; x < bWidth; x++) {
+for (let y = 0; y < bHeight; y++) {
+for (let z = 0; z < bDepth; z++) {
+if (x === 0 || x === bWidth - 1 || z === 0 || z === bDepth - 1 || y === 0) {
+let v = new THREE.Mesh(voxelGeo, brickMat);
+v.position.set(cx + bx + x - bWidth / 2, cy + y, cz + bz + z - bDepth / 2);
+scene.add(v);
+}
+}
+}
+}
+
+// Roof
+for (let x = -1; x <= bWidth; x++) {
+for (let z = -1; z <= bDepth; z++) {
+let v = new THREE.Mesh(voxelGeo, copperMat);
+v.position.set(cx + bx + x - bWidth / 2, cy + bHeight, cz + bz + z - bDepth / 2);
+scene.add(v);
+}
+}
+
+// Windows with glow
+const windowMat = createVoxelMaterial(COLORS.brass, COLORS.glow, 0.5);
+for (let x = 1; x < bWidth - 1; x++) {
+for (let y = 1; y < bHeight; y += 2) {
+if (Math.random() > 0.3) {
+let w = new THREE.Mesh(voxelGeo, windowMat.clone());
+w.position.set(cx + bx + x - bWidth / 2, cy + y, cz + bz - bDepth / 2);
+windowLights.push(w);
+scene.add(w);
+
+let w2 = new THREE.Mesh(voxelGeo, windowMat.clone());
+w2.position.set(cx + bx + x - bWidth / 2, cy + y, cz + bz + bDepth / 2);
+windowLights.push(w2);
+scene.add(w2);
+}
+}
+}
+}
+
+// ==================== BRIDGES ====================
+function createBridges() {
+const bridgeConnections = [
+{ from: [0, 3, 0], to: [60, 15, 40] },
+{ from: [0, 3, 0], to: [-55, 25, -35] },
+{ from: [0, 3, 0], to: [35, 35, -60] },
+{ from: [0, 3, 0], to: [-40, 10, 55] },
+{ from: [60, 15, 40], to: [70, 5, -20] },
+{ from: [-55, 25, -35], to: [-65, 20, 20] },
+];
+
+bridgeConnections.forEach(conn => {
+createBridge(conn.from, conn.to);
+});
+}
+
+function createBridge(from, to) {
+const dx = to[0] - from[0];
+const dy = to[1] - from[1];
+const dz = to[2] - from[2];
+let dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+let steps = Math.floor(dist);
+
+const woodMat = createVoxelMaterial(COLORS.wood);
+const railMat = createVoxelMaterial(COLORS.darkCopper);
+
+for (let i = 0; i < steps; i++) {
+let t = i / steps;
+let x = from[0] + dx * t;
+let y = from[1] + dy * t + Math.sin(t * Math.PI) * 5; // Arch
+let z = from[2] + dz * t;
+
+// Bridge floor
+let floor = new THREE.Mesh(voxelGeo, woodMat);
+floor.position.set(x, y, z);
+scene.add(floor);
+
+// Rails
+if (i % 2 === 0) {
+let rail1 = new THREE.Mesh(voxelGeo, railMat);
+rail1.position.set(x, y + 1.5, z);
+scene.add(rail1);
+
+let rail2 = new THREE.Mesh(voxelGeo, railMat);
+rail2.position.set(x, y + 3, z);
+scene.add(rail2);
+}
+
+// Chain links (vertical supports)
+if (i % 4 === 0) {
+let chain = new THREE.Mesh(voxelGeo, railMat);
+chain.position.set(x, y + 1.5, z);
+chain.scale.set(0.3, 1.5, 0.3);
+scene.add(chain);
+}
+}
+}
+
+// ==================== CLOCK TOWER ====================
+function createClockTower() {
+const towerGroup = new THREE.Group();
+const brickMat = createVoxelMaterial(COLORS.brick);
+const copperMat = createVoxelMaterial(COLORS.copper);
+const brassMat = createVoxelMaterial(COLORS.brass, COLORS.glow, 0.3);
+const darkMat = createVoxelMaterial(COLORS.darkSteel);
+
+// Tower base - wider
+let baseSize = 6;
+let baseHeight = 15;
+for (let x = -baseSize; x <= baseSize; x++) {
+for (let y = 0; y < baseHeight; y++) {
+for (let z = -baseSize; z <= baseSize; z++) {
+if (Math.abs(x) === baseSize || Math.abs(z) === baseSize || y === 0) {
+let v = new THREE.Mesh(voxelGeo, brickMat);
+v.position.set(x, y, z);
+towerGroup.add(v);
+}
+}
+}
+}
+
+// Tower middle - narrower
+let midSize = 4;
+let midHeight = 20;
+for (let x = -midSize; x <= midSize; x++) {
+for (let y = baseHeight; y < baseHeight + midHeight; y++) {
+for (let z = -midSize; z <= midSize; z++) {
+if (Math.abs(x) === midSize || Math.abs(z) === midSize) {
+let v = new THREE.Mesh(voxelGeo, brickMat);
+v.position.set(x, y, z);
+towerGroup.add(v);
+}
+}
+}
+}
+
+// Clock faces
+let clockY = baseHeight + midHeight - 5;
+// Front face
+for (let x = -3; x <= 3; x++) {
+for (let z = -3; z <= 3; z++) {
+let v = new THREE.Mesh(voxelGeo, brassMat);
+v.position.set(x, clockY, midSize + 0.5);
+towerGroup.add(v);
+}
+}
+// Back face
+for (let x = -3; x <= 3; x++) {
+for (let z = -3; z <= 3; z++) {
+let v = new THREE.Mesh(voxelGeo, brassMat);
+v.position.set(x, clockY, -midSize - 0.5);
+towerGroup.add(v);
+}
+}
+// Left face
+for (let x = -3; x <= 3; x++) {
+for (let z = -3; z <= 3; z++) {
+let v = new THREE.Mesh(voxelGeo, brassMat);
+v.position.set(-midSize - 0.5, clockY, x);
+towerGroup.add(v);
+}
+}
+// Right face
+for (let x = -3; x <= 3; x++) {
+for (let z = -3; z <= 3; z++) {
+let v = new THREE.Mesh(voxelGeo, brassMat);
+v.position.set(midSize + 0.5, clockY, x);
+towerGroup.add(v);
+}
+}
+
+// Clock hands
+const handMat = createVoxelMaterial(COLORS.darkSteel);
+let hourHand = new THREE.Mesh(voxelGeo, handMat);
+hourHand.position.set(0, clockY, midSize + 1.5);
+hourHand.scale.set(0.3, 2, 0.3);
+towerGroup.add(hourHand);
+hourHand.userData = { type: 'hourHand' };
+
+let minHand = new THREE.Mesh(voxelGeo, handMat);
+minHand.position.set(1.5, clockY, midSize + 1.5);
+minHand.scale.set(0.3, 3, 0.3);
+towerGroup.add(minHand);
+minHand.userData = { type: 'minHand' };
+
+// Spire
+let topY = baseHeight + midHeight;
+for (let y = 0; y < 10; y++) {
+let size = Math.max(1, 3 - Math.floor(y / 3));
+for (let x = -size; x <= size; x++) {
+for (let z = -size; z <= size; z++) {
+if (Math.abs(x) === size || Math.abs(z) === size) {
+let v = new THREE.Mesh(voxelGeo, copperMat);
+v.position.set(x, topY + y, z);
+towerGroup.add(v);
+}
+}
+}
+}
+
+// Copper dome on top
+let domeY = topY + 10;
+for (let x = -2; x <= 2; x++) {
+for (let y = 0; y <= 3; y++) {
+for (let z = -2; z <= 2; z++) {
+if (x * x + y * y + z * z <= 7) {
+let v = new THREE.Mesh(voxelGeo, copperMat);
+v.position.set(x, domeY + y, z);
+towerGroup.add(v);
+}
+}
+}
+}
+
+// Flag on top
+let flagPole = new THREE.Mesh(voxelGeo, darkMat);
+flagPole.position.set(0, domeY + 5, 0);
+flagPole.scale.set(0.2, 3, 0.2);
+towerGroup.add(flagPole);
+
+let flag = new THREE.Mesh(voxelGeo, createVoxelMaterial(COLORS.gold));
+flag.position.set(0.8, domeY + 6, 0);
+flag.scale.set(1.5, 0.5, 0.2);
+towerGroup.add(flag);
+flag.userData = { type: 'flag' };
+
+// Glowing windows on tower
+const glowMat = createVoxelMaterial(COLORS.brass, COLORS.glow, 0.6);
+for (let y = 2; y < baseHeight; y += 3) {
+for (let side = 0; side < 4; side++) {
+let wx, wz;
+switch(side) {
+case 0: wx = baseSize + 0.5; wz = 0; break;
+case 1: wx = -baseSize - 0.5; wz = 0; break;
+case 2: wx = 0; wz = baseSize + 0.5; break;
+case 3: wx = 0; wz = -baseSize - 0.5; break;
+}
+let w = new THREE.Mesh(voxelGeo, glowMat.clone());
+w.position.set(wx, y, wz);
+windowLights.push(w);
+towerGroup.add(w);
+}
+}
+
+// Gear decorations
+for (let i = 0; i < 8; i++) {
+let angle = (i / 8) * Math.PI * 2;
+let gear = new THREE.Mesh(voxelGeo, copperMat);
+gear.position.set(
+Math.cos(angle) * (midSize + 1),
+baseHeight + midHeight / 2,
+Math.sin(angle) * (midSize + 1)
+);
+gear.scale.set(1, 0.5, 1);
+gear.userData = { type: 'gear', angle: angle, speed: 0.5 + Math.random() * 0.5 };
+towerGroup.add(gear);
+}
+
+towerGroup.position.set(0, 2, 0);
+scene.add(towerGroup);
+}
+
+// ==================== BUILDINGS ====================
+function createBuildings() {
+// Create various buildings on the central island
+const buildingPositions = [
+{ x: 15, z: 10, w: 4, h: 8, d: 4 },
+{ x: -12, z: 12, w: 5, h: 6, d: 3 },
+{ x: 10, z: -15, w: 3, h: 10, d: 3 },
+{ x: -18, z: -8, w: 6, h: 5, d: 5 },
+{ x: 5, z: 20, w: 4, h: 7, d: 4 },
+{ x: -5, z: -20, w: 3, h: 9, d: 3 },
+{ x: 20, z: -5, w: 5, h: 6, d: 4 },
+{ x: -10, z: -18, w: 4, h: 8, d: 3 },
+{ x: 18, z: 18, w: 3, h: 5, d: 5 },
+{ x: -20, z: 5, w: 4, h: 7, d: 3 },
+];
+
+buildingPositions.forEach(b => {
+createBuilding(b.x, 2, b.z, b.w, b.h, b.d);
+});
+}
+
+function createBuilding(x, y, z, w, h, d) {
+const brickMat = createVoxelMaterial(COLORS.brick);
+const copperMat = createVoxelMaterial(COLORS.copper);
+const darkMat = createVoxelMaterial(COLORS.darkSteel);
+const glowMat = createVoxelMaterial(COLORS.brass, COLORS.glow, 0.5);
+
+// Walls
+for (let bx = 0; bx < w; bx++) {
+for (let by = 0; by < h; by++) {
+for (let bz = 0; bz < d; bz++) {
+if (bx === 0 || bx === w - 1 || bz === 0 || bz === d - 1 || by === 0) {
+let mat = brickMat;
+// Window openings
+if (by > 0 && by < h - 1 && (bx === 0 || bx === w - 1 || bz === 0 || bz === d - 1)) {
+if ((by % 2 === 0) && Math.random() > 0.3) {
+let win = new THREE.Mesh(voxelGeo, glowMat.clone());
+win.position.set(x + bx - w / 2, y + by, z + bz - d / 2);
+windowLights.push(win);
+scene.add(win);
+continue;
+}
+}
+let v = new THREE.Mesh(voxelGeo, mat);
+v.position.set(x + bx - w / 2, y + by, z + bz - d / 2);
+scene.add(v);
+}
+}
+}
+}
+
+// Copper roof
+for (let bx = -1; bx <= w; bx++) {
+for (let bz = -1; bz <= d; bz++) {
+let v = new THREE.Mesh(voxelGeo, copperMat);
+v.position.set(x + bx - w / 2, y + h, z + bz - d / 2);
+scene.add(v);
+}
+}
+
+// Chimney
+if (Math.random() > 0.4) {
+let cx = x + (w / 2 - 1);
+let cz = z + (d / 2 - 1);
+for (let cy = 0; cy < 4; cy++) {
+let v = new THREE.Mesh(voxelGeo, darkMat);
+v.position.set(cx, y + h + 1 + cy, cz);
+scene.add(v);
+}
+}
+}
+
+// ==================== AIRSHIPS ====================
+function createAirships() {
+const airshipData = [
+{ path: [[0, 40, 0], [60, 25, 40], [70, 15, -20]], color: COLORS.copper },
+{ path: [[-55, 35, -35], [0, 40, 0], [35, 45, -60]], color: COLORS.brass },
+{ path: [[-40, 20, 55], [-65, 30, 20], [-55, 35, -35]], color: COLORS.darkCopper },
+{ path: [[60, 25, 40], [15, 50, 15], [-40, 20, 55]], color: COLORS.gold },
+];
+
+airshipData.forEach(data => {
+let airship = createAirship(data.color);
+airship.userData = {
+path: data.path.map(p => new THREE.Vector3(...p)),
+pathIndex: 0,
+pathT: 0,
+speed: 0.003 + Math.random() * 0.002
+};
+airships.push(airship);
+scene.add(airship);
+});
+}
+
+function createAirship(color) {
+const group = new THREE.Group();
+const hullMat = createVoxelMaterial(color);
+const darkMat = createVoxelMaterial(COLORS.darkSteel);
+const glowMat = createVoxelMaterial(COLORS.gold, COLORS.glow, 0.8);
+
+// Main hull (elongated)
+for (let x = -8; x <= 8; x++) {
+let radius = Math.cos((x / 8) * Math.PI / 2) * 3;
+for (let y = -Math.floor(radius); y <= Math.floor(radius); y++) {
+for (let z = -Math.floor(radius); z <= Math.floor(radius); z++) {
+if (y * y + z * z <= radius * radius + 1) {
+let v = new THREE.Mesh(voxelGeo, hullMat);
+v.position.set(x, y, z);
+group.add(v);
+}
+}
+}
+}
+
+// Gondola
+for (let x = -4; x <= 4; x++) {
+for (let y = -1; y <= 0; y++) {
+for (let z = -2; z <= 2; z++) {
+let v = new THREE.Mesh(voxelGeo, darkMat);
+v.position.set(x, y - 3, z);
+group.add(v);
+}
+}
+}
+
+// Gondola windows
+for (let x = -3; x <= 3; x += 2) {
+let w = new THREE.Mesh(voxelGeo, glowMat);
+w.position.set(x, -2, 2.5);
+group.add(w);
+let w2 = new THREE.Mesh(voxelGeo, glowMat);
+w2.position.set(x, -2, -2.5);
+group.add(w2);
+windowLights.push(w, w2);
+}
+
+// Propellers
+for (let side = -1; side <= 1; side += 2) {
+let propGroup = new THREE.Group();
+for (let i = 0; i < 4; i++) {
+let angle = (i / 4) * Math.PI * 2;
+let blade = new THREE.Mesh(voxelGeo, darkMat);
+blade.position.set(Math.cos(angle) * 2, 0, Math.sin(angle) * 2);
+blade.scale.set(2, 0.2, 0.5);
+propGroup.add(blade);
+}
+propGroup.position.set(-8, 0, side * 3);
+propGroup.userData = { type: 'propeller' };
+group.add(propGroup);
+}
+
+// Tail fins
+for (let side = -1; side <= 1; side += 2) {
+for (let y = 0; y < 3; y++) {
+let v = new THREE.Mesh(voxelGeo, darkMat);
+v.position.set(7, y, side * 2);
+group.add(v);
+}
+}
+
+// Spotlight on bottom
+let light = new THREE.PointLight(COLORS.glow, 0.5, 20);
+light.position.set(0, -4, 0);
+group.add(light);
+
+return group;
+}
+
+// ==================== WIND TURBINES ====================
+function createWindTurbines() {
+const turbinePositions = [
+{ x: 20, y: 2, z: 15 },
+{ x: -15, y: 2, z: -12 },
+{ x: 25, y: 2, z: -10 },
+{ x: -22, y: 2, z: 10 },
+{ x: 10, y: 2, z: -22 },
+];
+
+turbinePositions.forEach(pos => {
+let turbine = createWindTurbine();
+turbine.position.set(pos.x, pos.y, pos.z);
+turbines.push(turbine);
+scene.add(turbine);
+});
+}
+
+function createWindTurbine() {
+const group = new THREE.Group();
+const steelMat = createVoxelMaterial(COLORS.steel);
+const darkMat = createVoxelMaterial(COLORS.darkSteel);
+
+// Tower
+for (let y = 0; y < 12; y++) {
+let v = new THREE.Mesh(voxelGeo, steelMat);
+v.position.set(0, y, 0);
+v.scale.set(1 - y * 0.03, 1, 1 - y * 0.03);
+group.add(v);
+}
+
+// Hub
+let hub = new THREE.Mesh(voxelGeo, darkMat);
+hub.position.set(0, 12, 0);
+group.add(hub);
+
+// Blades
+const bladeGroup = new THREE.Group();
+for (let i = 0; i < 3; i++) {
+let angle = (i / 3) * Math.PI * 2;
+let blade = new THREE.Group();
+
+for (let b = 0; b < 6; b++) {
+let v = new THREE.Mesh(voxelGeo, steelMat);
+v.position.set(0, b + 1, 0);
+v.scale.set(0.5, 1, 0.3);
+blade.add(v);
+}
+
+blade.rotation.z = angle;
+bladeGroup.add(blade);
+}
+
+bladeGroup.position.set(0, 12, 0);
+bladeGroup.userData = { type: 'turbineBlades' };
+group.add(bladeGroup);
+
+return group;
+}
+
+// ==================== WATERFALLS ====================
+function createWaterfalls() {
+const waterfallPositions = [
+{ x: 24, y: 0, z: 0 },
+{ x: -23, y: 0, z: 5 },
+{ x: 0, y: 0, z: 24 },
+];
+
+waterfallPositions.forEach(pos => {
+createWaterfall(pos.x, pos.y, pos.z);
+});
+}
+
+function createWaterfall(x, y, z) {
+const waterMat = new THREE.MeshPhongMaterial({
+color: COLORS.water,
+transparent: true,
+opacity: 0.7,
+flatShading: true
+});
+
+// Create waterfall stream
+for (let wy = 0; wy > -20; wy -= 1) {
+let spread = Math.random() * 0.5;
+let v = new THREE.Mesh(voxelGeo, waterMat.clone());
+v.position.set(x + (Math.random() - 0.5) * spread, y + wy, z + (Math.random() - 0.5) * spread);
+v.scale.set(0.5, 1, 0.5);
+v.userData = { type: 'waterfall', baseY: y + wy, speed: 0.5 + Math.random() * 0.5 };
+waterfallParticles.push(v);
+scene.add(v);
+}
+}
+
+// ==================== CHARACTERS ====================
+function createCharacters() {
+const charPositions = [
+{ x: 5, z: 5, patrol: [[5, 2, 5], [10, 2, 8], [3, 2, 10]] },
+{ x: -8, z: -5, patrol: [[-8, 2, -5], [-12, 2, -3], [-6, 2, -10]] },
+{ x: 15, z: -8, patrol: [[15, 2, -8], [18, 2, -5], [12, 2, -12]] },
+{ x: -15, z: 10, patrol: [[-15, 2, 10], [-18, 2, 8], [-12, 2, 15]] },
+{ x: 8, z: 15, patrol: [[8, 2, 15], [12, 2, 12], [5, 2, 18]] },
+{ x: -5, z: 18, patrol: [[-5, 2, 18], [-8, 2, 15], [-2, 2, 22]] },
+{ x: 20, z: 0, patrol: [[20, 2, 0], [22, 2, 5], [18, 2, -5]] },
+{ x: -18, z: -15, patrol: [[-18, 2, -15], [-20, 2, -12], [-15, 2, -18]] },
+];
+
+charPositions.forEach(data => {
+let char = createCharacter();
+char.userData = {
+patrol: data.patrol.map(p => new THREE.Vector3(...p)),
+patrolIndex: 0,
+speed: 0.02 + Math.random() * 0.02,
+bobPhase: Math.random() * Math.PI * 2
+};
+char.position.set(data.x, data.z + 2, data.z);
+characters.push(char);
+scene.add(char);
+});
+}
+
+function createCharacter() {
+const group = new THREE.Group();
+
+// Body
+const bodyMat = createVoxelMaterial(0x4A3728);
+let body = new THREE.Mesh(voxelGeo, bodyMat);
+body.position.set(0, 1, 0);
+body.scale.set(0.8, 1.2, 0.6);
+group.add(body);
+
+// Head
+const headMat = createVoxelMaterial(0xFFDBAC);
+let head = new THREE.Mesh(voxelGeo, headMat);
+head.position.set(0, 2, 0);
+head.scale.set(0.7, 0.7, 0.7);
+group.add(head);
+
+// Hat (steampunk top hat)
+const hatMat = createVoxelMaterial(0x2C1810);
+let hat = new THREE.Mesh(voxelGeo, hatMat);
+hat.position.set(0, 2.6, 0);
+hat.scale.set(0.6, 0.5, 0.6);
+group.add(hat);
+
+let hatBrim = new THREE.Mesh(voxelGeo, hatMat);
+hatBrim.position.set(0, 2.35, 0);
+hatBrim.scale.set(1, 0.15, 1);
+group.add(hatBrim);
+
+// Goggles
+const goggleMat = createVoxelMaterial(COLORS.gold, COLORS.glow, 0.3);
+let goggleL = new THREE.Mesh(voxelGeo, goggleMat);
+goggleL.position.set(-0.2, 2.1, 0.35);
+goggleL.scale.set(0.25, 0.2, 0.15);
+group.add(goggleL);
+
+let goggleR = new THREE.Mesh(voxelGeo, goggleMat);
+goggleR.position.set(0.2, 2.1, 0.35);
+goggleR.scale.set(0.25, 0.2, 0.15);
+group.add(goggleR);
+
+// Legs
+const legMat = createVoxelMaterial(0x3D2B1F);
+let legL = new THREE.Mesh(voxelGeo, legMat);
+legL.position.set(-0.2, 0.3, 0);
+legL.scale.set(0.3, 0.8, 0.3);
+group.add(legL);
+
+let legR = new THREE.Mesh(voxelGeo, legMat);
+legR.position.set(0.2, 0.3, 0);
+legR.scale.set(0.3, 0.8, 0.3);
+group.add(legR);
+
+// Arms
+let armL = new THREE.Mesh(voxelGeo, bodyMat);
+armL.position.set(-0.6, 1, 0);
+armL.scale.set(0.3, 0.8, 0.3);
+group.add(armL);
+
+let armR = new THREE.Mesh(voxelGeo, bodyMat);
+armR.position.set(0.6, 1, 0);
+armR.scale.set(0.3, 0.8, 0.3);
+group.add(armR);
+
+return group;
+}
+
+// ==================== STEAM PARTICLES ====================
+function createSteamParticles() {
+const steamMat = new THREE.MeshPhongMaterial({
+color: 0xFFFFFF,
+transparent: true,
+opacity: 0.3,
+flatShading: true
+});
+
+for (let i = 0; i < 50; i++) {
+let steam = new THREE.Mesh(voxelGeo, steamMat.clone());
+steam.position.set(
+(Math.random() - 0.5) * 60,
+5 + Math.random() * 40,
+(Math.random() - 0.5) * 60
+);
+steam.scale.set(
+0.5 + Math.random() * 1.5,
+0.5 + Math.random() * 1.5,
+0.5 + Math.random() * 1.5
+);
+steam.userData = {
+speed: 0.01 + Math.random() * 0.02,
+phase: Math.random() * Math.PI * 2,
+baseY: steam.position.y,
+life: Math.random()
+};
+steamParticles.push(steam);
+scene.add(steam);
+}
+}
+
+// ==================== DAY/NIGHT TOGGLE ====================
+function toggleDayNight() {
+isNight = !isNight;
+const btn = document.getElementById('dayNightBtn');
+
+if (isNight) {
+btn.textContent = '☀ Day Mode';
+scene.fog.color.setHex(0x0a0a2e);
+scene.fog.density = 0.002;
+sunLight.intensity = 0.1;
+sunLight.color.setHex(0x334466);
+moonLight.intensity = 0.5;
+ambientLight.intensity = 0.15;
+ambientLight.color.setHex(0x112244);
+renderer.toneMappingExposure = 0.6;
+
+// Activate window lights
+windowLights.forEach(w => {
+if (w.material) {
+w.material.emissive.setHex(COLORS.nightGlow);
+w.material.emissiveIntensity = 1.0;
+}
+});
+
+// Add point lights to buildings
+addNightLights();
+} else {
+btn.textContent = '🌙 Night Mode';
+scene.fog.color.setHex(0x87CEEB);
+scene.fog.density = 0.0015;
+sunLight.intensity = 1.2;
+sunLight.color.setHex(0xFFF5E0);
+moonLight.intensity = 0;
+ambientLight.intensity = 0.6;
+ambientLight.color.setHex(0x6688AA);
+renderer.toneMappingExposure = 1.0;
+
+// Deactivate window lights
+windowLights.forEach(w => {
+if (w.material) {
+w.material.emissive.setHex(0x000000);
+w.material.emissiveIntensity = 0;
+}
+});
+
+removeNightLights();
+}
+}
+
+let nightPointLights = [];
+
+function addNightLights() {
+// Add warm point lights around the city
+const positions = [
+[0, 25, 0], [15, 8, 10], [-12, 6, 12], [10, 10, -15],
+[-18, 5, -8], [5, 7, 20], [-5, 9, -20], [20, 6, -5],
+[-10, 8, -18], [18, 5, 18], [-20, 7, 5],
+[60, 20, 40], [-55, 30, -35], [35, 40, -60], [-40, 15, 55],
+];
+
+positions.forEach(pos => {
+let light = new THREE.PointLight(0xFFAA44, 1.5, 30);
+light.position.set(...pos);
+scene.add(light);
+nightPointLights.push(light);
+});
+
+// Add a warm light to the clock tower
+let towerLight = new THREE.PointLight(0xFFDD88, 3, 50);
+towerLight.position.set(0, 30, 0);
+scene.add(towerLight);
+nightPointLights.push(towerLight);
+}
+
+function removeNightLights() {
+nightPointLights.forEach(light => scene.remove(light));
+nightPointLights = [];
+}
+
+// ==================== ANIMATION ====================
+function animate() {
+requestAnimationFrame(animate);
+
+let time = clock.getElapsedTime();
+let delta = clock.getDelta() || 0.016;
+
+// Update controls
+controls.update();
+
+// Animate clouds
+clouds.forEach(cloud => {
+if (cloud.userData && cloud.userData.baseX !== undefined) {
+cloud.position.x = cloud.userData.baseX + Math.sin(time * cloud.userData.speed) * 20;
+cloud.position.z = cloud.userData.baseZ + Math.cos(time * cloud.userData.speed * 0.7) * 10;
+}
+});
+
+// Animate airships
+airships.forEach(ship => {
+let path = ship.userData.path;
+let t = ship.userData.pathT;
+let idx = ship.userData.pathIndex;
+
+t += ship.userData.speed;
+if (t >= 1) {
+t = 0;
+idx = (idx + 1) % (path.length - 1);
+ship.userData.pathIndex = idx;
+}
+ship.userData.pathT = t;
+
+let from = path[idx];
+let to = path[(idx + 1) % path.length];
+let mid = new THREE.Vector3().lerpVectors(from, to, t);
+
+// Add arc to path
+let arcHeight = 5 + Math.sin(t * Math.PI) * 10;
+mid.y += arcHeight;
+
+ship.position.copy(mid);
+
+// Face direction of travel
+let nextT = Math.min(t + 0.01, 1);
+let nextPos = new THREE.Vector3().lerpVectors(from, to, nextT);
+nextPos.y += 5 + Math.sin(nextT * Math.PI) * 10;
+ship.lookAt(nextPos);
+
+// Rotate propellers
+ship.traverse(child => {
+if (child.userData && child.userData.type === 'propeller') {
+child.rotation.x += 0.3;
+}
+});
+});
+
+// Animate wind turbines
+turbines.forEach(turbine => {
+turbine.traverse(child => {
+if (child.userData && child.userData.type === 'turbineBlades') {
+child.rotation.x += 0.05;
+}
+});
+});
+
+// Animate characters
+characters.forEach(char => {
+let patrol = char.userData.patrol;
+let idx = char.userData.patrolIndex;
+let target = patrol[idx];
+
+let dx = target.x - char.position.x;
+let dz = target.z - char.position.z;
+let dist = Math.sqrt(dx * dx + dz * dz);
+
+if (dist < 0.5) {
+idx = (idx + 1) % patrol.length;
+char.userData.patrolIndex = idx;
+} else {
+char.position.x += (dx / dist) * char.userData.speed;
+char.position.z += (dz / dist) * char.userData.speed;
+char.lookAt(target.x, char.position.y, target.z);
+
+// Bob animation
+char.position.y = 2 + Math.sin(time * 5 + char.userData.bobPhase) * 0.1;
+}
+});
+
+// Animate waterfall
+waterfallParticles.forEach(p => {
+if (p.userData && p.userData.type === 'waterfall') {
+let phase = (time * p.userData.speed + p.userData.baseY * 0.1) % 1;
+p.material.opacity = 0.3 + Math.sin(time * 3 + p.userData.baseY) * 0.2;
+p.position.y = p.userData.baseY - (phase * 0.5);
+}
+});
+
+// Animate steam
+steamParticles.forEach(steam => {
+if (steam.userData) {
+steam.position.y += steam.userData.speed;
+steam.position.x += Math.sin(time + steam.userData.phase) * 0.01;
+steam.material.opacity = 0.15 + Math.sin(time * 2 + steam.userData.phase) * 0.1;
+
+if (steam.position.y > 50) {
+steam.position.y = 5;
+steam.position.x = (Math.random() - 0.5) * 60;
+steam.position.z = (Math.random() - 0.5) * 60;
+}
+}
+});
+
+// Animate clock tower gears
+scene.traverse(child => {
+if (child.userData && child.userData.type === 'gear') {
+child.rotation.y = time * child.userData.speed;
+child.rotation.z = Math.sin(time * child.userData.speed) * 0.3;
+}
+if (child.userData && child.userData.type === 'flag') {
+child.rotation.y = Math.sin(time * 2) * 0.3;
+}
+});
+
+// Subtle floating animation for the whole city
+scene.children.forEach(child => {
+if (child.isGroup && child.children.length > 10) {
+// This is likely a major structure
+}
+});
+
+renderer.render(scene, camera);
+}
+
+// ==================== EVENT HANDLERS ====================
+function onResize() {
+camera.aspect = window.innerWidth / window.innerHeight;
+camera.updateProjectionMatrix();
+renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+document.getElementById('dayNightBtn').addEventListener('click', toggleDayNight);
+
+document.getElementById('resetBtn').addEventListener('click', () => {
+camera.position.set(120, 80, 120);
+controls.target.set(0, 30, 0);
+});
+
+// ==================== START ====================
+init();
+</script>
+</body>
+</html>

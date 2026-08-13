@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Voxel Pagoda Model Comparisons | Wesche DGX</title>
-  <meta name="description" content="Voxel pagoda visual comparisons across DeepSeek, GLM, Qwen, Muse, and Kimi models.">
+  <title>Interactive Voxel Pagoda Model Comparisons | Wesche DGX</title>
+  <meta name="description" content="Explore original interactive voxel pagoda outputs from seven unique model families.">
   <link rel="canonical" href="https://wesche.com/dgx/padogas/">
-  <meta property="og:title" content="Voxel Pagoda Model Comparisons">
-  <meta property="og:description" content="The same animated voxel-pagoda prompt across local and hosted models.">
+  <meta property="og:title" content="Interactive Voxel Pagoda Model Comparisons">
+  <meta property="og:description" content="Choose a model and explore its original generated 3D pagoda scene.">
   <meta property="og:image" content="https://wesche.com/dgx/padogas/media/qwen38-vs-qwen36.jpg">
   <meta property="og:url" content="https://wesche.com/dgx/padogas/">
   <meta property="og:type" content="website">
@@ -24,105 +24,64 @@
 
   <header>
     <div class="shell">
-      <p class="eyebrow">Visual model archive</p>
+      <p class="eyebrow">Interactive model archive</p>
       <h1>Voxel Pagodas</h1>
-      <p class="lede">Matched-prompt visual comparisons across local and hosted models. The archive includes successful renders and documented failures rather than hiding either.</p>
+      <p class="lede">One complete output per model. Choose a model, then drag, zoom, and use the controls inside the original generated HTML scene.</p>
     </div>
   </header>
 
-  <main class="shell gallery">
-    <article class="entry portrait">
-      <div class="entry-head">
-        <div>
-          <h2>DeepSeek V4 Flash vs GLM-5.2 vs Qwen3.6-27B</h2>
-          <p class="meta">Three-model comparison · matched camera · thinking on</p>
-        </div>
-        <a class="download" href="media/three-model-matched-camera.mp4" download>Download</a>
-      </div>
-      <video controls playsinline preload="metadata" poster="media/three-model-matched-camera.jpg">
-        <source src="media/three-model-matched-camera.mp4" type="video/mp4">
-      </video>
-    </article>
+  <main class="shell">
+    <div class="scene-picker" role="tablist" aria-label="Choose a model">
+      <button class="scene-tab" type="button" role="tab" data-scene="qwen38" data-src="scenes/qwen38/" data-raw="scenes/qwen38/raw-output.html" data-title="Qwen3.8 Max" data-meta="4 Sparks · UD-Q1_0 1-bit · MTP3 · 53,448 tokens · 1h 54m 44s · thinking on · mechanical render repair; raw output preserved">Qwen3.8 Max</button>
+      <button class="scene-tab" type="button" role="tab" data-scene="qwen36" data-src="scenes/qwen36/" data-title="Qwen3.6-27B" data-meta="1 Spark · NVIDIA NVFP4 · DFlash K10 · 12,117 tokens · 5m 13s · thinking on">Qwen3.6-27B</button>
+      <button class="scene-tab" type="button" role="tab" data-scene="deepseek" data-src="scenes/deepseek/" data-title="DeepSeek V4 Flash 0731" data-meta="2 Sparks · NVFP4 · DSpark K5 · 20,449 tokens · 5m 14s · thinking on">DeepSeek V4</button>
+      <button class="scene-tab" type="button" role="tab" data-scene="glm52" data-src="scenes/glm52/" data-title="GLM-5.2" data-meta="4 Sparks · QuantTrio NVFP4 · MTP5 · 13,121 tokens · 7m 49s · thinking on">GLM-5.2</button>
+      <button class="scene-tab" type="button" role="tab" data-scene="ling" data-src="scenes/ling/" data-raw="scenes/ling/raw-output.html" data-title="Ling 3.0 Flash" data-meta="4 Sparks · INT4 · 16,925 tokens · 16m 21s · thinking on · two stray-token render repairs; raw output preserved">Ling 3.0</button>
+      <button class="scene-tab" type="button" role="tab" data-scene="muse" data-src="scenes/muse/" data-title="Muse Glimmer 30B" data-meta="Mac Studio · KQuant17G · DFlash · 5,583 tokens · 5m 00s · thinking on">Muse Glimmer</button>
+      <button class="scene-tab" type="button" role="tab" data-scene="kimi" data-src="scenes/kimi/" data-title="Kimi-K3" data-meta="OpenRouter · 54,274 tokens · 38m 33s · $0.8147 · thinking on · complete hosted artifact">Kimi-K3</button>
+    </div>
 
-    <article class="entry">
-      <div class="entry-head">
+    <section class="scene-viewer" aria-labelledby="scene-title">
+      <div class="scene-toolbar">
         <div>
-          <h2>Qwen3.8 Max vs Qwen3.6-27B</h2>
-          <p class="meta">Four Sparks vs one Spark · same prompt · thinking on · uncapped</p>
+          <h2 id="scene-title"></h2>
+          <p class="meta" id="scene-meta"></p>
         </div>
-        <a class="download" href="media/qwen38-vs-qwen36.mp4" download>Download</a>
+        <div class="scene-actions">
+          <button class="scene-action" id="scene-restart" type="button" title="Restart the current scene">Restart</button>
+          <a class="scene-action" id="scene-raw" href="#" target="_blank" rel="noopener" hidden>Raw</a>
+          <a class="scene-action" id="scene-open" href="scenes/qwen38/" target="_blank" rel="noopener">Open full</a>
+        </div>
       </div>
-      <video controls playsinline preload="metadata" poster="media/qwen38-vs-qwen36.jpg">
-        <source src="media/qwen38-vs-qwen36.mp4" type="video/mp4">
-      </video>
-    </article>
+      <div class="scene-stage is-loading">
+        <iframe class="scene-frame" id="scene-frame" title="Interactive generated voxel pagoda scene" allow="fullscreen" loading="eager"></iframe>
+      </div>
+    </section>
 
-    <article class="entry">
-      <div class="entry-head">
-        <div>
-          <h2>Qwen3.8 Max, local vs hosted</h2>
-          <p class="meta">Local four-Spark 1-bit deployment vs OpenRouter · same prompt</p>
-        </div>
-        <a class="download" href="media/qwen38-local-vs-cloud.mp4" download>Download</a>
+    <details class="recordings">
+      <summary>Comparison recordings</summary>
+      <div class="gallery">
+        <article class="entry portrait">
+          <div class="entry-head"><div><h2>DeepSeek vs GLM vs Qwen3.6</h2><p class="meta">Three-model matched-camera comparison</p></div><a class="download" href="media/three-model-matched-camera.mp4" download>Download</a></div>
+          <video controls playsinline preload="metadata" poster="media/three-model-matched-camera.jpg"><source src="media/three-model-matched-camera.mp4" type="video/mp4"></video>
+        </article>
+        <article class="entry">
+          <div class="entry-head"><div><h2>Qwen3.8 Max vs Qwen3.6-27B</h2><p class="meta">Four Sparks vs one Spark</p></div><a class="download" href="media/qwen38-vs-qwen36.mp4" download>Download</a></div>
+          <video controls playsinline preload="metadata" poster="media/qwen38-vs-qwen36.jpg"><source src="media/qwen38-vs-qwen36.mp4" type="video/mp4"></video>
+        </article>
+        <article class="entry">
+          <div class="entry-head"><div><h2>Qwen3.6-27B vs Muse Glimmer</h2><p class="meta">Mac Studio camera-pan comparison</p></div><a class="download" href="media/qwen-vs-muse.mp4" download>Download</a></div>
+          <video controls playsinline preload="metadata" poster="media/qwen-vs-muse.jpg"><source src="media/qwen-vs-muse.mp4" type="video/mp4"></video>
+        </article>
+        <article class="entry">
+          <div class="entry-head"><div><h2>Kimi-K3 local vs hosted</h2><p class="meta">Preserves the local failure alongside the hosted success</p></div><a class="download" href="media/kimi-k3-local-vs-cloud.mp4" download>Download</a></div>
+          <video controls playsinline preload="metadata" poster="media/kimi-k3-local-vs-cloud.jpg"><source src="media/kimi-k3-local-vs-cloud.mp4" type="video/mp4"></video>
+        </article>
       </div>
-      <video controls playsinline preload="metadata" poster="media/qwen38-local-vs-cloud.jpg">
-        <source src="media/qwen38-local-vs-cloud.mp4" type="video/mp4">
-      </video>
-    </article>
-
-    <article class="entry">
-      <div class="entry-head">
-        <div>
-          <h2>Qwen3.6-27B vs Muse Glimmer 30B, camera pan</h2>
-          <p class="meta">Mac Studio comparison · matched prompt · synchronized movement</p>
-        </div>
-        <a class="download" href="media/qwen-vs-muse.mp4" download>Download</a>
-      </div>
-      <video controls playsinline preload="metadata" poster="media/qwen-vs-muse.jpg">
-        <source src="media/qwen-vs-muse.mp4" type="video/mp4">
-      </video>
-    </article>
-
-    <article class="entry">
-      <div class="entry-head">
-        <div>
-          <h2>Qwen3.6-27B vs Muse Glimmer 30B, original</h2>
-          <p class="meta">Original static-camera comparison export</p>
-        </div>
-        <a class="download" href="media/qwen-vs-muse-original.mp4" download>Download</a>
-      </div>
-      <video controls playsinline preload="metadata" poster="media/qwen-vs-muse-original.jpg">
-        <source src="media/qwen-vs-muse-original.mp4" type="video/mp4">
-      </video>
-    </article>
-
-    <article class="entry">
-      <div class="entry-head">
-        <div>
-          <h2>Qwen3.6-27B vs Muse Glimmer 30B, mobile</h2>
-          <p class="meta">720p mobile-safe camera-pan export</p>
-        </div>
-        <a class="download" href="media/qwen-vs-muse-mobile.mp4" download>Download</a>
-      </div>
-      <video controls playsinline preload="metadata" poster="media/qwen-vs-muse-mobile.jpg">
-        <source src="media/qwen-vs-muse-mobile.mp4" type="video/mp4">
-      </video>
-    </article>
-
-    <article class="entry">
-      <div class="entry-head">
-        <div>
-          <h2>Kimi-K3, local vs hosted</h2>
-          <p class="meta">Local Neuron IQ1_S failure vs hosted Kimi-K3 success · preserved as measured</p>
-        </div>
-        <a class="download" href="media/kimi-k3-local-vs-cloud.mp4" download>Download</a>
-      </div>
-      <video controls playsinline preload="metadata" poster="media/kimi-k3-local-vs-cloud.jpg">
-        <source src="media/kimi-k3-local-vs-cloud.mp4" type="video/mp4">
-      </video>
-    </article>
+    </details>
   </main>
 
-  <footer><div class="shell">Same-prompt visual comparisons, with successful outputs and failures kept visible.</div></footer>
+  <footer><div class="shell">Model-unique archive: one complete interactive output per model family.</div></footer>
+  <script src="../interactive-gallery.js"></script>
 </body>
 </html>
