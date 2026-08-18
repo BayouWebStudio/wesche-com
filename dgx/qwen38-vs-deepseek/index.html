@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Qwen3.8-27B vs DeepSeek V4 Flash · SparkBench</title>
+<link rel="canonical" href="https://wesche.com/dgx/qwen38-vs-deepseek/">
+<meta name="description" content="Audited SparkBench v6.7.1 comparison of Qwen3.8-27B and DeepSeek V4 Flash on local DGX Spark deployments.">
+<meta property="og:title" content="DeepSeek V4 Flash vs Qwen3.8-27B">
+<meta property="og:description" content="93.01 vs 90.94 across 76 scenarios, three repeats, thinking off.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://wesche.com/dgx/qwen38-vs-deepseek/">
+<style>
+:root{--bg:#0b0d12;--panel:#12151c;--line:#2a2f3a;--fg:#f2f4f8;--mut:#a0a7b4;--cyan:#65c7d0;--green:#67d391;--amber:#e9b85f}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;letter-spacing:0}a{color:var(--cyan)}.wrap{max-width:1040px;margin:auto;padding:0 22px}
+header{border-bottom:1px solid var(--line);background:#0e1117}.nav{height:68px;display:flex;align-items:center;justify-content:space-between;gap:16px}.nav a{font-weight:700;text-decoration:none}.nav span{color:var(--mut);font-size:13px}
+main{padding:38px 0 64px}.eyebrow{color:var(--cyan);font-size:12px;font-weight:800;text-transform:uppercase}.hero h1{font-size:42px;line-height:1.08;margin:8px 0 12px}.hero p{color:var(--mut);max-width:760px;margin:0}.scoreline{display:grid;grid-template-columns:1fr 1fr;gap:0;margin:32px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}.model{padding:22px 0}.model+ .model{padding-left:28px;border-left:1px solid var(--line)}.model b{display:block;font-size:44px;line-height:1;color:var(--green)}.model strong{display:block;font-size:18px;margin-top:9px}.model span{display:block;color:var(--mut);font-size:12px;margin-top:4px}
+.summary{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--line);margin-bottom:38px}.metric{padding:0 16px 20px;border-right:1px solid var(--line)}.metric:first-child{padding-left:0}.metric:last-child{border:0}.metric b{display:block;font-size:20px}.metric span{color:var(--mut);font-size:11px}
+h2{font-size:21px;margin:36px 0 8px}.lede{color:var(--mut);margin:0 0 18px}.table-wrap{overflow:auto;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}table{border-collapse:collapse;width:100%;min-width:650px}th{text-align:left;color:var(--mut);font-size:11px;padding:10px;background:#0e1117}td{padding:10px;border-top:1px solid #1f232c;font-variant-numeric:tabular-nums}td:nth-child(n+2),th:nth-child(n+2){text-align:right}.win{color:var(--green);font-weight:750}.note{border-left:3px solid var(--amber);padding:2px 0 2px 16px;margin-top:28px;color:var(--mut)}.links{display:flex;gap:12px;flex-wrap:wrap;margin-top:22px}.button{display:inline-block;padding:9px 12px;border:1px solid var(--line);border-radius:6px;text-decoration:none;font-weight:700}.button:hover{border-color:var(--cyan)}footer{border-top:1px solid var(--line);padding:20px 0;color:var(--mut);font-size:12px}
+@media(max-width:680px){.hero h1{font-size:34px}.scoreline{grid-template-columns:1fr}.model+.model{padding-left:0;border-left:0;border-top:1px solid var(--line)}.summary{grid-template-columns:1fr 1fr}.metric{padding:0 12px 16px;margin-bottom:16px}.metric:nth-child(2){border-right:0}.metric:nth-child(3){padding-left:0}.nav span{display:none}.table-wrap table{min-width:0;table-layout:fixed;font-size:12px}.table-wrap th,.table-wrap td{padding:8px 4px}.table-wrap th:first-child,.table-wrap td:first-child{width:31%;text-align:left}.table-wrap th:last-child,.table-wrap td:last-child{width:22%}}
+</style>
+</head>
+<body>
+<header><div class="wrap nav"><a href="../">← SparkBench leaderboards</a><span>Audited August 18, 2026</span></div></header>
+<main class="wrap">
+<section class="hero"><div class="eyebrow">Local agent benchmark · thinking off</div><h1>DeepSeek V4 Flash edges Qwen3.8-27B</h1><p>The same 76 SparkBench v6.7.1 scenarios, repeated three times at temperature 0.2 and top-p 0.95.</p></section>
+<section class="scoreline"><div class="model"><b>93.01</b><strong>DeepSeek V4 Flash</strong><span>Official 0731 · vLLM TP2 · DSpark K5 · 2 DGX Sparks</span></div><div class="model"><b>90.94</b><strong>Qwen3.8-27B</strong><span>NVFP4 · SGLang · MTP3 · 1 DGX Spark</span></div></section>
+<section class="summary"><div class="metric"><b>93.38</b><span>DeepSeek quality</span></div><div class="metric"><b>97.31</b><span>Qwen calibration</span></div><div class="metric"><b>2.20s</b><span>DeepSeek median latency</span></div><div class="metric"><b>~93.9</b><span>Reliability tie</span></div></section>
+<h2>Who won where</h2><p class="lede">DeepSeek led execution-heavy work. Qwen was substantially stronger at knowing when not to act.</p>
+<div class="table-wrap"><table><thead><tr><th>Domain</th><th>Qwen3.8-27B</th><th>DeepSeek V4 Flash</th><th>Winner</th></tr></thead><tbody>
+<tr><td>Robustness</td><td class="win">100.00</td><td>70.69</td><td class="win">Qwen</td></tr>
+<tr><td>Safety</td><td class="win">97.30</td><td>96.85</td><td class="win">Qwen</td></tr>
+<tr><td>Agentic</td><td>94.06</td><td class="win">96.30</td><td class="win">DeepSeek</td></tr>
+<tr><td>Classification</td><td>100.00</td><td>100.00</td><td>Tie</td></tr>
+<tr><td>Code</td><td>80.90</td><td class="win">94.59</td><td class="win">DeepSeek</td></tr>
+<tr><td>Composition</td><td>100.00</td><td>100.00</td><td>Tie</td></tr>
+<tr><td>Instruction</td><td>87.42</td><td class="win">95.79</td><td class="win">DeepSeek</td></tr>
+<tr><td>Long context</td><td>55.88</td><td>55.88</td><td>Tie</td></tr>
+<tr><td>Planning</td><td>95.49</td><td class="win">96.85</td><td class="win">DeepSeek</td></tr>
+<tr><td>Structured output</td><td>96.14</td><td class="win">97.56</td><td class="win">DeepSeek</td></tr>
+<tr><td>Tool use</td><td>77.45</td><td class="win">84.63</td><td class="win">DeepSeek</td></tr>
+<tr><td>Visual</td><td>81.23</td><td class="win">84.62</td><td class="win">DeepSeek</td></tr>
+</tbody></table></div>
+<p class="note"><strong>Hardware caveat:</strong> this compares each model's recommended local deployment, not equal-hardware efficiency. Qwen used one DGX Spark; DeepSeek used two.</p>
+<h2>Audit note</h2><p class="lede">Two SQLite graders crashed under Apple's Xcode Python and created false zeroes for both models. All saved SQL responses were regraded under Homebrew Python without regenerating model output; all 12 affected repeats passed. Every other score, latency, token count, and artifact is unchanged.</p>
+<div class="links"><a class="button" href="https://github.com/Weschera/spark-bench/tree/main/results/comparisons/2026-08-18-qwen38-vs-deepseek-v4-flash">Open evidence on GitHub</a><a class="button" href="https://github.com/Weschera/spark-bench/blob/main/results/comparisons/2026-08-18-qwen38-vs-deepseek-v4-flash/domain-scores.csv">Download scores</a></div>
+</main>
+<footer><div class="wrap">SparkBench v6.7.1 · Local inference deployments measured on NVIDIA DGX Spark</div></footer>
+</body>
+</html>
