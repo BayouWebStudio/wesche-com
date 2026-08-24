@@ -1008,7 +1008,7 @@ for (let i=0;i<TRAFFIC_N;i++){
   scene.add(mesh);
   traffic.push({
     mesh, spec: specKey, s: rand(60, 1300), u: pick(LANES), uTarget: 0,
-    speed: specKey === 'truck' ? rand(8, 13) : rand(11, 21), nextLane: rand(4,9), cool: 0, prevDx: 0, nearCool: 0
+    speed: specKey === 'truck' ? rand(9, 16) : rand(13, 26), nextLane: rand(4,9), cool: 0, prevDx: 0, nearCool: 0
   });
 }
 
@@ -1300,7 +1300,8 @@ function resetPlayer(full){
     G.driftPeak = 0;
     traffic.forEach((c, i) => {
       c.s = 80 + i*95 + rand(0, 40);
-      c.u = pick(LANES); c.uTarget = c.u; c.speed = rand(11, 21);
+      c.u = pick(LANES); c.uTarget = c.u;
+      c.speed = c.spec === 'truck' ? rand(9, 16) : rand(13, 26);
       c.prevDx = 999; c.nearCool = 0; c.cool = 0; c.nextLane = rand(4,9);
     });
   }
@@ -1596,9 +1597,16 @@ function trafficUpdate(dt, pl){
       if (clear) c.uTarget = want;
     }
     c.u += (c.uTarget - c.u) * Math.min(1, 4.5 * dt);
-    // place — bilinear along the spline: continuous motion, zero snapping
+    // place — bilinear along the spline: continuous motion, zero snapping.
+    // MUST also apply the lateral lane offset c.u, in the SAME right-vector
+    // frame the collision test below uses (du = c.u - pu). Without it the
+    // bilinear path renders every car on the centerline while the collision
+    // logic judges them in their lane → crashes that don't show, and "crashes"
+    // when you're not visually near the car. (Right vector = (-cos, 0, sin)
+    // of the heading, matching rights[si].)
     frameAt(c.s, m);
-    c.mesh.position.set(m.x, 0, m.z);
+    const _rx = -Math.cos(m.y), _rz = Math.sin(m.y);
+    c.mesh.position.set(m.x + c.u * _rx, 0, m.z + c.u * _rz);
     c.mesh.rotation.y = m.y;
 
     // relative (s = ahead, u = lateral diff)
@@ -1753,11 +1761,11 @@ function updateMap(){
   const s0 = mapPath.pts2[0], s1 = mapPath.pts2[mapPath.pts2.length-1];
   c.fillStyle = '#00e5ff'; c.beginPath(); c.arc(s0[0], s0[1], 3, 0, 7); c.fill();
   c.fillStyle = '#ff2d95'; c.beginPath(); c.arc(s1[0], s1[1], 3.5, 0, 7); c.fill();
-  // traffic
-  for (let ti = 0; ti < traffic.length; ti++){
+  // traffic — plot each car at its actual (lane-offset) render position, not
+  // the centerline, so the minimap matches what you see on the road
+  for (let ti = 0; ti < traffic.length; ti++) {
     const t = traffic[ti];
-    frameAt(t.s, _tf[ti & 3]);
-    const m = mapPath.to(_tf[ti & 3].x, _tf[ti & 3].z);
+    const m = mapPath.to(t.mesh.position.x, t.mesh.position.z);
     c.fillStyle = 'rgba(255,180,180,.8)';
     c.beginPath(); c.arc(m[0], m[1], 1.6, 0, 7); c.fill();
   }
