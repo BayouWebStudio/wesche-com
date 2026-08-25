@@ -72,6 +72,26 @@
   .toast.info { color:#8fd8ff; border-color:rgba(0,229,255,.4); }
   @keyframes tin { from { opacity:0; transform:translateY(-14px) scale(.92); } to { opacity:1; } }
   @keyframes tout { to { opacity:0; transform:translateY(8px); } }
+  /* traffic-light countdown (red / yellow / green) */
+  #countdown { position:fixed; inset:0; z-index:95; display:none; flex-direction:column;
+               justify-content:center; align-items:center; pointer-events:none; gap:18px; }
+  body.playing #countdown.cd-on { display:flex; }
+  .cd-lights { display:flex; gap:20px; }
+  .cd-lamp { width:36px; height:36px; border-radius:50%; background:rgba(10,14,28,.8);
+             border:2px solid rgba(255,255,255,.14); }
+  .cd-lamp.red.on   { background:#ff3b30; border-color:#ff8a80; box-shadow:0 0 30px 8px rgba(255,59,48,.55); }
+  .cd-lamp.yellow.on{ background:#ffd60a; border-color:#ffe97a; box-shadow:0 0 30px 8px rgba(255,214,10,.55); }
+  .cd-lamp.green.on { background:#30e06f; border-color:#8dffb0; box-shadow:0 0 30px 8px rgba(48,224,111,.6); }
+  .cd-text { font-size:60px; font-weight:800; letter-spacing:.3em; text-transform:uppercase;
+             color:#ff6b61; text-shadow:0 0 34px rgba(255,80,60,.85);
+             animation:cdpop .5s cubic-bezier(.2,1.7,.4,1); }
+  .cd-text.yellow { color:#ffd60a; text-shadow:0 0 34px rgba(255,214,10,.85); }
+  .cd-text.green  { color:#30e06f; text-shadow:0 0 40px rgba(48,224,111,.9); }
+  .cd-go { font-size:88px; font-weight:800; letter-spacing:.4em; text-transform:uppercase;
+           color:#30e06f; text-shadow:0 0 50px rgba(48,224,111,.95);
+           animation:cdgo .9s ease forwards; }
+  @keyframes cdpop { from { opacity:0; transform:scale(.4); } to { opacity:1; transform:scale(1); } }
+  @keyframes cdgo  { 0% { opacity:0; transform:scale(.6); } 25% { opacity:1; transform:scale(1.15); } 70% { opacity:1; } 100% { opacity:0; transform:scale(1.3); } }
   /* styles continue in p2 */
   #title { position:fixed; inset:0; z-index:100; display:flex; flex-direction:column; justify-content:center; align-items:center;
            background:
@@ -254,6 +274,7 @@
 <canvas id="map" width="150" height="150"></canvas>
 <div id="toasts"></div>
 <div id="dbg"></div>
+<div id="countdown"><div class="cd-lights"><div class="cd-lamp red"></div><div class="cd-lamp yellow"></div><div class="cd-lamp green"></div></div><div class="cd-text">READY</div><div class="cd-go"></div></div>
 
 <div id="tgc">
   <div class="tg left">
@@ -1250,6 +1271,23 @@ const AudioSys = {
     this.screechFilter.frequency.rampTo(700 + k*1100, 0.05);
     this.screechGain.gain.rampTo(k <= 0.01 ? -80 : -30 - (1-k)*22, 0.05);
   },
+  countSfx(freq, dur){
+    const T = window.Tone;
+    if (!this.ok || !T || T.context.state !== 'running') return;
+    const v = new T.Synth({ oscillator:{ type:'sine' }, envelope:{ attack:0.005, decay:dur, sustain:0.4, release:0.1 } });
+    v.volume.value = -12; v.connect(this.comp);
+    v.triggerAttackRelease(freq, dur + 0.1);
+    v.dispose();
+  },
+  goSfx(){
+    const T = window.Tone;
+    if (!this.ok || !T || T.context.state !== 'running') return;
+    const v = new T.Synth({ oscillator:{ type:'square' }, envelope:{ attack:0.005, decay:0.5, sustain:0, release:0.2 } });
+    v.volume.value = -10; v.connect(this.comp);
+    v.triggerAttackRelease(523.25, 0.12, T.now());
+    v.triggerAttackRelease(783.99, 0.3, T.now() + 0.12);
+    v.dispose();
+  },
   whooshSfx(){ if (this.ok && window.Tone.context.state === 'running') this.whoosh.triggerAttack(); },
   crashSfx(impact){
     this.hit = true;
@@ -1282,7 +1320,8 @@ const G = {
   drifting: false, driftAngle: 0, driftTime: 0, driftHold: 0,
   camView: 0, shake: 0, crashCool: 0,
   crashCount: 0,
-  keys: {}, finishedTime: 0
+  keys: {}, finishedTime: 0,
+  cdT: 0, cdPhase: '',        // traffic-light countdown: red 2.2s -> yellow 1.0s -> green .9s
 };
 const VIEWS = ['CHASE', 'HOOD', 'ORBIT'];
 let orbitAng = 0;
@@ -1309,22 +1348,22 @@ function resetPlayer(full){
 
 function startGame(){
   AudioSys.start();
-  G.phase = 'play';
+  G.phase = 'countdown'; G.cdT = 0; G.cdPhase = '';   // traffic-light start: all cars frozen until green
   resetPlayer(true);
   document.body.classList.remove('finished');
   document.body.classList.add('playing');
   $('title').classList.add('gone');
-  toast('GO', 'info');
+  $('countdown').classList.add('cd-on');
 }
 
 function resetRun(){
   AudioSys.start();
-  G.phase = 'play';
+  G.phase = 'countdown'; G.cdT = 0; G.cdPhase = '';
   resetPlayer(true);
   document.body.classList.remove('finished');
   document.body.classList.add('playing');
   $('title').classList.add('gone');
-  toast('RESET', 'info');
+  $('countdown').classList.add('cd-on');
 }
 
 function quickReset(){
@@ -1382,6 +1421,7 @@ addEventListener('keydown', e => {
   if (G.phase === 'title' && ['w','a','s','d',' '].includes(k)) startGame();
   if (k === 'r'){
     if (G.phase === 'play') quickReset();
+    else if (G.phase === 'countdown'){ G.phase = 'play'; $('countdown').classList.remove('cd-on'); }
     else if (G.phase === 'finished') resetRun();
   }
   if (k === 'c' && G.phase === 'play'){
@@ -1846,6 +1886,45 @@ function step(dt){
     AudioSys.engine(pl.speed, pl.throttle, dt);
     AudioSys.screech(G.drifting ? clamp(Math.abs(G.driftAngle)/0.9,0,1) * clamp(pl.speed/25,0,1) : 0);
     if (G.progress >= 0.995) finishStage();
+  } else if (G.phase === 'countdown'){
+    // red light (2.2s) -> yellow (1.0s) -> green (0.9s) -> GO: player AND all
+    // traffic stay frozen, so every car starts from the line at the same instant
+    const cdEl = $('countdown');
+    if (cdEl){
+      const lampR = cdEl.querySelector('.cd-lamp.red');
+      const lampY = cdEl.querySelector('.cd-lamp.yellow');
+      const lampG = cdEl.querySelector('.cd-lamp.green');
+      const txt = cdEl.querySelector('.cd-text');
+      const go  = cdEl.querySelector('.cd-go');
+      const setStage = (ph) => {
+        lampR.classList.toggle('on', ph === 'red');
+        lampY.classList.toggle('on', ph === 'yellow');
+        lampG.classList.toggle('on', ph === 'green' || ph === 'go');
+      };
+      const relabel = (label, cls) => {
+        txt.textContent = label; txt.className = 'cd-text ' + (cls || '');
+        txt.style.animation = 'none'; void txt.offsetWidth; txt.style.animation = '';
+      };
+      G.cdT += dt;
+      const stage = G.cdT < 2.2 ? 'red' : G.cdT < 3.2 ? 'yellow' : G.cdT < 4.1 ? 'green' : 'go';
+      if (stage !== G.cdPhase){   // fire once per stage, not per frame
+        G.cdPhase = stage;
+        setStage(stage);
+        if (stage === 'red'){ relabel('RED', ''); AudioSys.countSfx(660, 0.16); }
+        else if (stage === 'yellow'){ relabel('YELLOW', 'yellow'); AudioSys.countSfx(660, 0.16); }
+        else if (stage === 'green'){ relabel('GREEN', 'green'); AudioSys.countSfx(880, 0.2); }
+        else {
+          go.textContent = 'GO!'; go.className = 'cd-go';
+          go.style.animation = 'none'; void go.offsetWidth; go.style.animation = '';
+          AudioSys.goSfx();
+          G.phase = 'play';
+          setTimeout(() => { if (G.phase === 'play' && G.cdT >= 4.1) cdEl.classList.remove('cd-on'); }, 900);
+        }
+      }
+    } else { G.phase = 'play'; }
+    AudioSys.tick();
+    AudioSys.engine(0, 0, dt);
+    AudioSys.screech(0);
   } else {
     AudioSys.engine(0, 0, dt);
     AudioSys.screech(0);
@@ -1881,6 +1960,8 @@ console.log('NEON HIGHWAY booted. route', Math.round(totalLen), 'm');
   try {
     if (q.get('demo')) {
       startGame();
+      // headless: skip the traffic-light countdown so timing-sensitive demos start immediately
+      if (q.get('countSkip')) { G.phase = 'play'; $('countdown').classList.remove('cd-on'); }
       // hide the title overlay instantly (its 1.4s fade can be frozen mid-way in
       // headless screenshot mode, ghosting the legend over gameplay)
       const tEl = document.getElementById('title');
