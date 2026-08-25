@@ -1008,7 +1008,7 @@ for (let i=0;i<TRAFFIC_N;i++){
   scene.add(mesh);
   traffic.push({
     mesh, spec: specKey, s: rand(60, 1300), u: pick(LANES), uTarget: 0,
-    speed: specKey === 'truck' ? rand(9, 16) : rand(13, 26), nextLane: rand(4,9), cool: 0, prevDx: 0, nearCool: 0
+    speed: specKey === 'truck' ? rand(12, 22) : rand(19, 38), nextLane: rand(4,9), cool: 0, prevDx: 0, nearCool: 0
   });
 }
 
@@ -1301,7 +1301,7 @@ function resetPlayer(full){
     traffic.forEach((c, i) => {
       c.s = 80 + i*95 + rand(0, 40);
       c.u = pick(LANES); c.uTarget = c.u;
-      c.speed = c.spec === 'truck' ? rand(9, 16) : rand(13, 26);
+      c.speed = c.spec === 'truck' ? rand(12, 22) : rand(19, 38);
       c.prevDx = 999; c.nearCool = 0; c.cool = 0; c.nextLane = rand(4,9);
     });
   }
@@ -1418,17 +1418,37 @@ if (IS_TOUCH) document.body.classList.add('is-touch');
     el.addEventListener('lostpointercapture', () => { G.keys[k] = false; el.classList.remove('on'); });
   });
   // gyro demo-autopilot: tilt = steer, tilt-back = gas, auto-drift in hard turns; never overrides a held button
+  // iPhone fix: the game runs in landscape, but DeviceOrientationEvent's beta/gamma are device-relative.
+  // In landscape the left-right (steer) axis is beta and the fore-aft (gas) axis is gamma — the opposite of
+  // the portrait mapping the original code assumed. Reading gamma for steer meant on an iPhone in landscape
+  // that tilting to steer did almost nothing ("gyro doesn't work"). Map the axes (and flip signs per
+  // rotation) from the orientation angle, with a resting-grip base so it works however the phone is held.
   const lhl = $('lhl');
-  let gyroOn = false, baseY = null, first = true;
+  let gyroOn = false, baseB = null, baseG = null, first = true;
+  function orientAngle(){
+    let o = 0;
+    try {
+      if (typeof window.orientation === 'number' && window.orientation !== 0) o = window.orientation;
+      else if (screen.orientation && typeof screen.orientation.angle === 'number') o = screen.orientation.angle;
+    } catch(_){}
+    if (!o) o = (window.innerWidth > window.innerHeight) ? 90 : 0;
+    return ((o % 360) + 360) % 360; // 0 | 90 | 180 | 270
+  }
   function onOri(e){
-    if (!gyroOn || e.gamma == null) return;
-    if (first){ baseY = e.gamma; first = false; return; }
+    if (!gyroOn || e.beta == null || e.gamma == null) return;
+    if (first){ baseB = e.beta; baseG = e.gamma; first = false; return; }
+    const o = orientAngle();
+    // dy: + = tilt right (steer right). dp: + = tilt back (gas). Both relative to the resting grip.
+    let dy, dp;
+    if (o === 90)       { dy =  e.beta - baseB;   dp =  e.gamma - baseG; }  // landscape, top-left
+    else if (o === 270) { dy = -(e.beta - baseB); dp = -(e.gamma - baseG); } // landscape, top-right
+    else if (o === 180) { dy = -(e.gamma - baseG);dp =  e.beta - baseB; }  // portrait inverted
+    else                { dy =  e.gamma - baseG;  dp = -(e.beta - baseB); } // portrait
     const held = new Set(touchIds.values());
-    const dy = e.gamma - baseY;
     if (!held.has('a')) G.keys['a'] = dy < -7;
     if (!held.has('d')) G.keys['d'] = dy > 7;
     if (!held.has(' ')) G.keys[' '] = Math.abs(dy) > 26;   // auto handbrake in hard turns
-    if (!held.has('w')) G.keys['w'] = e.beta > 18;          // tilt back = gas, level = coast
+    if (!held.has('w')) G.keys['w'] = dp > 18;             // tilt back = gas, level = coast
   }
   if (lhl && IS_TOUCH){
     document.body.classList.add('show-lhl');
