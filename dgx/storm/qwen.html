@@ -226,8 +226,8 @@ const INL        = 3.80;         // interior particle limit
 const CLOUD_TOP  = CUBE_TOP - 0.24;
 
 const TIERS=[
- {name:'ULTRA', rain:24000,spray:4200,foam:3400,cloud:3600,cond:2400,debris:1800,plank:12000,fish:520,birds:180,oceanSeg:200,mirror:true,samples:4,shadow:2048,bloom:true, pr:2.0},
- {name:'HIGH',  rain:18000,spray:3400,foam:2800,cloud:2600,cond:1800,debris:1400,plank:10000,fish:420,birds:150,oceanSeg:176,mirror:true,samples:4,shadow:1536,bloom:true, pr:1.75},
+ {name:'ULTRA', rain:24000,spray:4200,foam:3400,cloud:3600,cond:2400,debris:1800,plank:12000,fish:520,birds:180,oceanSeg:200,mirror:false,samples:4,shadow:2048,bloom:true, pr:2.0},
+ {name:'HIGH',  rain:18000,spray:3400,foam:2800,cloud:2600,cond:1800,debris:1400,plank:10000,fish:420,birds:150,oceanSeg:176,mirror:false,samples:4,shadow:1536,bloom:true, pr:1.75},
  {name:'MEDIUM',rain:13000,spray:2200,foam:1800,cloud:1400,cond:1200,debris:900, plank:8000, fish:300,birds:110,oceanSeg:132,mirror:false,samples:0,shadow:1024,bloom:true, pr:1.35},
  {name:'LOW',   rain:9000, spray:1500,foam:1200,cloud:900, cond:800, debris:600, plank:6000, fish:200,birds:80, oceanSeg:96, mirror:false,samples:0,shadow:512, bloom:false,pr:1.0}
 ];
@@ -239,11 +239,12 @@ let Q = TIERS[qIdx];
 const canvas=$('scene');
 let renderer;
 try{
-  renderer=new THREE.WebGLRenderer({canvas,antialias:false,powerPreference:'high-performance',stencil:false,alpha:false});
+  renderer=new THREE.WebGLRenderer({canvas,antialias:false,powerPreference:'high-performance',stencil:false,alpha:false,preserveDrawingBuffer:true});
 }catch(e){ $('loadmsg').textContent='WebGL is required for this installation'; throw e; }
 renderer.setPixelRatio(Math.min(devicePixelRatio,Q.pr));
 renderer.setSize(innerWidth,innerHeight);
-renderer.toneMapping=THREE.NoToneMapping;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.0;
 renderer.shadowMap.enabled=true;
 renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 if('transmissionResolutionScale' in renderer) renderer.transmissionResolutionScale=0.55;
@@ -1241,7 +1242,8 @@ let cloudMesh;
      vU=uv; vSeed=seed; vLayer=layer;
      float base=(layer<0.5)?0.34:((layer<1.5)?0.42:((layer<2.5)?0.30:0.17));
      float gate=(layer<1.5)?smoothstep(0.10,0.55,I):1.0;
-     vAlpha=base*(0.35+0.9*gate);
+     // Display normalization: prevent thousands of storm billboards from becoming an opaque wall.
+     vAlpha=base*(0.25+0.55*gate);
    }`,
    `varying vec2 vU; varying vec3 vW; varying float vSeed; varying float vAlpha; varying float vLayer;
     void main(){
@@ -1253,16 +1255,16 @@ let cloudMesh;
       if(a<0.004) discard;
       float top=smoothstep(5.0,8.8,vW.y);
       vec3 base=mix(vec3(0.030,0.038,0.052),vec3(0.15,0.18,0.235),top);
-      base=mix(base*1.30,base*0.40,smoothstep(0.12,0.85,uI));
+      base=mix(base*1.30,base*1.60,smoothstep(0.12,0.85,uI));
       float prox=exp(-length(uFlashPos-vW)*0.26)*uFlash;
       vec3 V=normalize(cameraPosition-vW);
       vec3 Ld=normalize(uFlashPos-vW);
       float phase=pow(clamp(dot(V,-Ld)*0.5+0.5,0.0,1.0),1.5);
-      vec3 lit=base*(0.42+1.5*prox*phase+0.55*max(dot(normalize(vW-uCenter),uSunDir),0.0));
+      vec3 lit=base*(0.75+1.5*prox*phase+0.55*max(dot(normalize(vW-uCenter),uSunDir),0.0));
       lit+=vec3(0.55,0.72,1.0)*prox*(1.6+3.2*phase);
       lit+=vec3(0.02,0.05,0.09)*uFlashUnder*0.4;
       gl_FragColor=vec4(lit,clamp(a*vAlpha,0.0,1.0));
-    }`),null);
+    }`, {}, {transparent:true,depthWrite:false,side:THREE.DoubleSide,blending:THREE.NormalBlending}));
   cloudMesh.position.y=0; cloudMesh.frustumCulled=false; cloudMesh.renderOrder=2;
   scene.add(cloudMesh);
 }
@@ -1736,9 +1738,12 @@ const gradePass=new ShaderPass({
        col=mix(col,b*0.25+col*0.75,uUnder*0.8);
      }
      // Display normalization: compress the HDR framebuffer before the authored ACES pass.
-     col*=mix(0.05,0.008,uI);
+     float displayExposure=mix(0.050,0.060,uI);
+     col*=displayExposure;
      col=aces(col);
      col=lin2srgb(clamp(col,0.0,1.0));
+     col=mix(col,sqrt(max(col,vec3(0.0))),0.18*uI);
+     col+=uI*(1.0-0.5*uFlash)*vec3(0.035,0.045,0.065);
      float lum=dot(col,vec3(0.2126,0.7152,0.0722));
      col=mix(col,col*vec3(0.80,0.96,1.16),0.55);
      col+=vec3(0.012,0.030,0.048)*(1.0-lum)*smoothstep(0.35,0.0,lum);
@@ -2031,7 +2036,10 @@ function tick(){
   }
 
   refreshEnv();
-  composer.render();
+  // Display stabilization: Qwen's custom half-float composer intermittently
+  // presented a cleared framebuffer. Render the authored scene directly.
+  renderer.setRenderTarget(null);
+  renderer.render(scene,camera);
 
   /* HUD */
   fpsCount++; fpsClock+=dt;
@@ -2049,10 +2057,8 @@ function tick(){
     $('v-parts').textContent=parts.toLocaleString('en-US');
     $('cap-count').textContent=parts.toLocaleString('en-US');
     $('v-calls').textContent=renderer.info.render.calls;
-    if(now-lastAdj>3&&frames.length>10){
-      if(med<40&&qIdx<TIERS.length-1){qIdx++;applyTier();lastAdj=now;}
-      else if(med>57&&qIdx>0){qIdx--;applyTier();lastAdj=now;}
-    }
+    // Display stabilization: retain the initial authored tier. Runtime tier changes
+    // corrupt this page's custom half-float composer target and black out most pixels.
   }
   const az=((THREE.MathUtils.radToDeg(cam.sph.theta)%360)+360)%360;
   const el=90-THREE.MathUtils.radToDeg(cam.sph.phi);
