@@ -20,7 +20,7 @@ function setMode(mode){
       if(!item.src){item.src=item.dataset.src;wakeEmbeddedScene(item)}
     });
     open.href=config.glm.file;
-    open.textContent='Open GLM full-screen ↗';
+    open.textContent=`Open ${config.glm.short} full-screen ↗`;
     return;
   }
   split.classList.remove('on');
