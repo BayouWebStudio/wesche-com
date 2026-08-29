@@ -1707,7 +1707,8 @@ const baseRT=new THREE.WebGLRenderTarget(innerWidth*dpr,innerHeight*dpr,
   {type:THREE.HalfFloatType,samples:Q.samples,depthBuffer:true});
 const composer=new EffectComposer(renderer,baseRT);
 composer.addPass(new RenderPass(scene,camera));
-const bloom=new UnrealBloomPass(new THREE.Vector2(innerWidth*dpr,innerHeight*dpr),0.85,0.72,0.58);
+// Display normalization: the authored bloom values clipped nearly the entire scene.
+const bloom=new UnrealBloomPass(new THREE.Vector2(innerWidth*dpr,innerHeight*dpr),0.12,0.35,0.90);
 composer.addPass(bloom);
 const gradePass=new ShaderPass({
   uniforms:{tDiffuse:{value:null},uRes:{value:new THREE.Vector2(1,1)},uTime:{value:0},
@@ -1734,7 +1735,8 @@ const gradePass=new ShaderPass({
        }
        col=mix(col,b*0.25+col*0.75,uUnder*0.8);
      }
-     col*=mix(1.05,1.20,uI);
+     // Display normalization: compress the HDR framebuffer before the authored ACES pass.
+     col*=mix(0.05,0.008,uI);
      col=aces(col);
      col=lin2srgb(clamp(col,0.0,1.0));
      float lum=dot(col,vec3(0.2126,0.7152,0.0722));
@@ -1751,7 +1753,7 @@ const gradePass=new ShaderPass({
      float asp=uRes.x/max(uRes.y,1.0);
      vec2 cc=vec2(c.x*mix(1.0,0.72,asp*0.35),c.y);
      float vig=1.0-smoothstep(0.20,1.05,length(cc)*(1.15+0.35*uI));
-     col*=mix(1.0,vig,0.86);
+     col*=mix(1.0,vig,0.48);
      float g=h21(uv*uRes+fract(uTime)*vec2(37.7,17.3));
      col+=(g-0.5)*(0.020+0.022*uUnder);
      col*=uFade;
@@ -1913,8 +1915,8 @@ function tick(){
   scene.fog.density=lerp(0.0075,0.10,under)+0.002*I;
   hemi.intensity=lerp(0.55,0.30,I)+F*0.9;
   moon.intensity=lerp(1.5,0.42,I)+F*1.4;
-  bloom.strength=0.62+0.55*I+F*1.5;
-  bloom.threshold=0.62-0.22*I;
+  bloom.strength=0.03+0.04*I+F*0.12;
+  bloom.threshold=0.94-0.02*I;
   gradePass.uniforms.uI.value=I; gradePass.uniforms.uUnder.value=under;
   gradePass.uniforms.uFlash.value=F; gradePass.uniforms.uTime.value=T; gradePass.uniforms.uFade.value=fade;
 
