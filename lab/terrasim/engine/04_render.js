@@ -16,6 +16,16 @@ function setIso(cv) {
   isoCube = s * 0.5;
 }
 
+/* per-cell ground height in blocks (from physics if present, else terrain table) */
+function cellElev(x, z) {
+  if (S.elev && S.elev[z] && S.elev[z][x] != null) return S.elev[z][x];
+  return ELEV[S.grid[z][x]] || 1;
+}
+/* per-cell water depth (blocks, float) */
+function cellWater(x, z) {
+  return (S.water && S.water[z] && S.water[z][x]) ? S.water[z][x] : 0;
+}
+
 /* project a grid cell (x,z) at elevation `elev` blocks to top-face center (screen) */
 function projectCell(x, z, elev) {
   const cx = (x - z) * isoHW + camOffX + cv.width / 2;
@@ -42,16 +52,22 @@ function renderScene(ctx, cv) {
     for (let x = 0; x < S.worldW; x++) {
       const t = S.grid[z][x];
       if (!t) continue;
-      const elev = ELEV[t] || 1;
-      cells.push({ x, z, t, elev, depth: x + z });
+      const elev = cellElev(x, z);
+      cells.push({ x, z, t, elev, water: cellWater(x, z), depth: x + z });
     }
   }
   cells.sort((a, b) => (a.depth - b.depth) || (a.x - b.x));
 
   for (const c of cells) {
     const p = projectCell(c.x, c.z, c.elev);
+    // ground column
     drawIsoBlock(ctx, p.cx, p.cy, isoHW, isoHH, c.elev * isoCube,
                  PALETTE[c.t].light, PALETTE[c.t].base, PALETTE[c.t].edge);
+    // water surface above the ground if flooded
+    if (c.water > 0.05) {
+      const wh = c.water * isoCube;
+      drawWaterColumn(ctx, p.cx, p.cy, isoHW, isoHH, c.elev * isoCube, wh, c.t);
+    }
   }
 
   // ---- placeables: draw as voxel stacks on top of their base column ----
@@ -67,10 +83,42 @@ function renderScene(ctx, cv) {
   drawHover(ctx);
 }
 
+/* ---- draw a translucent water volume above a ground cell ---- */
+function drawWaterColumn(ctx, cx, cy, HW, HH, groundHpx, whPx, terrain) {
+  const waterTop = PALETTE.water.light, waterSide = PALETTE.water.base;
+  // water occupies from ground top (cy) up to surface (cy - whPx)
+  const surfY = cy - whPx;
+  ctx.save();
+  ctx.globalAlpha = 0.82;
+  // left face
+  ctx.beginPath();
+  ctx.moveTo(cx - HW, cy - whPx); ctx.lineTo(cx, cy + HH - whPx);
+  ctx.lineTo(cx, cy + HH); ctx.lineTo(cx - HW, cy);
+  ctx.closePath(); ctx.fillStyle = waterSide; ctx.fill();
+  ctx.strokeStyle = "rgba(61,69,72,0.25)"; ctx.lineWidth = 1; ctx.stroke();
+  // right face
+  ctx.beginPath();
+  ctx.moveTo(cx, cy + HH - whPx); ctx.lineTo(cx + HW, cy - whPx);
+  ctx.lineTo(cx + HW, cy); ctx.lineTo(cx, cy + HH);
+  ctx.closePath(); ctx.fillStyle = waterSide; ctx.fill();
+  ctx.stroke();
+  // top surface (bright)
+  ctx.globalAlpha = 0.9;
+  ctx.beginPath();
+  ctx.moveTo(cx, surfY - HH); ctx.lineTo(cx + HW, surfY);
+  ctx.lineTo(cx, surfY + HH); ctx.lineTo(cx - HW, surfY);
+  ctx.closePath(); ctx.fillStyle = waterTop; ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,0.35)"; ctx.stroke();
+  // a soft highlight stud on the water surface
+  ctx.globalAlpha = 0.5; ctx.fillStyle = "#ffffff";
+  ctx.beginPath(); ctx.ellipse(cx - HW * 0.2, surfY - HH * 0.1, HW * 0.28, HH * 0.35, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
 /* ---- draw placeables as stacked iso voxels ---- */
 function drawPlaceables(ctx) {
   for (const o of S.objects) {
-    const baseElev = ELEV[S.grid[o.z] && S.grid[o.z][o.x]] || 1;
+    const baseElev = cellElev(o.x, o.z);
     const base = projectCell(o.x, o.z, baseElev);
     // top-face center of the base cell
     const cs = isoCube * 1.7; // placeable voxel size (bigger than stud, reads well)
@@ -103,8 +151,8 @@ function drawWaterShimmer(ctx) {
   ctx.save();
   for (const sp of S.sparkles) {
     const t = S.grid[sp.y] && S.grid[sp.y][sp.x];
-    if (t !== "water") continue;
-    const p = projectCell(sp.x, sp.y, ELEV.water);
+    if ((t !== "water") && cellWater(sp.x, sp.y) < 0.2) continue;
+    const p = projectCell(sp.x, sp.y, cellElev(sp.x, sp.y) + cellWater(sp.x, sp.y));
     const tw = (Math.sin(S.t * 2 + sp.p) + 1) / 2;
     ctx.globalAlpha = 0.12 + tw * 0.28;
     ctx.fillStyle = "#ffffff";
@@ -132,7 +180,7 @@ function drawHover(ctx) {
   if (S.mode !== "PLAY" || S.hover.cx < 0) return;
   const t = S.grid[S.hover.cy] && S.grid[S.hover.cy][S.hover.cx];
   if (!t) return;
-  const p = projectCell(S.hover.cx, S.hover.cy, (ELEV[t] || 1));
+  const p = projectCell(S.hover.cx, S.hover.cy, cellElev(S.hover.cx, S.hover.cy));
   ctx.save();
   ctx.strokeStyle = "rgba(201,167,95,0.9)";
   ctx.lineWidth = 2; ctx.setLineDash([5, 4]);
@@ -150,4 +198,5 @@ function drawHover(ctx) {
 if (typeof window !== "undefined") {
   window.renderScene = renderScene; window.setIso = setIso; window.projectCell = projectCell;
   window.drawClouds = drawClouds; window.drawPlaceables = drawPlaceables; window.ELEV = ELEV;
+  window.drawWaterColumn = drawWaterColumn; window.cellElev = cellElev; window.cellWater = cellWater;
 }

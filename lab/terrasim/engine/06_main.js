@@ -14,6 +14,10 @@ function boot(canvasEl) {
   S.worldW = cols; S.worldH = rows;
   S.grid = buildWorld(cols, rows, 1337);
   S.stats = countTerrain(S.grid);
+  // physics layers (elevation + water) + sim state
+  const ph = initPhysics(cols, rows, S.grid);
+  S.elev = ph.elev; S.water = ph.water;
+  initSimState();
   // isometric camera: center the island and frame it
   setIso(cv);
   S.zoom = 0.75;
@@ -30,11 +34,17 @@ function boot(canvasEl) {
   wireInput();
   // loop
   let last = performance.now();
+  let simAccum = 0;
   function frame(now) {
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
     S.t += dt;
     driveAmbient(dt);
+    // physics: tick water/erosion/vegetation on a calm interval
+    if (S.sim && S.sim.on) {
+      simAccum += dt * 1000 * (S.sim.speed || 1);
+      if (simAccum > 90) { simTick(); simAccum = 0; }
+    }
     if (S.dirty) { renderScene(ctx, cv); S.dirty = false; }
     raf = requestAnimationFrame(frame);
   }

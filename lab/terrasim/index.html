@@ -167,13 +167,19 @@
     <div class="chk"><input type="checkbox" id="tweakGrid"><label for="tweakGrid">Show grid</label></div>
     <div class="chk"><input type="checkbox" id="tweakMotion" checked><label for="tweakMotion">Motion</label></div>
     <div class="chk"><input type="checkbox" id="tweakHints" checked><label for="tweakHints">Show hints</label></div>
+    <h4 style="margin-top:14px">Flow</h4>
+    <div class="chk"><input type="checkbox" id="tweakFlow" checked><label for="tweakFlow">Water flows</label></div>
+    <div class="row"><label>Speed</label><input type="range" id="tweakFlowSpeed" min="0.3" max="3" step="0.1" value="1"></div>
+    <div class="chk"><input type="checkbox" id="tweakErosion" checked><label for="tweakErosion">Erosion</label></div>
+    <div class="chk"><input type="checkbox" id="tweakVeg" checked><label for="tweakVeg">Vegetation</label></div>
+    <div class="chk"><input type="checkbox" id="tweakMelt" checked><label for="tweakMelt">Snow melt</label></div>
   </div>
 
   <!-- help -->
   <div id="help">
     <b>Paint land</b> with the terrain tiles, switch to <b>Place</b> to grow generative bricks,
-    or <b>Erase</b> to clear. Use <b>Pan</b> (or drag) to move around, scroll / pinch to zoom.
-    <span class="dim">Keys: 1–6 terrain · P/O/E/M tools · [ ] brush · arrows pan · G grid</span>
+    or use <b>Rain</b> to add water that <b>flows downhill</b> and levels out. <b>Pan</b> (or drag) to move, scroll / pinch to zoom.
+    <span class="dim">Keys: 1–6 terrain · P/O/E/M tools · R rain · [ ] brush · arrows pan · G grid</span>
   </div>
 
   <!-- bottom toolbar -->
@@ -194,6 +200,7 @@
   <script src="engine/03_draw_bricks.js"></script>
   <script src="engine/04_render.js"></script>
   <script src="engine/05_interact.js"></script>
+  <script src="engine/05b_physics.js"></script>
   <script src="engine/06_main.js"></script>
 
   <script>
@@ -230,8 +237,6 @@
     }
     function buildPlaceGroup(){
       const g = document.getElementById("placeGroup");
-      // place tool button is in toolGroup; this group is a compact hint for valid kinds
-      // We show a "scatter" button that places many generative objects across land.
       const b = document.createElement("button");
       b.className = "btn";
       b.innerHTML = `🌳Scatter<span class="kbd">S</span>`;
@@ -239,9 +244,14 @@
       g.appendChild(b);
       const c = document.createElement("button");
       c.className = "btn";
-      c.innerHTML = `✨Sprinkle<span class="kbd">*</span>`;
-      c.addEventListener("click", ()=>{ shakeWorld(); S.dirty = true; refreshStats(); });
+      c.innerHTML = `🌧️Rain<span class="kbd">R</span>`;
+      c.addEventListener("click", ()=>{ rainPatch(1.4); S.dirty = true; });
       g.appendChild(c);
+      const d = document.createElement("button");
+      d.className = "btn";
+      d.innerHTML = `✨Sprinkle<span class="kbd">*</span>`;
+      d.addEventListener("click", ()=>{ shakeWorld(); S.dirty = true; refreshStats(); });
+      g.appendChild(d);
     }
 
     function refreshToolbar(){
@@ -260,6 +270,8 @@
       const seed = (Math.random()*1e9)|0;
       S.grid = buildWorld(S.worldW, S.worldH, seed);
       S.objects = [];
+      const ph = initPhysics(S.worldW, S.worldH, S.grid);
+      S.elev = ph.elev; S.water = ph.water;
       S.stats = countTerrain(S.grid);
       seedAmbient();
       autoGrow();
@@ -285,6 +297,13 @@
       document.getElementById("tweakGrid").addEventListener("change", e=>{ CONFIG.showGrid = e.target.checked; S.dirty=true; });
       document.getElementById("tweakMotion").addEventListener("change", e=>{ CONFIG.reducedMotion = !e.target.checked; if(CONFIG.reducedMotion) CONFIG.ambientSpeed=0; else CONFIG.ambientSpeed=1; });
       document.getElementById("tweakHints").addEventListener("change", e=>{ document.getElementById("help").classList.toggle("hide", !e.target.checked); });
+      // flow / physics controls
+      initSimState();
+      document.getElementById("tweakFlow").addEventListener("change", e=>{ S.sim.on = e.target.checked; S.dirty=true; });
+      document.getElementById("tweakFlowSpeed").addEventListener("input", e=>{ S.sim.speed = +e.target.value; });
+      document.getElementById("tweakErosion").addEventListener("change", e=>{ S.sim.erosion = e.target.checked; });
+      document.getElementById("tweakVeg").addEventListener("change", e=>{ S.sim.veg = e.target.checked; });
+      document.getElementById("tweakMelt").addEventListener("change", e=>{ S.sim.melt = e.target.checked; });
       document.getElementById("zoomIn").addEventListener("click", ()=> zoomAt(cv, 1.2, cv.width/2, cv.height/2));
       document.getElementById("zoomOut").addEventListener("click", ()=> zoomAt(cv, 0.83, cv.width/2, cv.height/2));
       document.getElementById("btnHelp").addEventListener("click", ()=> document.getElementById("help").classList.toggle("hide"));
@@ -295,9 +314,10 @@
       document.getElementById("cv").addEventListener("pointerdown", ()=> {
         if (tweaksEl.classList.contains("open")) tweaksEl.classList.remove("open");
       });
-      // keyboard: scatter / sprinkle
+      // keyboard: scatter / sprinkle / rain
       window.addEventListener("keydown",(e)=>{
         if(e.key.toLowerCase()==="s"){ autoGrow(); S.dirty=true; refreshStats(); }
+        if(e.key.toLowerCase()==="r"){ rainPatch(1.4); S.dirty=true; }
         if(e.key==="*"){ shakeWorld(); }
       });
     }

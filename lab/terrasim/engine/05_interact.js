@@ -22,6 +22,11 @@ function paintAt(cv, cx, cy, terrain, eraseObjects) {
       const x = cx + dx, z = cy + dz;
       if (x < 0 || z < 0 || x >= S.worldW || z >= S.worldH) continue;
       S.grid[z][x] = terrain;
+      // keep physics layers consistent with the new terrain
+      if (S.elev && S.elev[z]) {
+        if (terrain === "water") { S.elev[z][x] = 0; if (S.water && S.water[z]) S.water[z][x] = 1.4; }
+        else { S.elev[z][x] = GROUND_ELEV[terrain] != null ? GROUND_ELEV[terrain] : 3; if (S.water && S.water[z]) S.water[z][x] = 0; }
+      }
     }
   }
   if (eraseObjects) reconcileObjects();
