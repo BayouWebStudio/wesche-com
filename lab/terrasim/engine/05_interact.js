@@ -1,40 +1,39 @@
-/* 05_interact.js — painting, placeables placement, camera controls, tools */
+/* 05_interact.js — isometric painting, placeables, camera, tools */
 "use strict";
 
-/* Convert a screen pixel to world grid coords */
+/* Invert the iso projection to a grid cell at a reference elevation */
 function screenToCell(cv, sx, sy) {
-  const cs = CONFIG.cellSize * S.zoom;
-  const ox = cv.width / 2 - (S.camX + S.worldW / 2) * cs;
-  const oy = cv.height / 2 - (S.camY + S.worldH / 2) * cs;
-  const cx = Math.floor((sx - ox) / cs);
-  const cy = Math.floor((sy - oy) / cs);
-  return { cx, cy, wx: (sx - ox) / cs, wy: (sy - oy) / cs };
+  setIso(cv);
+  const refElev = 3; // grass-ish reference for picking
+  const u = sx - cv.width / 2 - camOffX;
+  const v = sy - cv.height / 2 - camOffY + refElev * isoCube;
+  const dw = u / isoHW, dh = v / isoHH;
+  const cx = Math.floor((dw + dh) / 2);
+  const cy = Math.floor((dh - dw) / 2);
+  return { cx, cy, wx: (dw + dh) / 2, wy: (dh - dw) / 2 };
 }
 
 /* Paint a brush of terrain around a cell */
 function paintAt(cv, cx, cy, terrain, eraseObjects) {
   const r = S.brushSize;
-  const cs = CONFIG.cellSize * S.zoom;
   for (let dz = -r; dz <= r; dz++) {
     for (let dx = -r; dx <= r; dx++) {
       if (dx * dx + dz * dz > r * r + 1) continue;
       const x = cx + dx, z = cy + dz;
       if (x < 0 || z < 0 || x >= S.worldW || z >= S.worldH) continue;
-      // water is the only unbuildable plane
       S.grid[z][x] = terrain;
     }
   }
-  // if we painted over objects with non-matching terrain, remove those that no longer fit
   if (eraseObjects) reconcileObjects();
   S.stats = countTerrain(S.grid);
   S.dirty = true;
 }
 
-/* Place a generative object; chooses a random valid placeable for the cell's terrain */
+/* Place a generative object on a cell */
 function placeObject(cv, cx, cy) {
   if (cx < 0 || cy < 0 || cx >= S.worldW || cy >= S.worldH) return;
   const t = S.grid[cy][cx];
-  if (!TERRAIN[t] || !TERRAIN[t].buildable) return; // can't build on water
+  if (!TERRAIN[t] || !TERRAIN[t].buildable) return;
   let kind = S.ui.placeable;
   const valid = placeablesForTerrain(t);
   if (!valid.includes(kind)) kind = valid[Math.floor(Math.random() * valid.length)] || null;
@@ -42,9 +41,7 @@ function placeObject(cv, cx, cy) {
   const seed = (Math.random() * 1e9) | 0;
   const obj = makePlaceable(kind, seed);
   if (!obj) return;
-  // avoid stacking on top of another object on same cell (optional light check)
   obj.x = cx; obj.z = cy;
-  // sub-cell jitter + offset
   obj.ox = (Math.random() - 0.5) * 0.4;
   obj.oz = (Math.random() - 0.5) * 0.4;
   S.objects.push(obj);
@@ -52,7 +49,7 @@ function placeObject(cv, cx, cy) {
   S.dirty = true;
 }
 
-/* Remove objects that no longer match their terrain (e.g. tree re-painted to water) */
+/* Remove objects whose terrain no longer supports them */
 function reconcileObjects() {
   S.objects = S.objects.filter((o) => {
     const t = S.grid[o.z] && S.grid[o.z][o.x];
@@ -62,7 +59,7 @@ function reconcileObjects() {
   S.stats.objects = S.objects.length;
 }
 
-/* Erase objects (placeable brush) */
+/* Erase objects near a cell */
 function eraseAt(cx, cy, radius) {
   const r = radius;
   const before = S.objects.length;
@@ -75,20 +72,20 @@ function eraseAt(cx, cy, radius) {
   return before !== S.objects.length;
 }
 
-/* ---- camera ---- */
+/* ---- camera: pan in iso screen space, zoom via S.zoom ---- */
 function panBy(dx, dy) {
-  S.camX -= dx / (CONFIG.cellSize * S.zoom);
-  S.camY -= dy / (CONFIG.cellSize * S.zoom);
+  camOffX += dx;
+  camOffY += dy;
   S.dirty = true;
 }
 function zoomAt(cv, factor, px, py) {
-  const cs = CONFIG.cellSize * S.zoom;
-  const wx = (px - cv.width / 2) / cs + S.camX + S.worldW / 2;
-  const wy = (py - cv.height / 2) / cs + S.camY + S.worldH / 2;
+  // keep the hovered world point roughly under the cursor by adjusting pan
+  const before = screenToCell(cv, px, py);
   S.zoom = Math.max(CONFIG.minZoom, Math.min(CONFIG.maxZoom, S.zoom * factor));
-  const cs2 = CONFIG.cellSize * S.zoom;
-  S.camX = wx - (px - cv.width / 2) / cs2 - S.worldW / 2;
-  S.camY = wy - (py - cv.height / 2) / cs2 - S.worldH / 2;
+  setIso(cv);
+  const after = screenToCell(cv, px, py);
+  camOffX += (before.wx - after.wx) * isoHW;
+  camOffY += (before.wy - after.wy) * isoHH;
   S.dirty = true;
 }
 
@@ -96,7 +93,7 @@ function zoomAt(cv, factor, px, py) {
 function seedAmbient() {
   S.clouds = [];
   for (let i = 0; i < 7; i++) {
-    S.clouds.push({ x: Math.random(), y: 0.08 + Math.random() * 0.34, s: 0.6 + Math.random() * 1.4,
+    S.clouds.push({ x: Math.random(), y: 0.06 + Math.random() * 0.3, s: 0.6 + Math.random() * 1.4,
                     a: 0.5 + Math.random() * 0.3, v: (Math.random() - 0.5) * 0.006 });
   }
   S.sparkles = [];
@@ -105,7 +102,6 @@ function seedAmbient() {
   }
 }
 
-/* scan a cell for an existing object (hit test) */
 function objectAt(cx, cy) {
   for (let i = S.objects.length - 1; i >= 0; i--) {
     const o = S.objects[i];

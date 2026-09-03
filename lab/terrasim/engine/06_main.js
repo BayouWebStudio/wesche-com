@@ -14,8 +14,14 @@ function boot(canvasEl) {
   S.worldW = cols; S.worldH = rows;
   S.grid = buildWorld(cols, rows, 1337);
   S.stats = countTerrain(S.grid);
-  // camera centered
-  S.camX = 0; S.camY = 0;
+  // isometric camera: center the island and frame it
+  setIso(cv);
+  S.zoom = 0.75;
+  setIso(cv);
+  const centerX = ((cols / 2) - (rows / 2)) * isoHW;
+  const centerY = ((cols / 2) + (rows / 2)) * isoHH;
+  camOffX = -centerX;
+  camOffY = -centerY;
   S.mode = "PLAY";           // no menu needed — jump straight in
   seedAmbient();
   // pre-populate a few objects for a lively starting scene
@@ -84,7 +90,12 @@ function wireInput() {
     const sy = e.clientY - (cv.getBoundingClientRect().top || 0);
     const c = screenToCell(cv, sx, sy);
     S.hover.cx = c.cx; S.hover.cy = c.cy; S.hover.wx = c.wx; S.hover.wy = c.wy;
-    if (S.drag) applyTool(c.cx, c.cy);
+    if (S.drag && S.ui.tool === "pan") {
+      if (S.lastPtr) { panBy(sx - S.lastPtr.sx, sy - S.lastPtr.sy); }
+      S.lastPtr = { sx, sy };
+    } else if (S.drag) {
+      applyTool(c.cx, c.cy);
+    }
     S.dirty = true;
   });
   cv.addEventListener("mousedown", (e) => {
@@ -93,10 +104,11 @@ function wireInput() {
     const sy = e.clientY - (cv.getBoundingClientRect().top || 0);
     const c = screenToCell(cv, sx, sy);
     S.drag = true; S.lastPaint.cx = c.cx; S.lastPaint.cy = c.cy;
-    applyTool(c.cx, c.cy);
+    if (S.ui.tool === "pan") { S.lastPtr = { sx, sy }; }
+    else applyTool(c.cx, c.cy);
   });
-  window.addEventListener("mouseup", () => { S.drag = false; });
-  cv.addEventListener("mouseleave", () => { S.drag = false; });
+  window.addEventListener("mouseup", () => { S.drag = false; S.lastPtr = null; });
+  cv.addEventListener("mouseleave", () => { S.drag = false; S.lastPtr = null; });
 
   // ---- touch support (painting + pinch zoom) ----
   let lastTouchDist = 0;
@@ -121,7 +133,12 @@ function wireInput() {
       const p = touchPos(e.touches[0]);
       const c = screenToCell(cv, p.sx, p.sy);
       S.hover.cx = c.cx; S.hover.cy = c.cy;
-      if (S.drag) applyTool(c.cx, c.cy);
+      if (S.drag && S.ui.tool === "pan") {
+        if (S.lastPtr) panBy(p.sx - S.lastPtr.sx, p.sy - S.lastPtr.sy);
+        S.lastPtr = { sx: p.sx, sy: p.sy };
+      } else if (S.drag) {
+        applyTool(c.cx, c.cy);
+      }
     } else if (e.touches.length === 2) {
       const a = touchPos(e.touches[0]), b = touchPos(e.touches[1]);
       const d = Math.hypot(a.sx - b.sx, a.sy - b.sy);
@@ -163,7 +180,14 @@ function wireInput() {
     if (k === "p") setMode("paint");
     if (k === "o") setMode("place");
     if (k === "e") setMode("erase");
+    if (k === "m") setMode("pan");
     if (k === "g") { CONFIG.showGrid = !CONFIG.showGrid; S.dirty = true; }
+    // arrow keys / WASD pan the camera
+    const step = 40;
+    if (k === "arrowleft" || k === "a") panBy(step, 0);
+    if (k === "arrowright" || k === "d") panBy(-step, 0);
+    if (k === "arrowup" || k === "w") panBy(0, step);
+    if (k === "arrowdown" || k === "s") panBy(0, -step);
   });
 }
 
