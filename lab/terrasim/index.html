@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Brick Terra — a calm LEGO-style terraforming diorama</title>
+<style>
+  :root{
+    --ui-bg:#e7e4dc; --ui-surface:#f0ede5; --ui-panel:#efece2;
+    --ui-edge:#c3bcae; --ui-ink:#45413a; --ui-muted:#8c8474;
+    --accent:#c9a75f; --accent2:#7f9a6c;
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; height:100%; overflow:hidden; }
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--ui-bg); color:var(--ui-ink);
+    user-select:none; -webkit-user-select:none; touch-action:none;
+  }
+  #cv{ position:absolute; inset:0; width:100%; height:100%; display:block; cursor:crosshair; }
+
+  /* ---- top bar ---- */
+  #topbar{
+    position:absolute; top:14px; left:50%; transform:translateX(-50%);
+    display:flex; align-items:center; gap:14px;
+    background:var(--ui-surface); border:2px solid var(--ui-edge);
+    border-radius:14px; padding:8px 16px;
+    box-shadow:0 3px 0 var(--ui-edge), 0 6px 14px rgba(69,65,58,.12);
+  }
+  #topbar .title{ font-weight:800; letter-spacing:.02em; font-size:15px; color:var(--ui-ink); }
+  #topbar .title .sub{ font-weight:500; color:var(--ui-muted); font-size:11px; display:block; line-height:1.1; }
+  #stats{ display:flex; gap:10px; align-items:center; }
+  .stat{ display:flex; flex-direction:column; align-items:center; line-height:1.05; }
+  .stat b{ font-size:13px; font-variant-numeric:tabular-nums; }
+  .stat span{ font-size:9px; color:var(--ui-muted); text-transform:uppercase; letter-spacing:.05em; }
+  .stat .dot{ width:10px; height:10px; border-radius:3px; margin-bottom:2px; }
+
+  /* ---- bottom toolbar ---- */
+  #toolbar{
+    position:absolute; bottom:16px; left:50%; transform:translateX(-50%);
+    display:flex; align-items:flex-end; gap:10px;
+    background:var(--ui-surface); border:2px solid var(--ui-edge);
+    border-radius:16px; padding:10px 14px;
+    box-shadow:0 3px 0 var(--ui-edge), 0 8px 18px rgba(69,65,58,.14);
+    max-width:calc(100vw - 24px);
+  }
+  .group{ display:flex; gap:6px; align-items:center; }
+  .vdiv{ width:2px; align-self:stretch; background:var(--ui-edge); border-radius:2px; margin:0 4px; }
+  .glabel{ font-size:9px; text-transform:uppercase; letter-spacing:.06em; color:var(--ui-muted); text-align:center; }
+
+  .btn{
+    border:none; background:var(--ui-panel); color:var(--ui-ink);
+    border-radius:10px; padding:8px 10px; cursor:pointer;
+    font-size:12px; font-weight:600; font-family:inherit;
+    display:flex; flex-direction:column; align-items:center; gap:3px;
+    min-width:52px; box-shadow:inset 0 -2px 0 var(--ui-edge);
+    transition:transform .05s ease, box-shadow .1s ease, background .1s ease;
+  }
+  .btn:hover{ background:#f4f1e9; }
+  .btn:active{ transform:translateY(2px); box-shadow:inset 0 -1px 0 var(--ui-edge); }
+  .btn.active{ background:#fff; box-shadow:inset 0 -2px 0 var(--accent), 0 0 0 2px var(--accent); }
+  .btn .sw{ width:20px; height:20px; border-radius:6px; box-shadow:inset 0 -2px 0 rgba(0,0,0,.12); }
+  .btn small{ font-size:9px; color:var(--ui-muted); font-weight:500; }
+  .btn .kbd{ font-size:8px; color:var(--ui-muted); background:rgba(0,0,0,.05); border-radius:4px; padding:0 4px; }
+
+  /* ---- right tweaks panel ---- */
+  #tweaks{
+    position:absolute; top:14px; right:16px; width:168px;
+    background:var(--ui-surface); border:2px solid var(--ui-edge);
+    border-radius:14px; padding:12px;
+    box-shadow:0 3px 0 var(--ui-edge), 0 6px 14px rgba(69,65,58,.12);
+    font-size:11px;
+  }
+  #tweaks h4{ margin:0 0 8px; font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--ui-muted); }
+  #tweaks .row{ display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+  #tweaks .row label{ color:var(--ui-ink); }
+  #tweaks input[type=range]{ width:80px; accent-color:var(--accent); }
+  #tweaks .chk{ display:flex; align-items:center; gap:6px; margin-bottom:6px; cursor:pointer; }
+  #tweaks .chk input{ accent-color:var(--accent); }
+
+  /* ---- help card ---- */
+  #help{
+    position:absolute; bottom:96px; left:50%; transform:translateX(-50%);
+    background:var(--ui-surface); border:2px solid var(--ui-edge);
+    border-radius:12px; padding:10px 16px; font-size:12px; color:var(--ui-ink);
+    box-shadow:0 3px 0 var(--ui-edge); max-width:440px; text-align:center;
+    line-height:1.5; transition:opacity .3s ease;
+  }
+  #help b{ color:var(--accent2); }
+  #help .dim{ color:var(--ui-muted); }
+  #help.hide{ opacity:0; pointer-events:none; }
+
+  /* ---- ambient buttons top-left ---- */
+  #topleft{
+    position:absolute; top:14px; left:16px; display:flex; flex-direction:column; gap:8px;
+  }
+  .iconbtn{
+    border:none; background:var(--ui-surface); color:var(--ui-ink);
+    border:2px solid var(--ui-edge); border-radius:10px;
+    width:40px; height:40px; cursor:pointer; font-size:16px;
+    box-shadow:0 2px 0 var(--ui-edge);
+  }
+  .iconbtn:hover{ background:#f4f1e9; }
+  .iconbtn:active{ transform:translateY(2px); box-shadow:0 0 0 var(--ui-edge); }
+
+  #zoomctl{ display:flex; flex-direction:column; gap:6px; margin-left:4px; }
+
+  /* mobile: collapse tweaks into a toggleable sheet */
+  @media (max-width:720px){
+    #tweaks{
+      display:block; position:fixed; top:auto; right:0; left:0; bottom:0;
+      width:auto; max-width:none; border-radius:18px 18px 0 0;
+      transform:translateY(110%); transition:transform .3s var(--ease);
+      z-index:40; border-bottom:0; padding:16px 18px calc(18px + env(safe-area-inset-bottom));
+    }
+    #tweaks.open{ transform:translateY(0); }
+    #tweaks h4{ margin-bottom:12px; }
+    #tweaks .row{ margin-bottom:12px; }
+    #tweaks .row input[type=range]{ width:58%; }
+    #topbar{ top:8px; padding:6px 10px; left:8px; right:8px; transform:none; justify-content:space-between; }
+    #topbar .title .sub{ display:none; }
+    #topleft{ top:8px; left:auto; right:8px; }
+    #help{ width:calc(100vw - 40px); font-size:11px; bottom:86px; }
+    #toolbar{ gap:5px; padding:7px 8px; bottom:10px; max-width:calc(100vw - 16px); overflow-x:auto; }
+    .btn{ min-width:44px; padding:7px 7px; }
+    #toolbar .btn small,#toolbar .btn .kbd{ display:none; }
+    #zoomctl{ bottom:auto; top:50%; transform:translateY(-50%); left:6px; }
+    #zoomctl .iconbtn{ width:38px; height:38px; }
+    #tweaksToggle{ display:flex; }
+    .vdiv{ margin:0 3px; }
+  }
+  @media (min-width:721px){
+    #tweaksToggle{ display:none; }
+  }
+
+  /* fade-in */
+  body{ opacity:0; transition:opacity .6s ease; }
+  body.ready{ opacity:1; }
+</style>
+</head>
+<body>
+  <canvas id="cv"></canvas>
+
+  <!-- top-left ancillary controls -->
+  <div id="topleft">
+    <button class="iconbtn" id="btnHelp" title="Toggle help">?</button>
+  </div>
+
+  <!-- zoom controls -->
+  <div id="zoomctl" style="position:absolute; left:16px; bottom:16px; display:flex; flex-direction:column; gap:6px;">
+    <button class="iconbtn" id="zoomIn" title="Zoom in">+</button>
+    <button class="iconbtn" id="zoomOut" title="Zoom out">−</button>
+  </div>
+
+  <!-- top bar -->
+  <div id="topbar">
+    <div class="title">Brick Terra<span class="sub">a calm LEGO-style terraforming diorama</span></div>
+    <div id="stats"></div>
+  </div>
+
+  <!-- tweaks panel -->
+  <div id="tweaks">
+    <h4>Calm controls</h4>
+    <div class="row"><label>Brush</label><input type="range" id="tweakBrush" min="1" max="6" step="1" value="2"></div>
+    <div class="row"><label>Density</label><input type="range" id="tweakDensity" min="0" max="1" step="0.1" value="0.85"></div>
+    <div class="row"><label>Ambience</label><input type="range" id="tweakAmbient" min="0" max="2" step="0.1" value="1"></div>
+    <div class="chk"><input type="checkbox" id="tweakGrid"><label for="tweakGrid">Show grid</label></div>
+    <div class="chk"><input type="checkbox" id="tweakMotion" checked><label for="tweakMotion">Motion</label></div>
+    <div class="chk"><input type="checkbox" id="tweakHints" checked><label for="tweakHints">Show hints</label></div>
+  </div>
+
+  <!-- help -->
+  <div id="help">
+    <b>Paint land</b> with the terrain tiles, switch to <b>Place</b> to grow generative bricks,
+    or <b>Erase</b> to clear. Scroll / pinch to zoom, drag the canvas to paint.
+    <span class="dim">Keys: 1–6 terrain · P/O/E tools · [ ] brush · G grid</span>
+  </div>
+
+  <!-- bottom toolbar -->
+  <div id="toolbar">
+    <div class="group" id="terrainGroup"></div>
+    <div class="vdiv"></div>
+    <div class="group" id="toolGroup"></div>
+    <div class="vdiv"></div>
+    <div class="group" id="placeGroup"></div>
+    <div class="vdiv"></div>
+    <button class="btn" id="tweaksToggle" title="Calm controls">⚙️<span class="kbd">Set</span></button>
+  </div>
+
+  <!-- engine load order -->
+  <script src="engine/00_core.js"></script>
+  <script src="engine/01_world.js"></script>
+  <script src="engine/02_placeables.js"></script>
+  <script src="engine/03_draw_bricks.js"></script>
+  <script src="engine/04_render.js"></script>
+  <script src="engine/05_interact.js"></script>
+  <script src="engine/06_main.js"></script>
+
+  <script>
+    /* =============== UI GLUE =============== */
+    const toolIcons = { paint:"🖌", place:"🌱", erase:"🧽" };
+    const terrainOrder = ["water","sand","grass","forest","rock","snow"];
+    const toolDefs = [
+      { id:"paint", name:"Paint", key:"P" },
+      { id:"place", name:"Place", key:"O" },
+      { id:"erase", name:"Erase", key:"E" },
+    ];
+
+    function buildTerrainGroup(){
+      const g = document.getElementById("terrainGroup");
+      terrainOrder.forEach((t,i)=>{
+        const b = document.createElement("button");
+        b.className = "btn"; b.dataset.terrain = t;
+        const c = PALETTE[t];
+        b.innerHTML = `<span class="sw" style="background:${c.base}"></span>${TERRAIN[t].name}<span class="kbd">${i+1}</span>`;
+        b.addEventListener("click", ()=> selectTerrain(t));
+        g.appendChild(b);
+      });
+    }
+    function buildToolGroup(){
+      const g = document.getElementById("toolGroup");
+      toolDefs.forEach((d)=>{
+        const b = document.createElement("button");
+        b.className = "btn"; b.dataset.tool = d.id;
+        b.innerHTML = `${toolIcons[d.id]}${d.name}<span class="kbd">${d.key}</span>`;
+        b.addEventListener("click", ()=> setMode(d.id));
+        g.appendChild(b);
+      });
+    }
+    function buildPlaceGroup(){
+      const g = document.getElementById("placeGroup");
+      // place tool button is in toolGroup; this group is a compact hint for valid kinds
+      // We show a "scatter" button that places many generative objects across land.
+      const b = document.createElement("button");
+      b.className = "btn";
+      b.innerHTML = `🌳Scatter<span class="kbd">S</span>`;
+      b.addEventListener("click", ()=>{ autoGrow(); S.dirty = true; refreshStats(); });
+      g.appendChild(b);
+      const c = document.createElement("button");
+      c.className = "btn";
+      c.innerHTML = `✨Sprinkle<span class="kbd">*</span>`;
+      c.addEventListener("click", ()=>{ shakeWorld(); S.dirty = true; refreshStats(); });
+      g.appendChild(c);
+    }
+
+    function refreshToolbar(){
+      // terrain active state
+      document.querySelectorAll("#terrainGroup .btn").forEach(b=>{
+        b.classList.toggle("active", S.ui.tool==="paint" && S.ui.brush===b.dataset.terrain);
+      });
+      // tool active state
+      document.querySelectorAll("#toolGroup .btn").forEach(b=>{
+        b.classList.toggle("active", S.ui.tool===b.dataset.tool);
+      });
+    }
+
+    /* regenerate the whole world from a fresh seed */
+    function shakeWorld(){
+      const seed = (Math.random()*1e9)|0;
+      S.grid = buildWorld(S.worldW, S.worldH, seed);
+      S.objects = [];
+      S.stats = countTerrain(S.grid);
+      seedAmbient();
+      autoGrow();
+      refreshStats();
+    }
+
+    function refreshStats(){
+      const st = S.stats || {};
+      const el = document.getElementById("stats");
+      const items = [];
+      terrainOrder.forEach(t=>{
+        if (st[t] != null) items.push(`<div class="stat"><span class="dot" style="background:${PALETTE[t].base}"></span><b>${st[t]}</b><span>${TERRAIN[t].name}</span></div>`);
+      });
+      items.push(`<div class="stat"><span class="dot" style="background:${PALETTE.flora[0]}"></span><b>${st.objects||0}</b><span>Bricks</span></div>`);
+      el.innerHTML = items.join("");
+    }
+
+    /* tweaks wiring */
+    function wireTweaks(){
+      document.getElementById("tweakBrush").addEventListener("input", e=>{ S.brushSize = +e.target.value; });
+      document.getElementById("tweakDensity").addEventListener("input", e=>{ CONFIG.placeableDensity = +e.target.value; });
+      document.getElementById("tweakAmbient").addEventListener("input", e=>{ CONFIG.ambientSpeed = +e.target.value; });
+      document.getElementById("tweakGrid").addEventListener("change", e=>{ CONFIG.showGrid = e.target.checked; S.dirty=true; });
+      document.getElementById("tweakMotion").addEventListener("change", e=>{ CONFIG.reducedMotion = !e.target.checked; if(CONFIG.reducedMotion) CONFIG.ambientSpeed=0; else CONFIG.ambientSpeed=1; });
+      document.getElementById("tweakHints").addEventListener("change", e=>{ document.getElementById("help").classList.toggle("hide", !e.target.checked); });
+      document.getElementById("zoomIn").addEventListener("click", ()=> zoomAt(cv, 1.2, cv.width/2, cv.height/2));
+      document.getElementById("zoomOut").addEventListener("click", ()=> zoomAt(cv, 0.83, cv.width/2, cv.height/2));
+      document.getElementById("btnHelp").addEventListener("click", ()=> document.getElementById("help").classList.toggle("hide"));
+      // mobile settings sheet toggle
+      const tweaksEl = document.getElementById("tweaks");
+      document.getElementById("tweaksToggle").addEventListener("click", ()=> tweaksEl.classList.toggle("open"));
+      // tap outside the sheet on mobile to close it
+      document.getElementById("cv").addEventListener("pointerdown", ()=> {
+        if (tweaksEl.classList.contains("open")) tweaksEl.classList.remove("open");
+      });
+      // keyboard: scatter / sprinkle
+      window.addEventListener("keydown",(e)=>{
+        if(e.key.toLowerCase()==="s"){ autoGrow(); S.dirty=true; refreshStats(); }
+        if(e.key==="*"){ shakeWorld(); }
+      });
+    }
+
+    /* boot the world */
+    buildTerrainGroup(); buildToolGroup(); buildPlaceGroup(); wireTweaks();
+    boot(document.getElementById("cv"));
+    refreshToolbar(); refreshStats();
+    // reflect toolbar state whenever it changes
+    const _rt = window.updateToolbar;
+    window.updateToolbar = function(){ _rt && _rt(); refreshToolbar(); refreshStats(); };
+    // keep stats fresh on drag paint
+    setInterval(refreshStats, 800);
+    // fade in
+    requestAnimationFrame(()=> document.body.classList.add("ready"));
+  </script>
+</body>
+</html>
