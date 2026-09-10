@@ -14,7 +14,7 @@ html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#0c1a14;colo
 body{font-family:-apple-system,'Segoe UI',Roboto,sans-serif;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:manipulation;overscroll-behavior:none;position:fixed;inset:0}
 #cv{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
 .screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 35%, #1b3b2b 0%, #0c1a14 75%);z-index:40;transition:opacity .6s;text-align:center;padding:24px}
-.screen.hidden{opacity:0;pointer-events:none}
+.screen.hidden{display:none;opacity:0;pointer-events:none}
 #title h1{font-size:min(8.6vw,52px);letter-spacing:.16em;margin:0 0 6px;color:#e8dfa8;text-shadow:0 2px 20px #000}
 #title .sub{color:#9fc2a5;letter-spacing:.3em;font-size:12px;margin-bottom:38px;text-transform:uppercase}
 #intro{background:#000;z-index:45;justify-content:flex-end;padding-bottom:14vh}
@@ -43,7 +43,7 @@ body{font-family:-apple-system,'Segoe UI',Roboto,sans-serif;user-select:none;-we
 #muteBtn.off{color:#8a8a8a}
 #pauseBtn{top:calc(82px + env(safe-area-inset-top));right:calc(12px + env(safe-area-inset-right))}
 #pauseBtn:before{content:'⏸';font-size:19px;color:#fff}
-#joy{position:fixed;left:calc(20px + env(safe-area-inset-left));bottom:calc(24px + env(safe-area-inset-bottom));width:28vw;height:28vw;min-width:120px;min-height:120px;max-width:168px;max-height:168px;pointer-events:none;z-index:22}
+#joy{position:fixed;left:calc(20px + env(safe-area-inset-left));bottom:calc(24px + env(safe-area-inset-bottom));width:28vw;height:28vw;min-width:120px;min-height:120px;max-width:168px;max-height:168px;pointer-events:auto;touch-action:none;z-index:22}
 #joyBase{position:absolute;inset:0;border-radius:50%;background:#00000044;border:2px solid #ffffff2b;opacity:.35;transition:opacity .2s}
 #joyStick{position:absolute;left:50%;top:50%;width:44%;height:44%;border-radius:50%;background:#ffffff2e;border:2px solid #ffffff55;transform:translate(-50%,-50%)}
 #stack{display:contents}
@@ -1234,7 +1234,7 @@ function clearInputs(){IN.mx=0;IN.mz=0;IN.dash=false;IN.shield=false;IN.attackQ=
 // ---- joystick ----
 const joyEl=$('joy'),joyKnob=$('joyStick');let joyId=null,joyCx=0,joyCy=0;
 const JOYR=52;
-function joyStart(t){joyId=t.identifier;const r=joyEl.getBoundingClientRect();
+function joyStart(t){joyId=t.pointerId;joyEl.setPointerCapture(t.pointerId);const r=joyEl.getBoundingClientRect();
  joyCx=r.left+r.width/2;joyCy=r.top+r.height/2;joyMove(t);}
 function joyMove(t){const dx=t.clientX-joyCx,dy=t.clientY-joyCy;
  const l=Math.hypot(dx,dy)||1,k=Math.min(l,JOYR)/l;
@@ -1675,17 +1675,11 @@ $('muteBtn').onclick=$('pauseMuteBtn').onclick=()=>{SND.setMuted(!SND.muted);
  const lbl=SND.muted?'🔇':'🔊';$('muteBtn').firstChild.textContent=lbl;
  $('pauseMuteBtn').textContent='SOUND: '+(SND.muted?'OFF':'ON');};
 $('fluteClose').onclick=()=>closeFlute();
-$('btnInteract').addEventListener('pointerdown',()=>{if(G.phase==='play')IN.interactQ=true;});
-$('pauseBtn').addEventListener('pointerdown',e=>{e.stopPropagation();openPause();});
-$('btnAtk').addEventListener('pointerdown',()=>IN.attackQ++);
-$('btnBlock').addEventListener('pointerdown',e=>{e.stopPropagation();IN.shield=true;});
-$('btnBlock').addEventListener('pointerup',()=>IN.shield=false);
-$('btnDodge').addEventListener('pointerdown',()=>IN.dash=true);
-$('btnEquip').addEventListener('pointerdown',()=>cycleEquip());
+// Gameplay pointer controls are routed once by m7_ui.js.
 ['0','1','2'].forEach(i=>$('fl'+i).addEventListener('pointerdown',()=>playNote(+i)));
 $('knob')&&(0);
 function startGame(cont){ SND.init();SND.resume();SND.fly();
- sceneRoot.visible=true;$('hud').style.display='';
+ sceneRoot.visible=true;$('hud').style.display='block';
  let started=false;
  if(cont&&(started=loadGame())){}
  if(!started){const sp=WORLD.spawn;P.pos.set(sp.x,sp.y,sp.z);P.yaw=sp.yaw;P.hearts=5;}
