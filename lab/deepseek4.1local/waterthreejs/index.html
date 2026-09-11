@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<link rel="icon" href="data:,">
+<title>Three.js Water Simulation — 512×512 Wave Field</title>
+<style>
+  html, body { margin:0; padding:0; height:100%; overflow:hidden; background:#060a12;
+               user-select:none; -webkit-user-select:none; overscroll-behavior:none; }
+  canvas { display:block; touch-action:none; }
+  .hud { position:fixed; font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+         font-size:11px; line-height:1.7; color:rgba(205,228,255,.62);
+         text-shadow:0 1px 3px rgba(0,0,0,.85); pointer-events:none; z-index:10; }
+  #hudTL { top:14px; left:16px; }
+  #hudTL b { color:rgba(255,255,255,.92); letter-spacing:.08em; }
+  #hudBL { bottom:14px; left:16px; }
+  #err   { position:fixed; inset:0; display:none; align-items:center; justify-content:center;
+           color:#ffb0b0; font:13px/1.6 ui-monospace, monospace; text-align:center; padding:40px; z-index:20; }
+</style>
+</head>
+<body>
+
+<div class="hud" id="hudTL">
+  <b>THREE.JS WATER</b> — 512×512 wave field<br>
+  click / drag &nbsp;→&nbsp; ripples (waves superpose)<br>
+  right-drag &nbsp;&nbsp;→&nbsp; orbit &nbsp;•&nbsp; scroll → zoom<br>
+  r &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;→&nbsp; ambient drops on / off
+</div>
+<div class="hud" id="hudBL">booting…</div>
+<div id="err"></div>
+
+<script type="module">
+// ---------------------------------------------------------------- boot
+const errEl = document.getElementById('err');
+
+// collect runtime + shader errors (used by automated checks, harmless otherwise)
+window.__errors = [];
+window.addEventListener('error', e => window.__errors.push('error: ' + (e.message || e)));
+window.addEventListener('unhandledrejection', e => window.__errors.push('rejection: ' + e.reason));
+const _consoleError = console.error.bind(console);
+console.error = (...args) => { window.__errors.push(args.map(String).join(' ')); _consoleError(...args); };
+
+let THREE;
+try {
+  THREE = await import('https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js');
+} catch (e) {
+  errEl.style.display = 'flex';
+  errEl.textContent = 'Could not load three.js from cdn.jsdelivr.net — check your internet connection, then reload.';
+}
+if (THREE) init();
+
+function init() {
+'use strict';
+
+// ------------------------------------------------------------ tunables
+const N          = 512;   // simulation grid & plane subdivisions (per side)
+const SIZE       = 40;    // world-space size of the water plane
+const C2         = 0.45;  // wave speed squared (stability requires <= 0.5)
+const SUBSTEPS   = 2;     // physics steps per rendered frame
+const DAMP       = 0.998; // amplitude damping per substep
+const AMP        = 0.8;   // world displacement per height-field unit
+const NORM_STR   = 0.85;  // normal strength for lighting
+
+// ------------------------------------------------- wave field (CPU sim)
+const NN   = N * N;
+let cur  = new Float32Array(NN);
+let prev = new Float32Array(NN);
+let next = new Float32Array(NN);
+
+// slightly absorbing border: ripples fade out at the edges instead of hard-reflecting
+const damp = new Float32Array(NN);
+for (let y = 0; y < N; y++) {
+  for (let x = 0; x < N; x++) {
+    const d = Math.min(x, y, N - 1 - x, N - 1 - y);
+    damp[y * N + x] = DAMP * (d < 8 ? 0.90 + 0.10 * (d / 8) : 1);
+  }
+}
+
+// one wave-equation step — explicit finite differences:
+//   h(t+1) = 2h(t) - h(t-1) + C2 * laplacian(h)
+function stepField() {
+  for (let s = 0; s < SUBSTEPS; s++) {
+    for (let y = 1; y < N - 1; y++) {
+      let i = y * N + 1;
+      for (let x = 1; x < N - 1; x++, i++) {
+        const lap = cur[i - 1] + cur[i + 1] + cur[i - N] + cur[i + N] - 4 * cur[i];
+        next[i] = (2 * cur[i] - prev[i] + C2 * lap) * damp[i];
+      }
+    }
+    for (let k = 0; k < N; k++) {                        // fixed (absorbed) border
+      next[k] = 0; next[(N - 1) * N + k] = 0;
+      next[k * N] = 0; next[k * N + N - 1] = 0;
+    }
+    const t = prev; prev = cur; cur = next; next = t;    // rotate buffers
+  }
+}
+
+// drop a soft gaussian splash into the height field
+function splash(gx, gy, radius, amp) {
+  const r2 = radius * radius;
+  const x0 = Math.max(1, Math.floor(gx - 2 * radius)), x1 = Math.min(N - 2, Math.ceil(gx + 2 * radius));
+  const y0 = Math.max(1, Math.floor(gy - 2 * radius)), y1 = Math.min(N - 2, Math.ceil(gy + 2 * radius));
+  for (let y = y0; y <= y1; y++) {
+    const dy = y - gy;
+    for (let x = x0; x <= x1; x++) {
+      const dx = x - gx, d2 = dx * dx + dy * dy;
+      if (d2 < 4 * r2) cur[y * N + x] += amp * Math.exp(-2 * d2 / r2);
+    }
+  }
+}
+
+// ------------------------------------------------ height texture (GPU side)
+const heights = new Float32Array(NN);
+const heightTex = new THREE.DataTexture(heights, N, N, THREE.RedFormat, THREE.FloatType);
+heightTex.magFilter = THREE.NearestFilter;
+heightTex.minFilter = THREE.NearestFilter;
+heightTex.generateMipmaps = false;
+heightTex.needsUpdate = true;
+
+// ------------------------------------------------------------- renderer
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+const cvs = renderer.domElement;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x071018);
+scene.fog = new THREE.FogExp2(0x071018, 0.009);
+
+const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 400);
+camera.position.set(0, 22, 34);
+
+// --------------------------------------------------------------- lights
+scene.add(new THREE.HemisphereLight(0x9db8d4, 0x0a141c, 0.9));
+scene.add(new THREE.AmbientLight(0x22303c, 0.6));
+const keyLight  = new THREE.DirectionalLight(0xfff4e0, 2.2); keyLight.position.set(28, 42, 18);   scene.add(keyLight);
+const fillLight = new THREE.DirectionalLight(0x4a7fbf, 1.2); fillLight.position.set(-36, 24, -30); scene.add(fillLight);
+
+// ------------------------------------------------------ water material
+const uniforms = {
+  uHeight:         { value: heightTex },
+  uSize:           { value: SIZE },
+  uAmp:            { value: AMP },
+  uNormalStrength: { value: NORM_STR },
+  uTexel:          { value: 1 / N },
+};
+
+const material = new THREE.MeshPhongMaterial({
+  color: 0x2a6f8e, specular: 0x9fd0ee, shininess: 110,
+});
+
+// displace the plane and rebuild normals from the live height texture —
+// this is what makes the lighting react to the waves in real time
+material.onBeforeCompile = (shader) => {
+  Object.assign(shader.uniforms, uniforms);
+
+  shader.vertexShader = `
+    uniform sampler2D uHeight;
+    uniform float uSize;
+    uniform float uAmp;
+    uniform float uNormalStrength;
+    uniform float uTexel;
+  ` + shader.vertexShader;
+
+  shader.vertexShader = shader.vertexShader.replace('#include <beginnormal_vertex>', `
+    vec2 wuv = position.xy / uSize + 0.5;
+    float hC = texture2D( uHeight, wuv ).r;
+    float hR = texture2D( uHeight, wuv + vec2( uTexel, 0.0 ) ).r;
+    float hL = texture2D( uHeight, wuv - vec2( uTexel, 0.0 ) ).r;
+    float hU = texture2D( uHeight, wuv + vec2( 0.0, uTexel ) ).r;
+    float hD = texture2D( uHeight, wuv - vec2( 0.0, uTexel ) ).r;
+    float cellSize = uSize * uTexel;
+    float sx = ( hR - hL ) * uAmp / ( 2.0 * cellSize );
+    float sy = ( hU - hD ) * uAmp / ( 2.0 * cellSize );
+    vec3 objectNormal = normalize( vec3( -sx * uNormalStrength, -sy * uNormalStrength, 1.0 ) );
+  `);
+
+  shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', `
+    vec3 transformed = vec3( position );
+    transformed.z += hC * uAmp;
+  `);
+};
+
+const geometry = new THREE.PlaneGeometry(SIZE, SIZE, N, N);
+const mesh = new THREE.Mesh(geometry, material);
+mesh.rotation.x = -Math.PI / 2;
+mesh.updateMatrixWorld(true);
+scene.add(mesh);
+
+// ---------------------------------------------------------- camera rig
+const camTarget = new THREE.Vector3(0, 0, 0);
+let camRadius = camera.position.distanceTo(camTarget);
+let camTheta  = Math.atan2(camera.position.x, camera.position.z);
+let camPhi    = Math.acos(camera.position.y / camRadius);
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+function applyCamera() {
+  camPhi    = clamp(camPhi, 0.12, 1.45);
+  camRadius = clamp(camRadius, 10, 110);
+  camera.position.set(
+    camTarget.x + camRadius * Math.sin(camPhi) * Math.sin(camTheta),
+    camTarget.y + camRadius * Math.cos(camPhi),
+    camTarget.z + camRadius * Math.sin(camPhi) * Math.cos(camTheta)
+  );
+  camera.lookAt(camTarget);
+}
+
+// -------------------------------------------------------------- input
+const raycaster  = new THREE.Raycaster();
+const ndc        = new THREE.Vector2();
+const hitPoint   = new THREE.Vector3();
+const localPoint = new THREE.Vector3();
+const WATER_PLANE = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+
+let paintMode = false, orbitMode = false, rainOn = true;
+let lastX = 0, lastY = 0, lastPaintT = 0;
+
+function pointerToGrid(e) {
+  const r = cvs.getBoundingClientRect();
+  ndc.x =  ((e.clientX - r.left) / r.width)  * 2 - 1;
+  ndc.y = -((e.clientY - r.top)  / r.height) * 2 + 1;
+  raycaster.setFromCamera(ndc, camera);
+  if (!raycaster.ray.intersectPlane(WATER_PLANE, hitPoint)) return null;
+  localPoint.copy(hitPoint);
+  mesh.worldToLocal(localPoint);
+  const gx = (localPoint.x / SIZE + 0.5) * N;
+  const gy = (localPoint.y / SIZE + 0.5) * N;
+  if (gx < 2 || gx > N - 3 || gy < 2 || gy > N - 3) return null;
+  return { gx, gy };
+}
+
+cvs.addEventListener('contextmenu', e => e.preventDefault());
+
+cvs.addEventListener('pointerdown', e => {
+  try { cvs.setPointerCapture(e.pointerId); } catch (_) {}
+  if (e.button === 2) { orbitMode = true; lastX = e.clientX; lastY = e.clientY; return; }
+  paintMode = true;
+  const g = pointerToGrid(e);
+  if (g) splash(g.gx, g.gy, 6, 1.0);            // ← click creates a ripple
+});
+
+cvs.addEventListener('pointermove', e => {
+  if (orbitMode) {
+    camTheta -= (e.clientX - lastX) * 0.006;
+    camPhi   -= (e.clientY - lastY) * 0.006;
+    lastX = e.clientX; lastY = e.clientY;
+    applyCamera();
+    return;
+  }
+  if (paintMode && (e.buttons & 1)) {
+    const now = performance.now();
+    if (now - lastPaintT > 40) {                // drag paints a trail of ripples
+      lastPaintT = now;
+      const g = pointerToGrid(e);
+      if (g) splash(g.gx, g.gy, 3.5, 0.35);
+    }
+  }
+});
+
+const endPointer = () => { paintMode = false; orbitMode = false; };
+cvs.addEventListener('pointerup', endPointer);
+cvs.addEventListener('pointercancel', endPointer);
+
+cvs.addEventListener('wheel', e => {
+  e.preventDefault();
+  camRadius *= 1 + e.deltaY * 0.0012;
+  applyCamera();
+}, { passive: false });
+
+window.addEventListener('keydown', e => {
+  if (e.key === 'r' || e.key === 'R') rainOn = !rainOn;
+});
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// --------------------------------------------------------------- loop
+const hudBL = document.getElementById('hudBL');
+const clock = new THREE.Clock();
+let paused = false, steps = 0, rainTimer = 2.0;
+let fps = 0, frames = 0, fpsAccum = 0, simMs = 0;
+
+function tick() {
+  const dt = Math.min(clock.getDelta(), 0.05);
+
+  if (!paused) {
+    const t0 = performance.now();
+    stepField();                                // propagate the waves
+    simMs = simMs * 0.9 + (performance.now() - t0) * 0.1;
+    steps++;
+
+    if (rainOn) {                               // occasional ambient droplets
+      rainTimer -= dt;
+      if (rainTimer <= 0) {
+        rainTimer = 1.2 + Math.random() * 2.2;
+        splash(40 + Math.random() * (N - 80), 40 + Math.random() * (N - 80), 5, 0.15 + Math.random() * 0.2);
+      }
+    }
+  }
+
+  heights.set(cur);                             // upload the field to the GPU
+  heightTex.needsUpdate = true;
+
+  // gently sweep the key light so the highlights keep moving
+  const t = clock.elapsedTime;
+  keyLight.position.set(28 + 5 * Math.sin(t * 0.25), 42, 18 + 5 * Math.cos(t * 0.21));
+
+  frames++; fpsAccum += dt;
+  if (fpsAccum >= 0.5) {
+    fps = frames / fpsAccum; frames = 0; fpsAccum = 0;
+    hudBL.textContent = fps.toFixed(0).padStart(2, ' ') + ' fps  •  ' +
+      N + '×' + N + ' grid  •  sim ' + simMs.toFixed(1) + ' ms/frame';
+  }
+
+  renderer.render(scene, camera);
+}
+
+// ------------------------------------------------------------- kickoff
+applyCamera();
+splash(150, 150, 7, 1.3);                       // three overlapping waves —
+splash(365, 175, 7, 1.0);                       // they superpose and interfere
+splash(255, 375, 7, 0.9);
+hudBL.textContent = 'starting…';
+
+// small inspection API (used by automated tests; harmless in normal use)
+const snapCanvas = document.createElement('canvas');
+const snapCtx = snapCanvas.getContext('2d');
+window.__water = {
+  ready: true, geometry, N, SIZE,
+  webgl2: renderer.capabilities.isWebGL2,
+  fps: () => fps,
+  simMs: () => simMs,
+  steps: () => steps,
+  triangles: () => renderer.info.render.triangles,
+  peak() { let m = 0, mi = 0; for (let i = 0; i < NN; i++) { const a = Math.abs(cur[i]); if (a > m) { m = a; mi = i; } } return { value: cur[mi], abs: m, x: mi % N, y: (mi / N) | 0 }; },
+  energy() { let s = 0; for (let i = 0; i < NN; i++) s += Math.abs(cur[i]); return s; },
+  heightAt: (x, y) => cur[y * N + x],
+  sampleRow(y, step = 1) { const out = []; for (let x = 0; x < N; x += step) out.push(Math.round(cur[y * N + x] * 1e4) / 1e4); return out; },
+  sampleCol(x, step = 1) { const out = []; for (let y = 0; y < N; y += step) out.push(Math.round(cur[y * N + x] * 1e4) / 1e4); return out; },
+  splashAt: (x, y, r = 6, a = 1.0) => splash(x, y, r, a),
+  reset() { cur.fill(0); prev.fill(0); next.fill(0); },
+  pause(v) { paused = !!v; },
+  stepN(n) { for (let i = 0; i < n; i++) stepField(); },
+  rain(v) { rainOn = !!v; },
+  snapshot() {
+    renderer.render(scene, camera);
+    const w = 320, h = 180;
+    snapCanvas.width = w; snapCanvas.height = h;
+    snapCtx.drawImage(cvs, 0, 0, w, h);
+    const d = snapCtx.getImageData(0, 0, w, h).data;
+    let sr = 0, sg = 0, sb = 0, sl = 0, sl2 = 0, maxL = 0, bright = 0, hash = 0;
+    const n = w * h;
+    for (let i = 0; i < d.length; i += 4) {
+      const r = d[i], g = d[i + 1], b = d[i + 2];
+      const L = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+      sr += r; sg += g; sb += b; sl += L; sl2 += L * L;
+      if (L > maxL) maxL = L;
+      if (L > 170) bright++;
+      hash = (hash * 31 + r + 3 * g + 7 * b) & 0x7fffffff;
+    }
+    const mean = sl / n;
+    return {
+      meanR: sr / n, meanG: sg / n, meanB: sb / n, meanL: mean,
+      std: Math.sqrt(Math.max(0, sl2 / n - mean * mean)),
+      maxL, brightFrac: bright / n, hash
+    };
+  },
+};
+
+renderer.setAnimationLoop(tick);
+} // init()
+</script>
+</body>
+</html>
