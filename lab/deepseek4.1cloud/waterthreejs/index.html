@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Three.js — Water Wave Simulation</title>
+<style>
+  :root { color-scheme: dark; }
+  html, body { height: 100%; margin: 0; overflow: hidden; background: #01030a; }
+  canvas { display: block; touch-action: none; }
+  #hud {
+    position: fixed; left: 18px; bottom: 16px;
+    font: 12px/1.7 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color: rgba(190, 220, 255, .72);
+    pointer-events: none; user-select: none;
+    letter-spacing: .02em;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, .9);
+  }
+  #hud b { color: #7fd4ff; font-weight: 600; }
+  #hud i { font-style: normal; color: rgba(190, 220, 255, .4); }
+</style>
+</head>
+<body>
+
+<div id="hud">
+  <b>click</b> make ripples &nbsp;·&nbsp; <b>drag</b> orbit &nbsp;·&nbsp;
+  <b>wheel</b> zoom &nbsp;·&nbsp; <b>r</b> rain <i id="rainState">on</i>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+
+/* ========================================================================
+   1. WAVE SIMULATION
+   ------------------------------------------------------------------------
+   A discrete 2D wave equation integrated on a 513 x 513 height field:
+
+       u(t+1) = 2u(t) - u(t-1) + c^2 * laplacian(u(t))
+
+   With c^2 = 0.5 (the 2D CFL stability limit) the update collapses to the
+   classic, dead-cheap ripple kernel used by old-school water demos:
+
+       u(t+1) = 0.5 * (u_left + u_right + u_up + u_down) - u(t-1)
+
+   Two ping-ponging Float32 buffers hold (t) and (t-1); a third receives
+   the result. Waves superpose linearly, so many ripples interact for free.
+   ======================================================================== */
+
+const RES        = 512;            // plane subdivisions (512 x 512 quads)
+const N          = RES + 1;        // simulation samples per axis (513)
+const SIZE       = 30;             // world-space size of the water sheet
+const DX         = SIZE / RES;     // spacing between samples (world units)
+const SIM_DT     = 1 / 120;        // fixed simulation timestep (s)
+const BASE_DAMP  = 0.9988;         // energy loss per step
+const SPONGE     = 0.12;           // extra absorption near the borders
+
+let H  = new Float32Array(N * N);  // u(t)
+let HP = new Float32Array(N * N);  // u(t-1)
+let HN = new Float32Array(N * N);  // scratch -> u(t+1)
+
+/* Per-cell damping: gentle everywhere, aggressive in a border band so the
+   domain silently swallows outgoing waves instead of reflecting them. */
+const dampMap = new Float32Array(N * N);
+(function buildDampMap() {
+  const band = 64;
+  for (let iy = 0; iy < N; iy++) {
+    for (let ix = 0; ix < N; ix++) {
+      const d = Math.min(ix, iy, N - 1 - ix, N - 1 - iy);
+      const t = Math.max(0, 1 - d / band);
+      dampMap[iy * N + ix] = BASE_DAMP * (1 - SPONGE * t * t);
+    }
+  }
+})();
+
+/* One integration step. */
+function simulate() {
+  const h = H, hp = HP, hn = HN;
+  const last = N - 1;
+
+  for (let iy = 1; iy < last; iy++) {
+    const row = iy * N;
+    for (let ix = 1; ix < last; ix++) {
+      const i = row + ix;
+      hn[i] =
+        ((h[i - 1] + h[i + 1] + h[i - N] + h[i + N]) * 0.5 - hp[i]) *
+        dampMap[i];
+    }
+  }
+
+  // Hard-damped borders (energy leaves the domain).
+  for (let ix = 0; ix < N; ix++) {
+    hn[ix]              = h[ix] * 0.85;
+    hn[last * N + ix]   = h[last * N + ix] * 0.85;
+  }
+  for (let iy = 1; iy < last; iy++) {
+    hn[iy * N]          = h[iy * N] * 0.85;
+    hn[iy * N + last]   = h[iy * N + last] * 0.85;
+  }
+
+  // Recycle buffers: (t-1) <- (t) <- (t+1) <- old (t-1)
+  const tmp = HP; HP = H; H = HN; HN = tmp;
+}
+
+/* Inject a smooth depression -> an expanding ring of ripples. */
+function drop(worldX, worldZ, radius, strength) {
+  const gx = (worldX + SIZE * 0.5) / DX;
+  const gy = (worldZ + SIZE * 0.5) / DX;
+  const r  = radius / DX;
+  const r2 = r * r;
+
+  const x0 = Math.max(1, Math.floor(gx - r));
+  const x1 = Math.min(N - 2, Math.ceil(gx + r));
+  const y0 = Math.max(1, Math.floor(gy - r));
+  const y1 = Math.min(N - 2, Math.ceil(gy + r));
+
+  for (let iy = y0; iy <= y1; iy++) {
+    const dy  = iy - gy;
+    const dy2 = dy * dy;
+    const row = iy * N;
+    for (let ix = x0; ix <= x1; ix++) {
+      const dx  = ix - gx;
+      const d2  = dx * dx + dy2;
+      if (d2 >= r2) continue;
+      const t = 1 - d2 / r2;
+      H[row + ix] -= strength * t * t;   // smoothed bump, zero slope at rim
+    }
+  }
+}
+
+/* ========================================================================
+   2. RENDERER / SCENE
+   ======================================================================== */
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+document.body.appendChild(renderer.domElement);
+
+const canvas = renderer.domElement;
+
+const scene  = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(48, window.innerWidth / window.innerHeight, 0.1, 900);
+
+/* ---- Procedural equirectangular sky (used for background AND reflections) ---- */
+function makeSkyTexture() {
+  const W = 1024, Hh = 512;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = Hh;
+  const ctx = c.getContext('2d');
+
+  const g = ctx.createLinearGradient(0, 0, 0, Hh);
+  g.addColorStop(0.00, '#01030a');
+  g.addColorStop(0.28, '#061428');
+  g.addColorStop(0.44, '#16507e');
+  g.addColorStop(0.495, '#7cc0e6');
+  g.addColorStop(0.505, '#1d4560');
+  g.addColorStop(0.70, '#06131f');
+  g.addColorStop(1.00, '#01030a');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, Hh);
+
+  // stars in the upper hemisphere
+  for (let i = 0; i < 280; i++) {
+    const x = Math.random() * W;
+    const y = Math.random() * Hh * 0.42;
+    const a = Math.random() * 0.7 + 0.12;
+    const s = Math.random() < 0.9 ? 1 : 2;
+    ctx.fillStyle = `rgba(220,235,255,${a})`;
+    ctx.fillRect(x, y, s, s);
+  }
+
+  // sun disc + bloom (drives the specular highlight on the water)
+  const sx = W * 0.30, sy = Hh * 0.28;
+  const sg = ctx.createRadialGradient(sx, sy, 0, sx, sy, W * 0.20);
+  sg.addColorStop(0.00, 'rgba(255,255,250,1)');
+  sg.addColorStop(0.03, 'rgba(255,246,220,0.95)');
+  sg.addColorStop(0.10, 'rgba(255,205,140,0.45)');
+  sg.addColorStop(0.35, 'rgba(255,150,90,0.12)');
+  sg.addColorStop(1.00, 'rgba(255,120,60,0)');
+  ctx.fillStyle = sg;
+  ctx.fillRect(0, 0, W, Hh);
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.mapping    = THREE.EquirectangularReflectionMapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+const skyTex = makeSkyTexture();
+scene.background = skyTex;
+
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromEquirectangular(skyTex).texture;
+pmrem.dispose();
+
+/* ---- Lighting ---- */
+const sun = new THREE.DirectionalLight(0xfff2d8, 2.8);
+sun.position.set(14, 38, -44);          // matches the painted sun in the sky
+scene.add(sun);
+
+const skyLight = new THREE.HemisphereLight(0x9ec8ff, 0x02060e, 0.55);
+scene.add(skyLight);
+
+const rim = new THREE.DirectionalLight(0x2f74ff, 0.7);
+rim.position.set(-32, 14, 26);
+scene.add(rim);
+
+/* ---- Water surface ---- */
+const geometry = new THREE.PlaneGeometry(SIZE, SIZE, RES, RES);
+geometry.rotateX(-Math.PI / 2);         // lie flat: local +Y is now "up"
+
+const posAttr = geometry.attributes.position;
+const norAttr = geometry.attributes.normal;
+const posArr  = posAttr.array;
+const norArr  = norAttr.array;
+
+posAttr.setUsage(THREE.DynamicDrawUsage);
+norAttr.setUsage(THREE.DynamicDrawUsage);
+
+const waterMaterial = new THREE.MeshStandardMaterial({
+  color:            0x0b2a3d,
+  metalness:        0.28,
+  roughness:        0.075,
+  envMapIntensity:  1.55
+});
+
+const water = new THREE.Mesh(geometry, waterMaterial);
+scene.add(water);
+
+/* ---- Push the height field into the mesh (positions + analytic normals) ----
+   Normals come from central differences on the height field, which is far
+   cheaper than computeVertexNormals() on a 524k-triangle mesh.            */
+function updateSurface() {
+  const inv2dx = 1 / (2 * DX);
+  const last   = RES;
+  let p = 0;
+
+  for (let iy = 0; iy < N; iy++) {
+    const row       = iy * N;
+    const interiorY = iy > 0 && iy < last;
+
+    for (let ix = 0; ix < N; ix++, p += 3) {
+      const i = row + ix;
+      posArr[p + 1] = H[i];
+
+      if (interiorY && ix > 0 && ix < last) {
+        const dhx = (H[i + 1] - H[i - 1]) * inv2dx;
+        const dhz = (H[i + N] - H[i - N]) * inv2dx;
+        const nx = -dhx, nz = -dhz;
+        const inv = 1 / Math.sqrt(nx * nx + nz * nz + 1);
+        norArr[p]     = nx * inv;
+        norArr[p + 1] = inv;
+        norArr[p + 2] = nz * inv;
+      } else {
+        norArr[p] = 0; norArr[p + 1] = 1; norArr[p + 2] = 0;
+      }
+    }
+  }
+
+  posAttr.needsUpdate = true;
+  norAttr.needsUpdate = true;
+}
+
+/* ========================================================================
+   3. CAMERA ORBIT + POINTER INPUT
+   ======================================================================== */
+
+let theta  = 0.62;                        // azimuth
+let phi    = 0.86;                        // polar angle from +Y
+let radius = 32;                          // distance
+const PHI_MIN = 0.12, PHI_MAX = Math.PI * 0.5 - 0.045;
+
+function updateCamera() {
+  camera.position.set(
+    radius * Math.sin(phi) * Math.sin(theta),
+    radius * Math.cos(phi),
+    radius * Math.sin(phi) * Math.cos(theta)
+  );
+  camera.lookAt(0, 0, 0);
+}
+
+const raycaster  = new THREE.Raycaster();
+const ndc        = new THREE.Vector2();
+const waterPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0); // flat y = 0
+const hitPoint   = new THREE.Vector3();
+
+function screenToWater(clientX, clientY) {
+  const r = canvas.getBoundingClientRect();
+  ndc.x =  ((clientX - r.left) / r.width)  * 2 - 1;
+  ndc.y = -((clientY - r.top)  / r.height) * 2 + 1;
+  raycaster.setFromCamera(ndc, camera);
+  // Ray-march a flat plane instead of the 524k-triangle mesh — O(1).
+  return raycaster.ray.intersectPlane(waterPlane, hitPoint) ? hitPoint : null;
+}
+
+let dragging = false, moved = false;
+let lastX = 0, lastY = 0, downX = 0, downY = 0;
+
+canvas.addEventListener('pointerdown', (e) => {
+  canvas.setPointerCapture(e.pointerId);
+  dragging = true;
+  moved    = false;
+  lastX = downX = e.clientX;
+  lastY = downY = e.clientY;
+});
+
+canvas.addEventListener('pointermove', (e) => {
+  if (!dragging) return;
+
+  const dx = e.clientX - lastX;
+  const dy = e.clientY - lastY;
+  lastX = e.clientX;
+  lastY = e.clientY;
+
+  if (!moved && Math.hypot(e.clientX - downX, e.clientY - downY) > 5) moved = true;
+  if (!moved) return;
+
+  theta -= dx * 0.006;
+  phi    = Math.min(PHI_MAX, Math.max(PHI_MIN, phi - dy * 0.006));
+});
+
+function endDrag(e) {
+  if (!dragging) return;
+  dragging = false;
+  if (moved) return;
+
+  // A clean click -> drop a stone.
+  const p = screenToWater(e.clientX, e.clientY);
+  if (p) drop(p.x, p.z, 1.7, 0.50);
+}
+
+canvas.addEventListener('pointerup', endDrag);
+canvas.addEventListener('pointercancel', () => { dragging = false; });
+
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  radius = Math.min(90, Math.max(7, radius * (1 + e.deltaY * 0.0011)));
+}, { passive: false });
+
+/* ========================================================================
+   4. AMBIENT RAIN (demonstrates many interacting wavefronts)
+   ======================================================================== */
+
+let rainOn     = true;
+let rainTimer  = 0.6;
+const rainStateEl = document.getElementById('rainState');
+
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'r' || e.key === 'R') {
+    rainOn = !rainOn;
+    rainStateEl.textContent = rainOn ? 'on' : 'off';
+  }
+});
+
+/* ========================================================================
+   5. MAIN LOOP
+   ======================================================================== */
+
+let prevTime    = performance.now();
+let accumulator = 0;
+
+function animate(now) {
+  requestAnimationFrame(animate);
+
+  const dt = Math.min(0.1, (now - prevTime) / 1000);
+  prevTime = now;
+
+  // Fixed-timestep integration (frame-rate independent wave speed)
+  accumulator += dt;
+  let steps = 0;
+  while (accumulator >= SIM_DT && steps < 4) {
+    simulate();
+    accumulator -= SIM_DT;
+    steps++;
+  }
+  if (steps === 4) accumulator = 0;
+
+  // Random droplets
+  if (rainOn) {
+    rainTimer -= dt;
+    if (rainTimer <= 0) {
+      rainTimer = 0.9 + Math.random() * 1.8;
+      drop(
+        (Math.random() - 0.5) * SIZE * 0.88,
+        (Math.random() - 0.5) * SIZE * 0.88,
+        0.55 + Math.random() * 0.6,
+        0.10 + Math.random() * 0.09
+      );
+    }
+  }
+
+  updateSurface();
+  updateCamera();
+  renderer.render(scene, camera);
+}
+
+/* ---- Resize ---- */
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+/* ---- Go ---- */
+updateCamera();
+requestAnimationFrame(animate);
+</script>
+</body>
+</html>
