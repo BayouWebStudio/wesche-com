@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Contained Fire — a looping Three.js study</title>
+<style>
+  :root{
+    --bar: clamp(52px, 7vh, 74px);
+    --ink:#d8dce6; --dim:#69707f; --ember:#ff8a3d;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+    --disp: "Avenir Next", Futura, "Century Gothic", "Segoe UI", system-ui, sans-serif;
+    --serif: Georgia, "Times New Roman", serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;background:#000;overflow:hidden}
+  #c{position:fixed;inset:0;width:100%;height:100%;display:block}
+  .vignette{position:fixed;inset:0;z-index:5;pointer-events:none;
+    background:radial-gradient(120% 90% at 50% 44%, transparent 50%, rgba(0,0,0,.55) 100%)}
+  .bar{position:fixed;left:0;right:0;height:var(--bar);z-index:10;background:#000;
+    display:flex;align-items:center;justify-content:space-between;
+    padding:0 clamp(16px,3.2vw,40px);font-family:var(--mono)}
+  .bar.top{top:0;border-bottom:1px solid rgba(255,255,255,.08)}
+  .bar.bottom{bottom:0;border-top:1px solid rgba(255,255,255,.08)}
+  .brand{display:flex;align-items:baseline;gap:16px;min-width:0}
+  .brand .title{font-family:var(--disp);font-weight:700;font-size:15px;letter-spacing:.38em;color:var(--ink);white-space:nowrap}
+  .brand .title em{font-style:normal;color:var(--ember)}
+  .brand .sub{font-size:10px;letter-spacing:.22em;color:var(--dim);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tc{display:flex;align-items:center;gap:12px;font-size:11px;letter-spacing:.14em;color:var(--dim);white-space:nowrap}
+  .tc .dot{width:7px;height:7px;border-radius:50%;background:var(--ember);box-shadow:0 0 10px var(--ember);animation:pulse 2.6s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:.3}50%{opacity:1}}
+  .phase{display:flex;flex-direction:column;gap:4px;min-width:0}
+  .phase .idx{font-size:10px;letter-spacing:.34em;color:var(--dim)}
+  .phase .name{display:block;font-family:var(--disp);font-weight:700;font-size:clamp(15px,2.4vh,21px);letter-spacing:.32em;color:var(--ink);line-height:1.15}
+  .phase .cap{display:block;font-family:var(--serif);font-style:italic;font-size:12px;color:var(--dim)}
+  .swap{animation:swap .8s cubic-bezier(.16,.8,.26,1)}
+  @keyframes swap{from{opacity:0;transform:translateY(9px);filter:blur(5px)}to{opacity:1;transform:none;filter:none}}
+  .track{position:relative;width:clamp(130px,22vw,250px);height:2px;background:rgba(255,255,255,.14);flex:none}
+  .track .fill{position:absolute;inset:0;background:linear-gradient(90deg,#ff5a1f,#ffb066);box-shadow:0 0 8px rgba(255,120,40,.7);transform-origin:0 50%;transform:scaleX(0)}
+  .track .tick{position:absolute;top:-3px;width:1px;height:8px;background:rgba(255,255,255,.3)}
+  #err{position:fixed;inset:0;z-index:50;display:none;flex-direction:column;gap:12px;align-items:center;justify-content:center;
+    background:#020204;color:var(--dim);font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-align:center;padding:24px;line-height:2}
+  @media (max-width:720px){
+    .brand .sub,.phase .cap{display:none}
+    .brand .title{letter-spacing:.24em;font-size:13px}
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="vignette"></div>
+
+<header class="bar top">
+  <div class="brand">
+    <span class="title">CONTAINED&nbsp;<em>FIRE</em></span>
+    <span class="sub">a looping study &middot; ignition &rarr; aftermath</span>
+  </div>
+  <div class="tc"><span class="dot"></span><span>LOOP</span><span id="tc">T+00:00.00 / 00:26.00</span></div>
+</header>
+
+<footer class="bar bottom">
+  <div class="phase">
+    <span class="idx" id="phIdx">PHASE 01 / 05</span>
+    <div id="swapbox">
+      <span class="name" id="phName">IGNITION</span>
+      <span class="cap" id="phCap">a single spark finds the coals</span>
+    </div>
+  </div>
+  <div class="track">
+    <div class="fill" id="fill"></div>
+    <span class="tick" style="left:13.46%"></span>
+    <span class="tick" style="left:32.69%"></span>
+    <span class="tick" style="left:67.31%"></span>
+    <span class="tick" style="left:82.69%"></span>
+  </div>
+</footer>
+
+<div id="err"><span>&#9632;</span><span>FAILED TO LOAD THREE.JS FROM UNPKG.<br>CHECK YOUR CONNECTION AND RELOAD.</span></div>
+<noscript><div style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#000;color:#69707f;font-family:monospace">JAVASCRIPT REQUIRED</div></noscript>
+
+<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+<script>
+(function(){
+"use strict";
+var errEl = document.getElementById('err');
+function fail(){ errEl.style.display = 'flex'; }
+
+var boot = function(THREE){
+try {
+
+/* ================= helpers ================= */
+var TAU = Math.PI * 2;
+function clamp01(x){ return x < 0 ? 0 : x > 1 ? 1 : x; }
+function smooth(a,b,x){ x = clamp01((x-a)/(b-a)); return x*x*(3-2*x); }
+function rand(a,b){ return a + Math.random()*(b-a); }
+
+/* ================= renderer / scene / camera ================= */
+var canvas = document.getElementById('c');
+var renderer = new THREE.WebGLRenderer({ canvas:canvas, antialias:true, powerPreference:'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.15;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+var scene = new THREE.Scene();
+scene.background = new THREE.Color(0x05060a);
+scene.fog = new THREE.FogExp2(0x05060a, 0.042);
+
+var camera = new THREE.PerspectiveCamera(46, innerWidth/innerHeight, 0.1, 80);
+
+/* ================= procedural textures ================= */
+function canvasTex(size, draw){
+  var c = document.createElement('canvas'); c.width = c.height = size;
+  draw(c.getContext('2d'), size);
+  var t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+var texGlowWarm = canvasTex(128, function(g,s){
+  var r = g.createRadialGradient(s/2,s/2,0,s/2,s/2,s/2);
+  r.addColorStop(0.00,'rgba(255,198,122,0.95)');
+  r.addColorStop(0.25,'rgba(255,122,40,0.50)');
+  r.addColorStop(0.60,'rgba(170,48,10,0.14)');
+  r.addColorStop(1.00,'rgba(0,0,0,0)');
+  g.fillStyle = r; g.fillRect(0,0,s,s);
+});
+var texGlowCore = canvasTex(128, function(g,s){
+  var r = g.createRadialGradient(s/2,s/2,0,s/2,s/2,s/2);
+  r.addColorStop(0.00,'rgba(255,255,244,1)');
+  r.addColorStop(0.30,'rgba(255,198,100,0.65)');
+  r.addColorStop(0.70,'rgba(255,110,30,0.15)');
+  r.addColorStop(1.00,'rgba(0,0,0,0)');
+  g.fillStyle = r; g.fillRect(0,0,s,s);
+});
+var texPool = canvasTex(256, function(g,s){
+  var r = g.createRadialGradient(s/2,s/2,0,s/2,s/2,s/2);
+  r.addColorStop(0.00,'rgba(255,150,60,0.60)');
+  r.addColorStop(0.35,'rgba(255,110,38,0.20)');
+  r.addColorStop(0.70,'rgba(120,40,10,0.05)');
+  r.addColorStop(1.00,'rgba(0,0,0,0)');
+  g.fillStyle = r; g.fillRect(0,0,s,s);
+});
+function noiseTex(base, variance, repeat){
+  var t = canvasTex(256, function(g,s){
+    g.fillStyle = base; g.fillRect(0,0,s,s);
+    var id = g.getImageData(0,0,s,s), d = id.data;
+    for (var i=0;i<d.length;i+=4){
+      var v = (Math.random()-0.5)*variance;
+      d[i]+=v; d[i+1]+=v; d[i+2]+=v*0.9;
+    }
+    g.putImageData(id,0,0);
+  });
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(repeat, repeat);
+  return t;
+}
+
+/* ================= environment ================= */
+var floor = new THREE.Mesh(
+  new THREE.PlaneGeometry(60,60),
+  new THREE.MeshStandardMaterial({ map:noiseTex('#12131a',16,8), roughness:0.9, metalness:0.15 })
+);
+floor.rotation.x = -Math.PI/2;
+scene.add(floor);
+
+var room = new THREE.Mesh(
+  new THREE.CylinderGeometry(16,16,12,48,1,true),
+  new THREE.MeshStandardMaterial({ color:0x0a0b10, roughness:1, metalness:0, side:THREE.BackSide })
+);
+room.position.y = 6;
+scene.add(room);
+
+var pedestal = new THREE.Mesh(
+  new THREE.BoxGeometry(2.75,0.22,2.75),
+  new THREE.MeshStandardMaterial({ map:noiseTex('#17181f',18,2), roughness:0.92, metalness:0.1 })
+);
+pedestal.position.y = 0.11;
+scene.add(pedestal);
+
+/* ---- dynamic reflection env (tiny cube scene, re-rendered every frame) ---- */
+var envScene = new THREE.Scene();
+var envFloor = new THREE.Mesh(new THREE.PlaneGeometry(40,40), new THREE.MeshBasicMaterial({ color:0x07080c }));
+envFloor.rotation.x = -Math.PI/2;
+envScene.add(envFloor);
+function envSprite(tex, y){
+  var s = new THREE.Sprite(new THREE.SpriteMaterial({ map:tex, transparent:true, blending:THREE.AdditiveBlending, depthWrite:false, opacity:0 }));
+  s.position.set(0,y,0);
+  envScene.add(s);
+  return s;
+}
+var envGlow  = envSprite(texGlowWarm, 0.95);
+var envCore  = envSprite(texGlowCore, 0.60);
+var envSpark = envSprite(texGlowCore, 0.42);
+var cubeRT = new THREE.WebGLCubeRenderTarget(128, 128, { generateMipmaps:true, minFilter:THREE.LinearMipmapLinearFilter, magFilter:THREE.LinearFilter });
+var cubeCam = new THREE.CubeCamera(0.1, 40, cubeRT);
+cubeCam.position.set(0, 1.35, 0);
+
+/* ================= glass box + frame ================= */
+var glassMat = new THREE.MeshPhysicalMaterial({
+  color:0xffffff, metalness:0, roughness:0.04,
+  transmission:1.0, thickness:0.35, ior:1.52,
+  envMap:cubeRT.texture, envMapIntensity:1.5,
+  clearcoat:1.0, clearcoatRoughness:0.06,
+  attenuationColor:new THREE.Color(0xdff2ff), attenuationDistance:3.5,
+  depthWrite:false
+});
+var glass = new THREE.Mesh(new THREE.BoxGeometry(2.2,2.6,2.2), glassMat);
+glass.position.set(0, 1.52, 0);
+scene.add(glass);
+
+var frameMat = new THREE.MeshStandardMaterial({ color:0x2b2e38, metalness:0.9, roughness:0.3, envMap:cubeRT.texture, envMapIntensity:1.1 });
+var frame = new THREE.Group();
+var BW = 0.065, HW = 1.1, HD = 1.1, Y0 = 0.22, HGT = 2.6;
+function beam(w,h,d,x,y,z){
+  var m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), frameMat);
+  m.position.set(x,y,z);
+  frame.add(m);
+}
+for (var sx=-1; sx<=1; sx+=2) for (var sz=-1; sz<=1; sz+=2){
+  beam(BW, HGT, BW, sx*HW, Y0+HGT/2, sz*HD);
+  beam(BW*1.8, BW*1.8, BW*1.8, sx*HW, Y0, sz*HD);
+  beam(BW*1.8, BW*1.8, BW*1.8, sx*HW, Y0+HGT, sz*HD);
+}
+for (var sy=0; sy<=1; sy++){
+  beam(2.2+BW, BW, BW, 0, Y0+sy*HGT, -HD);
+  beam(2.2+BW, BW, BW, 0, Y0+sy*HGT,  HD);
+  beam(BW, BW, 2.2+BW, -HW, Y0+sy*HGT, 0);
+  beam(BW, BW, 2.2+BW,  HW, Y0+sy*HGT, 0);
+}
+scene.add(frame);
+
+/* ---- coals at the base ---- */
+var rockMat = new THREE.MeshStandardMaterial({ color:0x15121a, roughness:1, metalness:0, emissive:0xff4400, emissiveIntensity:0 });
+for (var ri=0; ri<7; ri++){
+  var rr0 = rand(0.07,0.15);
+  var rock = new THREE.Mesh(new THREE.IcosahedronGeometry(rr0,0), rockMat);
+  var ra = rand(TAU), rrad = Math.sqrt(Math.random())*0.32;
+  rock.position.set(Math.cos(ra)*rrad, 0.22 + rr0*0.7, Math.sin(ra)*rrad);
+  rock.rotation.set(rand(TAU), rand(TAU), rand(TAU));
+  scene.add(rock);
+}
+
+/* ================= lights ================= */
+scene.add(new THREE.HemisphereLight(0x2a3244, 0x0a0a0c, 0.5));
+var moon = new THREE.DirectionalLight(0x223044, 0.35);
+moon.position.set(-4, 7, -3);
+scene.add(moon);
+var fireLight = new THREE.PointLight(0xff8a3d, 0, 20, 2);
+fireLight.position.set(0, 0.95, 0);
+scene.add(fireLight);
+
+/* ---- floor light pools (fire-driven) ---- */
+function pool(scale, y, order){
+  var m = new THREE.Mesh(new THREE.PlaneGeometry(scale,scale),
+    new THREE.MeshBasicMaterial({ map:texPool, transparent:true, blending:THREE.AdditiveBlending, depthWrite:false, opacity:0 }));
+  m.rotation.x = -Math.PI/2;
+  m.position.y = y;
+  m.renderOrder = order;
+  scene.add(m);
+  return m;
+}
+var poolA = pool(7.5, 0.012, 1);
+var poolB = pool(15,  0.02,  0);
+
+/* ---- glow sprites (fake bloom) ---- */
+function mkSprite(tex, x, y, z){
+  var s = new THREE.Sprite(new THREE.SpriteMaterial({ map:tex, transparent:true, blending:THREE.AdditiveBlending, depthWrite:false, opacity:0 }));
+  s.position.set(x,y,z);
+  s.renderOrder = 5;
+  scene.add(s);
+  return s;
+}
+var glowBig  = mkSprite(texGlowWarm, 0, 0.95, 0);
+var glowCore = mkSprite(texGlowCore, 0, 0.62, 0);
+var sparkSpr = mkSprite(texGlowCore, 0, 0.42, 0);
+
+/* ================= particle shaders ================= */
+var flameVert = [
+'uniform float uScale;',
+'attribute float aAge; attribute float aSize; attribute float aSeed;',
+'varying float vAge; varying float vSeed;',
+'void main(){',
+'  vAge = aAge; vSeed = aSeed;',
+'  vec4 mv = modelViewMatrix * vec4(position, 1.0);',
+'  float grow = smoothstep(0.0, 0.10, aAge);',
+'  float shrink = 1.0 - smoothstep(0.30, 1.0, aAge);',
+'  gl_PointSize = aSize * grow * shrink * uScale / max(0.25, -mv.z);',
+'  gl_Position = projectionMatrix * mv;',
+'}'].join('\n');
+
+var flameFrag = [
+'uniform float uTime;',
+'varying float vAge; varying float vSeed;',
+'void main(){',
+'  vec2 uv = gl_PointCoord - 0.5;',
+'  float d = length(uv) * 2.0;',
+'  float w = sin(uTime*(2.5 + vSeed*5.0) + vSeed*31.0 + uv.x*7.0 + uv.y*5.0);',
+'  d += 0.22 * w * vAge;',
+'  if (d > 1.4) discard;',
+'  float body = exp(-d*d*(2.2 + 2.6*vAge));',
+'  float vert = 1.0 - smoothstep(-0.1, 0.55, uv.y + 0.45*vAge);',
+'  float fade = 1.0 - smoothstep(0.70, 1.0, vAge);',
+'  float a = body * vert * fade;',
+'  if (a < 0.004) discard;',
+'  vec3 col;',
+'  col = mix(vec3(1.0,0.98,0.87), vec3(1.0,0.80,0.27), smoothstep(0.0,0.16,vAge));',
+'  col = mix(col, vec3(1.0,0.44,0.06), smoothstep(0.14,0.42,vAge));',
+'  col = mix(col, vec3(0.62,0.11,0.02), smoothstep(0.42,0.70,vAge));',
+'  col = mix(col, vec3(0.09,0.015,0.012), smoothstep(0.70,1.0,vAge));',
+'  gl_FragColor = vec4(col*(0.85 + 0.5*body), a);',
+'}'].join('\n');
+
+var emberVert = [
+'uniform float uScale;',
+'attribute float aAge; attribute float aSize; attribute float aSeed; attribute float aMode;',
+'varying float vAge; varying float vSeed; varying float vMode;',
+'void main(){',
+'  vAge = aAge; vSeed = aSeed; vMode = aMode;',
+'  vec4 mv = modelViewMatrix * vec4(position, 1.0);',
+'  gl_PointSize = aSize * (1.0 - 0.4*aAge) * uScale / max(0.25, -mv.z);',
+'  gl_Position = projectionMatrix * mv;',
+'}'].join('\n');
+
+var emberFrag = [
+'uniform float uTime;',
+'varying float vAge; varying float vSeed; varying float vMode;',
+'void main(){',
+'  vec2 uv = gl_PointCoord - 0.5;',
+'  float d = length(uv) * 2.0;',
+'  if (d > 1.0) discard;',
+'  float body = exp(-d*d*5.0);',
+'  float tw = 0.55 + 0.45*sin(uTime*(7.0 + vSeed*16.0) + vSeed*40.0);',
+'  vec3 col = mix(vec3(1.0,0.92,0.60), vec3(1.0,0.42,0.08), clamp(vAge*1.5, 0.0, 1.0));',
+'  float a = body * tw * (1.0 - smoothstep(0.75, 1.0, vAge));',
+'  if (vMode > 0.5){ col = vec3(1.0,0.30,0.07)*0.9; a *= 0.55; }',
+'  if (a < 0.004) discard;',
+'  gl_FragColor = vec4(col, a);',
+'}'].join('\n');
+
+var smokeVert = [
+'uniform float uScale;',
+'attribute float aAge; attribute float aSize; attribute float aSeed;',
+'varying float vAge; varying float vSeed;',
+'void main(){',
+'  vAge = aAge; vSeed = aSeed;',
+'  vec4 mv = modelViewMatrix * vec4(position, 1.0);',
+'  float grow = smoothstep(0.0, 0.18, aAge);',
+'  gl_PointSize = aSize * (0.5 + aAge*1.6) * grow * uScale / max(0.25, -mv.z);',
+'  gl_Position = projectionMatrix * mv;',
+'}'].join('\n');
+
+var smokeFrag = [
+'uniform float uTime; uniform float uSmoke;',
+'varying float vAge; varying float vSeed;',
+'void main(){',
+'  vec2 uv = gl_PointCoord - 0.5;',
+'  float d = length(uv) * 2.0;',
+'  float w = sin(uTime*(0.6 + vSeed) + vSeed*21.0 + uv.x*8.0 + uv.y*6.0);',
+'  d += 0.18 * w;',
+'  if (d > 1.4) discard;',
+'  float body = exp(-d*d*2.1);',
+'  float fade = smoothstep(0.0,0.22,vAge) * (1.0 - smoothstep(0.55,1.0,vAge));',
+'  float a = body * fade * uSmoke;',
+'  if (a < 0.004) discard;',
+'  vec3 col = vec3(0.38,0.36,0.35) * (0.7 + 0.6*vSeed);',
+'  gl_FragColor = vec4(col, a);',
+'}'].join('\n');
+
+/* ================= particle systems ================= */
+function makeSystem(max, vert, frag, blending, order){
+  var geo = new THREE.BufferGeometry();
+  var pos = new Float32Array(max*3);
+  var age = new Float32Array(max); for (var k=0;k<max;k++) age[k]=1;
+  var size = new Float32Array(max), seed = new Float32Array(max), mode = new Float32Array(max);
+  for (var i=0;i<max;i++) pos[i*3+1] = -60;
+  geo.setAttribute('position', new THREE.BufferAttribute(pos,3).setUsage(THREE.DynamicDrawUsage));
+  geo.setAttribute('aAge',  new THREE.BufferAttribute(age,1).setUsage(THREE.DynamicDrawUsage));
+  geo.setAttribute('aSize', new THREE.BufferAttribute(size,1).setUsage(THREE.DynamicDrawUsage));
+  geo.setAttribute('aSeed', new THREE.BufferAttribute(seed,1).setUsage(THREE.DynamicDrawUsage));
+  geo.setAttribute('aMode', new THREE.BufferAttribute(mode,1).setUsage(THREE.DynamicDrawUsage));
+  var mat = new THREE.ShaderMaterial({
+    vertexShader:vert, fragmentShader:frag,
+    uniforms:{ uTime:{value:0}, uScale:{value:1000} },
+    transparent:true, depthWrite:false, blending:blending
+  });
+  var pts = new THREE.Points(geo, mat);
+  pts.frustumCulled = false;
+  pts.renderOrder = order;
+  scene.add(pts);
+  return { geo:geo, mat:mat, pos:pos, age:age, size:size, seed:seed, mode:mode,
+           vel:new Float32Array(max*3), life:new Float32Array(max), maxLife:new Float32Array(max),
+           max:max, cursor:0 };
+}
+var flame = makeSystem(750, flameVert, flameFrag, THREE.AdditiveBlending, 1);
+var ember = makeSystem(300, emberVert, emberFrag, THREE.AdditiveBlending, 2);
+var smoke = makeSystem(160, smokeVert, smokeFrag, THREE.NormalBlending, 4);
+smoke.mat.uniforms.uSmoke = { value:0 };
+
+/* ---- wind streaks (line segments) ---- */
+var S_MAX = 150;
+var sPos = new Float32Array(S_MAX*6), sCol = new Float32Array(S_MAX*6);
+var sGeo = new THREE.BufferGeometry();
+sGeo.setAttribute('position', new THREE.BufferAttribute(sPos,3).setUsage(THREE.DynamicDrawUsage));
+sGeo.setAttribute('color',    new THREE.BufferAttribute(sCol,3).setUsage(THREE.DynamicDrawUsage));
+var streaks = new THREE.LineSegments(sGeo, new THREE.LineBasicMaterial({ vertexColors:true, transparent:true, blending:THREE.AdditiveBlending, depthWrite:false }));
+streaks.frustumCulled = false;
+streaks.renderOrder = 3;
+scene.add(streaks);
+var sVel = new Float32Array(S_MAX*3), sLife = new Float32Array(S_MAX), sMaxL = new Float32Array(S_MAX);
+
+/* ================= timeline (26 s loop) ================= */
+var TOTAL = 26;
+function fireLevel(t){  return smooth(3.1, 8.2, t) * (1 - smooth(18.8, 20.9, t)); }
+function windLevel(t){  return t < 17.0 ? 0 : Math.min(smooth(17.0,18.3,t), 1 - smooth(19.7,21.7,t)); }
+function sparkLevel(t){ return t < 0.35 ? 0 : smooth(0.35,1.1,t) * (1 - smooth(2.9,3.9,t)); }
+function afterGlow(t){  return t < 20.3 ? 0 : smooth(20.3,21.4,t) * (1 - smooth(24.0,25.7,t)); }
+function flick(t){ return 0.72 + 0.28*(0.55*Math.sin(t*11.3) + 0.30*Math.sin(t*23.7+1.3) + 0.15*Math.sin(t*47.1+2.1)); }
+function phaseOf(t){ return t < 3.5 ? 0 : t < 8.5 ? 1 : t < 17.5 ? 2 : t < 21.5 ? 3 : 4; }
+var PHASES = [
+  ['IGNITION',    'a single spark finds the coals'],
+  ['GROWTH',      'the flame drinks the air of the glass'],
+  ['STEADY BURN', 'light dances on the walls'],
+  ['WIND',        'a gust takes what it can'],
+  ['AFTERMATH',   'smoke remembers the fire']
+];
+
+/* ================= spawning ================= */
+function spawn(sys, x,y,z, vx,vy,vz, life, size, mode){
+  var i = sys.cursor, n;
+  for (n=0;n<sys.max;n++){ i = (i+1)%sys.max; if (sys.life[i] <= 0) break; }
+  sys.cursor = i;
+  var i3 = i*3;
+  sys.pos[i3]=x; sys.pos[i3+1]=y; sys.pos[i3+2]=z;
+  sys.vel[i3]=vx; sys.vel[i3+1]=vy; sys.vel[i3+2]=vz;
+  sys.life[i]=life; sys.maxLife[i]=life;
+  sys.size[i]=size; sys.seed[i]=Math.random();
+  sys.mode[i]=mode; sys.age[i]=0;
+}
+function freeStreak(){ for (var i=0;i<S_MAX;i++) if (sLife[i] <= 0) return i; return -1; }
+function spawnStreak(x,y,z, vx,vy,vz, life){
+  var i = freeStreak(); if (i < 0) return;
+  var i3 = i*3;
+  sPos[i3]=x; sPos[i3+1]=y; sPos[i3+2]=z;
+  sVel[i3]=vx; sVel[i3+1]=vy; sVel[i3+2]=vz;
+  sLife[i] = sMaxL[i] = life;
+}
+
+var fAcc=0, eAcc=0, smAcc=0, stAcc=0, prevFire=0;
+
+function doBurst(){
+  var n, i, i3;
+  for (n=0;n<46;n++) spawnStreak(rand(-0.4,0.4), rand(0.3,1.6), rand(-0.4,0.4), rand(6,11), rand(0.3,2.0), rand(-1.6,1.6), rand(0.4,0.8));
+  for (n=0;n<26;n++) spawn(ember, rand(-0.3,0.3), rand(0.3,1.4), rand(-0.3,0.3), rand(2,4.5), rand(0.5,1.6), rand(-1,1), rand(0.8,1.6), rand(0.04,0.08), 0);
+  for (n=0;n<10;n++) spawn(smoke, rand(-0.3,0.3), rand(0.8,1.8), rand(-0.3,0.3), rand(0.5,1.5), rand(0.3,0.8), rand(-0.3,0.3), rand(2,3.5), rand(0.4,0.7), 0);
+  for (i=0;i<flame.max;i++){
+    if (flame.life[i] <= 0) continue;
+    i3 = i*3;
+    flame.vel[i3]   += rand(1.5,3.5);
+    flame.vel[i3+1] += rand(0,1.0);
+    flame.vel[i3+2] += rand(-0.8,0.8);
+    flame.life[i] = Math.min(flame.life[i], rand(0.15,0.4));
+  }
+}
+
+/* ================= per-frame simulation ================= */
+function updateParticles(dt, t, fire, windG, spark, after){
+  var i, i3, sd, a, rr, x, y, z, vx, vy, vz, dr, n;
+
+  /* ---- flames ---- */
+  fAcc += 430*fire*dt;
+  while (fAcc >= 1){
+    fAcc--;
+    a = rand(TAU); rr = Math.sqrt(Math.random())*(0.10 + 0.14*fire);
+    spawn(flame, Math.cos(a)*rr, 0.30 + rand(0.06), Math.sin(a)*rr,
+      rand(-0.12,0.12), (0.7 + rand(0.9))*(0.55 + 0.6*fire), rand(-0.12,0.12),
+      (0.65 + rand(0.65))*(1 - 0.35*windG),
+      (0.30 + rand(0.30))*(0.75 + 0.5*fire), 0);
+  }
+  for (i=0;i<flame.max;i++){
+    if (flame.life[i] <= 0){ flame.age[i]=1; continue; }
+    flame.life[i] -= dt;
+    i3 = i*3; sd = flame.seed[i];
+    x = flame.pos[i3]; y = flame.pos[i3+1]; z = flame.pos[i3+2];
+    vx = flame.vel[i3]; vy = flame.vel[i3+1]; vz = flame.vel[i3+2];
+    vx += Math.sin(y*3.2 + t*7.0 + sd*17.0) * 0.6*fire*dt;
+    vz += Math.cos(y*2.6 + t*5.5 + sd*23.0) * 0.6*fire*dt;
+    vy += (1.1*fire + 0.25) * (1 - flame.age[i]*0.6) * dt;
+    vx += windG * (1.0 + y*2.6) * 2.6 * dt;      /* gust bends the plume */
+    vz += windG * (0.3 + y*0.5) * 0.5 * dt;
+    dr = 1 - 2.0*dt; vx *= dr; vz *= dr;
+    x += vx*dt; y += vy*dt; z += vz*dt;
+    if (x > 1.0){ x = 1.0; if (vx > 0) vx *= 0.3; } else if (x < -1.0){ x = -1.0; if (vx < 0) vx *= 0.3; }
+    if (z > 1.0){ z = 1.0; if (vz > 0) vz *= 0.3; } else if (z < -1.0){ z = -1.0; if (vz < 0) vz *= 0.3; }
+    if (y > 2.55){ y = 2.55; if (vy > 0) vy *= 0.3; flame.life[i] -= dt*2; }
+    flame.pos[i3]=x; flame.pos[i3+1]=y; flame.pos[i3+2]=z;
+    flame.vel[i3]=vx; flame.vel[i3+1]=vy; flame.vel[i3+2]=vz;
+    if (flame.life[i] <= 0){ flame.age[i]=1; continue; }
+    flame.age[i] = 1 - flame.life[i]/flame.maxLife[i];
+  }
+
+  /* ---- embers ---- */
+  eAcc += (24*fire + 9*spark + 5*after)*dt;
+  while (eAcc >= 1){
+    eAcc--;
+    if (spark > fire && spark > after){
+      spawn(ember, rand(-0.06,0.06), rand(0.34,0.44), rand(-0.06,0.06),
+        rand(-0.25,0.25), rand(0.3,0.9), rand(-0.25,0.25), rand(0.4,0.9), rand(0.03,0.06), 0);
+    } else if (after > 0.05 && Math.random() < 0.5){
+      spawn(ember, rand(-0.25,0.25), rand(0.26,0.34), rand(-0.25,0.25),
+        rand(-0.08,0.08), rand(0.05,0.25), rand(-0.08,0.08), rand(1.5,3.0), rand(0.03,0.05), 1);
+    } else {
+      a = rand(TAU); rr = Math.sqrt(Math.random())*0.2;
+      spawn(ember, Math.cos(a)*rr, rand(0.3,0.6), Math.sin(a)*rr,
+        rand(-0.2,0.2), rand(1.0,2.2), rand(-0.2,0.2), rand(1.2,2.6), rand(0.035,0.075), 0);
+    }
+  }
+  for (i=0;i<ember.max;i++){
+    if (ember.life[i] <= 0){ ember.age[i]=1; continue; }
+    ember.life[i] -= dt;
+    i3 = i*3; sd = ember.seed[i];
+    x = ember.pos[i3]; y = ember.pos[i3+1]; z = ember.pos[i3+2];
+    vx = ember.vel[i3]; vy = ember.vel[i3+1]; vz = ember.vel[i3+2];
+    vx += Math.sin(t*3.1 + sd*31.0)*0.5*dt;
+    vz += Math.cos(t*2.7 + sd*19.0)*0.5*dt;
+    vy -= 0.25*dt;
+    vx += windG*5.5*dt; vz += windG*1.0*dt;
+    x += vx*dt; y += vy*dt; z += vz*dt;
+    if (x > 1.02 || x < -1.02 || z > 1.02 || z < -1.02 || y > 2.6 || y < 0.24) ember.life[i] = 0;
+    ember.pos[i3]=x; ember.pos[i3+1]=y; ember.pos[i3+2]=z;
+    ember.vel[i3]=vx; ember.vel[i3+1]=vy; ember.vel[i3+2]=vz;
+    if (ember.life[i] <= 0){ ember.age[i]=1; continue; }
+    ember.age[i] = 1 - ember.life[i]/ember.maxLife[i];
+  }
+
+  /* ---- smoke ---- */
+  smAcc += (11*fire + 9*after + 30*windG*fire)*dt;
+  while (smAcc >= 1){
+    smAcc--;
+    a = rand(TAU); rr = Math.sqrt(Math.random())*0.22;
+    spawn(smoke, Math.cos(a)*rr, rand(0.8,1.5)*Math.max(0.3,fire) + 0.3, Math.sin(a)*rr,
+      rand(-0.1,0.1), rand(0.25,0.6), rand(-0.1,0.1), rand(2.6,4.2), rand(0.35,0.6), 0);
+  }
+  for (i=0;i<smoke.max;i++){
+    if (smoke.life[i] <= 0){ smoke.age[i]=1; continue; }
+    smoke.life[i] -= dt;
+    i3 = i*3; sd = smoke.seed[i];
+    x = smoke.pos[i3]; y = smoke.pos[i3+1]; z = smoke.pos[i3+2];
+    vx = smoke.vel[i3]; vy = smoke.vel[i3+1]; vz = smoke.vel[i3+2];
+    vx += Math.sin(y*2.0 + t*1.3 + sd*20.0)*0.25*dt;
+    vz += Math.cos(y*1.7 + t*1.1 + sd*14.0)*0.25*dt;
+    vx += windG*2.6*dt; vz += windG*0.5*dt;
+    if (x > 0.95) vx -= (x-0.95)*6*dt; else if (x < -0.95) vx -= (x+0.95)*6*dt;
+    if (z > 0.95) vz -= (z-0.95)*6*dt; else if (z < -0.95) vz -= (z+0.95)*6*dt;
+    x += vx*dt; y += vy*dt; z += vz*dt;
+    if (y > 2.45) smoke.life[i] -= dt*2.5;
+    smoke.pos[i3]=x; smoke.pos[i3+1]=y; smoke.pos[i3+2]=z;
+    smoke.vel[i3]=vx; smoke.vel[i3+1]=vy; smoke.vel[i3+2]=vz;
+    if (smoke.life[i] <= 0){ smoke.age[i]=1; continue; }
+    smoke.age[i] = 1 - smoke.life[i]/smoke.maxLife[i];
+  }
+
+  /* ---- wind streaks ---- */
+  stAcc += 240*windG*Math.max(fire,0.12)*dt;
+  while (stAcc >= 1){
+    stAcc--;
+    spawnStreak(rand(-0.3,0.35), rand(0.35,1.5), rand(-0.35,0.35), rand(4.5,8.5), rand(0.2,1.4), rand(-1.2,1.2), rand(0.35,0.7));
+  }
+  for (i=0;i<S_MAX;i++){
+    i3 = i*3;
+    if (sLife[i] <= 0){ sCol[i3]=sCol[i3+1]=sCol[i3+2]=sCol[i3+3]=sCol[i3+4]=sCol[i3+5]=0; continue; }
+    sLife[i] -= dt;
+    dr = 1 - 1.8*dt;
+    sVel[i3]*=dr; sVel[i3+1]*=dr; sVel[i3+2]*=dr;
+    x = sPos[i3] + sVel[i3]*dt; y = sPos[i3+1] + sVel[i3+1]*dt; z = sPos[i3+2] + sVel[i3+2]*dt;
+    if (x > 1.05 || x < -1.05 || z > 1.05 || z < -1.05 || y > 2.6) sLife[i] = 0;
+    sPos[i3]=x; sPos[i3+1]=y; sPos[i3+2]=z;
+    sPos[i3+3]=x - sVel[i3]*0.055; sPos[i3+4]=y - sVel[i3+1]*0.055; sPos[i3+5]=z - sVel[i3+2]*0.055;
+    var k = Math.max(0, sLife[i]/sMaxL[i]) * 0.9;
+    sCol[i3]=k; sCol[i3+1]=k*0.55; sCol[i3+2]=k*0.18;
+    sCol[i3+3]=k*0.4; sCol[i3+4]=k*0.12; sCol[i3+5]=0.02;
+  }
+
+  /* ---- blowout moment ---- */
+  if (prevFire > 0.35 && fire <= 0.35) doBurst();
+  prevFire = fire;
+}
+
+/* ================= light / glow / reflections ================= */
+var _cA = new THREE.Color(0xffa04a), _cB = new THREE.Color(0xff4a14), _tmp = new THREE.Color();
+function updateAtmosphere(t, fire, windG, spark, after){
+  var fl = flick(t);
+  var inten = fire*(2.6 + 1.9*fl) + spark*0.5*(0.4 + 0.6*fl) + after*0.25*fl;
+  if (t > 0.45) inten += Math.exp(-(t-0.45)*5.0) * 1.1;   /* the spark's pop */
+  inten *= 1 + windG*0.4*Math.sin(t*33.0);
+  inten = Math.max(0, inten);
+
+  fireLight.intensity = inten;
+  _tmp.copy(_cA).lerp(_cB, Math.min(1, windG*1.2 + after));
+  fireLight.color.copy(_tmp);
+  fireLight.position.set(Math.sin(t*9.0)*0.04, 0.9 + fire*0.3 + Math.sin(t*13.0)*0.03, Math.cos(t*8.0)*0.04);
+
+  glowBig.scale.setScalar(0.8 + 2.3*fire + 0.3*fl*fire + after*0.3);
+  glowBig.material.opacity = 0.10 + 0.30*fire + after*0.10;
+  glowCore.scale.setScalar(0.3 + 0.55*fire);
+  glowCore.material.opacity = 0.45*fire + spark*0.2;
+  sparkSpr.scale.setScalar(0.09 + 0.09*fl);
+  sparkSpr.material.opacity = spark*(0.55 + 0.45*fl);
+
+  envGlow.scale.copy(glowBig.scale);   envGlow.material.opacity = glowBig.material.opacity;
+  envCore.scale.copy(glowCore.scale);  envCore.material.opacity = glowCore.material.opacity;
+  envSpark.scale.copy(sparkSpr.scale); envSpark.material.opacity = sparkSpr.material.opacity;
+  cubeCam.update(renderer, envScene);  /* glass + frame reflect the fire live */
+
+  poolA.material.opacity = Math.min(0.85, inten*0.2);
+  poolB.material.opacity = Math.min(0.30, inten*0.06);
+  rockMat.emissiveIntensity = fire*0.5 + after*0.7;
+  smoke.mat.uniforms.uSmoke.value = 0.28*fire + 0.5*after + 0.2*windG;
+  return inten;
+}
+
+/* ================= HUD ================= */
+var tcEl = document.getElementById('tc');
+var fillEl = document.getElementById('fill');
+var phIdxEl = document.getElementById('phIdx');
+var phNameEl = document.getElementById('phName');
+var phCapEl = document.getElementById('phCap');
+var swapEl = document.getElementById('swapbox');
+var curPhase = -1;
+
+/* ================= main loop ================= */
+var clock = new THREE.Clock();
+function upload(sys){
+  sys.geo.attributes.position.needsUpdate = true;
+  sys.geo.attributes.aAge.needsUpdate = true;
+  sys.geo.attributes.aSize.needsUpdate = true;
+  sys.geo.attributes.aSeed.needsUpdate = true;
+  sys.geo.attributes.aMode.needsUpdate = true;
+}
+function tick(){
+  var dt = Math.min(clock.getDelta(), 0.05);
+  var ts = clock.elapsedTime;
+  var t = ts % TOTAL;
+
+  var fire = fireLevel(t);
+  var windG = windLevel(t) * Math.max(0, 0.75 + 0.45*(0.5*Math.sin(t*9.0) + 0.3*Math.sin(t*23.0+2.0) + 0.2*Math.sin(t*41.0)));
+  var spark = sparkLevel(t);
+  var after = afterGlow(t);
+
+  updateParticles(dt, t, fire, windG, spark, after);
+  updateAtmosphere(t, fire, windG, spark, after);
+
+  flame.mat.uniforms.uTime.value = ts;
+  ember.mat.uniforms.uTime.value = ts;
+  smoke.mat.uniforms.uTime.value = ts;
+  upload(flame); upload(ember); upload(smoke);
+  sGeo.attributes.position.needsUpdate = true;
+  sGeo.attributes.color.needsUpdate = true;
+
+  /* slow orbiting camera + gust shake */
+  var camA = ts*0.085;
+  var camR = 6.3 + Math.sin(ts*0.11)*0.35 - 0.5*spark;
+  var camY = 1.95 + Math.sin(ts*0.07 + 1.0)*0.28;
+  camera.position.set(Math.sin(camA)*camR, camY, Math.cos(camA)*camR);
+  var sh = windG*0.07;
+  camera.position.x += Math.sin(ts*31.0)*sh;
+  camera.position.y += Math.sin(ts*47.0 + 1.3)*sh*0.5;
+  camera.position.z += Math.cos(ts*39.0 + 2.1)*sh;
+  camera.lookAt(0, 1.25 + 0.08*Math.sin(ts*0.15), 0);
+
+  /* HUD */
+  var ph = phaseOf(t);
+  if (ph !== curPhase){
+    curPhase = ph;
+    phIdxEl.textContent = 'PHASE 0' + (ph+1) + ' / 05';
+    phNameEl.textContent = PHASES[ph][0];
+    phCapEl.textContent = PHASES[ph][1];
+    swapEl.classList.remove('swap');
+    void swapEl.offsetWidth;
+    swapEl.classList.add('swap');
+  }
+  tcEl.textContent = 'T+00:' + t.toFixed(2).padStart(5,'0') + ' / 00:26.00';
+  fillEl.style.transform = 'scaleX(' + (t/TOTAL).toFixed(4) + ')';
+
+  renderer.render(scene, camera);
+}
+
+function onResize(){
+  renderer.setSize(innerWidth, innerHeight);
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  var s = renderer.domElement.height / (2*Math.tan(THREE.MathUtils.degToRad(camera.fov*0.5)));
+  flame.mat.uniforms.uScale.value = s;
+  ember.mat.uniforms.uScale.value = s;
+  smoke.mat.uniforms.uScale.value = s;
+}
+window.addEventListener('resize', onResize);
+onResize();
+
+renderer.setAnimationLoop(tick);
+
+} catch(e){ console.error(e); fail(); }
+};
+
+/* Three.js from the requested URL; if that UMD build is missing from this
+   version's CDN listing, fall back silently to the module build (same CDN). */
+if (window.THREE) { boot(window.THREE); }
+else {
+  import('https://unpkg.com/three@0.160.0/build/three.module.min.js')
+    .then(function(m){ boot(m); })
+    .catch(fail);
+}
+})();
+</script>
+</body>
+</html>

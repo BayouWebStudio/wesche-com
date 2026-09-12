@@ -1,0 +1,75 @@
+{
+  "title": "Two Models. Two Very Different Gardens.",
+  "recording": {
+    "source_filename": "pagoda_duel_send.mp4",
+    "source_sha256": "bebeb11695cc5552314c35c119596bea7c4199a0e459819d6c6aa5def2ac5dd1",
+    "output_sha256": "86c9b5cec24a47efdbc52c1308e29e2fe95ce8d1771484ce94190dbddb60bbf9",
+    "edit": "Scene-only crop; historical stat board removed. Spatial downscale and H264 re-encode; source cadence retained.",
+    "crop": "1920:720:0:100",
+    "probe": {
+      "programs": [],
+      "stream_groups": [],
+      "streams": [
+        {
+          "width": 1280,
+          "height": 480,
+          "avg_frame_rate": "30/1"
+        }
+      ],
+      "format": {
+        "duration": "60.000000",
+        "size": "13779680"
+      }
+    }
+  },
+  "arms": [
+    {
+      "label": "Qwen Flash-Next FP8 \u00b7 vLLM TP2",
+      "wall_s": 2073.2,
+      "completion_tokens": 82830,
+      "reasoning_chars": 143364,
+      "content_chars": 81801,
+      "finish": "stop",
+      "settings": {
+        "thinking": true,
+        "reasoning_effort": "xhigh",
+        "temperature": 0.7,
+        "max_tokens": 120000,
+        "stream": true
+      }
+    },
+    {
+      "label": "Ling-3.0 Flash VL FP8 \u00b7 SGLang TP2",
+      "wall_s": 862.2,
+      "completion_tokens": 22139,
+      "reasoning_chars": 37221,
+      "content_chars": 24679,
+      "finish": "stop",
+      "settings": {
+        "thinking": true,
+        "reasoning_effort": "xhigh",
+        "temperature": 0.7,
+        "max_tokens": 120000,
+        "stream": true
+      }
+    }
+  ],
+  "artifact_hashes": [
+    {
+      "file": "tp2-qwen-next.html",
+      "sha256": "dfd1a794883fba882653645a0aac8b08916cc68d560c67ec022062cc75cf076a",
+      "bytes": 83848
+    },
+    {
+      "file": "ling-vl-fp8.html",
+      "sha256": "677871fe4e1f14b2841c3117445baf553a11858610c8c1792822fecc14f654ab",
+      "bytes": 24675
+    }
+  ],
+  "notes": [
+    "Both requests enabled thinking, requested xhigh, used temperature 0.7 and an explicit 120,000-token output budget. An identical effort label does not establish equivalent reasoning policy across model families.",
+    "Both used two DGX Sparks, but different model architectures and serving engines. Qwen\u2019s recipe used MTP; Ling\u2019s did not. No HTML repairs are recorded for the displayed pagoda artifacts.",
+    "Reasoning was recorded as characters in the run metadata, not a verified per-arm reasoning-token split. Completion-token counts include reasoning. The video is a cropped excerpt of the existing comparison.",
+    "The Ling output is the same saved generation used in both the Qwen vs Ling and Nex vs Ling comparisons, not an independent second sample."
+  ]
+}

@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fire in a Glass Box</title>
+<style>
+  html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#05070b; }
+  canvas { display:block; }
+  .bar { position:fixed; left:0; right:0; height:5vh; background:#020304; z-index:5; }
+  .bar.top { top:0; } .bar.bottom { bottom:0; }
+  .vignette { position:fixed; inset:0; pointer-events:none; z-index:4;
+    background:radial-gradient(ellipse at 50% 45%, transparent 52%, rgba(0,0,0,.5) 100%); }
+
+  .title { position:fixed; left:5vw; top:calc(5vh + 26px); z-index:10; pointer-events:none;
+    font-family: Futura, "Avenir Next", "Century Gothic", "Trebuchet MS", sans-serif;
+    font-weight:700; font-size:clamp(20px,2.6vw,34px); letter-spacing:.38em;
+    color:rgba(235,242,255,.88); text-transform:uppercase; }
+  .title em { font-style:normal; color:#ffb35c; }
+  .sub { position:fixed; left:5vw; top:calc(5vh + 26px + clamp(30px,3.8vw,52px)); z-index:10;
+    pointer-events:none; font-family:Georgia, "Times New Roman", serif; font-style:italic;
+    font-size:clamp(12px,1.1vw,15px); color:rgba(170,185,205,.55); letter-spacing:.04em; }
+
+  .phase { position:fixed; left:5vw; bottom:calc(5vh + 28px); z-index:10; pointer-events:none; }
+  .phase-num { font-family:Georgia, serif; font-style:italic; font-size:13px; color:rgba(255,160,80,.75);
+    letter-spacing:.18em; }
+  .phase-name { font-family:Futura, "Avenir Next", "Century Gothic", "Trebuchet MS", sans-serif;
+    font-weight:700; font-size:clamp(15px,1.7vw,22px); letter-spacing:.42em;
+    color:rgba(240,246,255,.92); margin-top:4px; }
+  .phase-cap { font-family:Georgia, serif; font-style:italic; font-size:13px;
+    color:rgba(175,185,200,.6); margin-top:7px; max-width:380px; }
+  .phase-name, .phase-cap { transition:opacity .45s ease, transform .45s ease; }
+  .phase.swap .phase-name { opacity:0; transform:translateY(6px); }
+  .phase.swap .phase-cap { opacity:0; transform:translateY(6px); }
+
+  .dots { position:fixed; left:5vw; bottom:calc(5vh + 12px); z-index:10; pointer-events:none; }
+  .dots span { display:inline-block; width:34px; height:2px; margin-right:9px;
+    background:rgba(150,165,190,.22); transition:background .5s; }
+  .dots span.on { background:rgba(255,165,80,.9); }
+
+  .meta { position:fixed; right:5vw; bottom:calc(5vh + 28px); z-index:10; pointer-events:none;
+    text-align:right; font-family:Futura, "Avenir Next", "Century Gothic", sans-serif;
+    font-size:11px; letter-spacing:.28em; color:rgba(160,175,195,.5); line-height:2; }
+  .meta b { color:rgba(255,180,110,.85); font-weight:700; }
+
+  .fades { animation:fadein 1.4s ease both; }
+  @keyframes fadein { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+</style>
+</head>
+<body>
+<div class="bar top"></div>
+<div class="="bar bottom"></div>
+<div class="vignette"></div>
+
+<div class="title fades">EMBER<em>&amp;</em>GLASS</div>
+<div class="sub fades">a loop in five acts — one flame, one box, one gust</div>
+
+<div class="phase fades" id="phaseBox">
+  <div class="phase-num" id="phaseNum">ACT I</div>
+  <div class="phase-name" id="phaseName">IGNITION</div>
+  <div class="phase-cap" id="phaseCap">A single spark, flickering in the dark.</div>
+</div>
+<div class="dots fades" id="dots"><span class="on"></span><span></span><span></span><span></span><span></span></div>
+<div class="meta fades">LOOP 30.0s<br>CYCLE <b id="cycle">001</b></div>
+
+<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+<script>
+(function(){
+'use strict';
+if (typeof THREE === 'undefined') return;
+
+/* ---------- easing ---------- */
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const lerp=(a,b,t)=>a+(b-a)*t;
+function sstep(a,b,x){ x=clamp((x-a)/(b-a),0,1); return x*x*(3-2*x); }
+function randn(){ return (Math.random()+Math.random()+Math.random()-1.5)*0.8; }
+
+/* ---------- renderer / scene ---------- */
+const renderer = new THREE.WebGLRenderer({ antialias:true, powerPreference:'high-performance' });
+renderer.setSize(innerWidth, innerHeight);
+ renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.outputColorSpace = THREE.SMALL_SCREEN ? THREE.SMALL_SCREEN : THREE.SMALL_SCREEN;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.12;
+renderer.domElement.style.cssText = 'display:block;cursor:crosshair';
+renderer.domElement.addEventListener('contextmenu', e=>e.preventDefault());
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+ scene.background = new THREE.Color(0x05070b);
+scene.fog = new THREE.FogExp2(0x05070b, 0.028);
+
+const camera = new THREE.PerspectiveCamera(42, innerWidth/innerHeight, 0.1, 80);
+camera.position.set(0, 1.4, 7);
+
+/* ---------- canvas texture helper ---------- */
+function makeTex(w,h,draw){
+  const c=document.createElement('canvas'); c.width=w; c.height=h;
+  draw(c.getContext('2d'), w, h);
+  const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; return t;
+}
+
+/* ---------- floor ---------- */
+const floorTex = makeTex(1024,1024, (g,w,h)=>{
+  g.fillStyle='#10131a'; g.fillRect(0,0,w,h);
+  const rg=g.createRadialGradient(w/2,h/2,0,w/2,h/2,w/2);
+  rg.addColorStop(0,'rgba(38,44,58,0.85)'); rg.addColorStop(1,'rgba(8,10,14,0)');
+  g.fillStyle=rg; g.fillRect(0,0,w,h);
+  for(let i=0;i<2600;i++){
+    const x=Math.random()*w, y=Math.random()*h;
+    g.fillStyle=Math.random()<0.5
+      ?`rgba(255,255,255,${0.02+Math.random()*0.04})`
+      :`rgba(0,0,0,${0.03+Math.random()*0.06})`;
+    g.fillRect(x,y,1+Math.random()*2,1+Math.random()*2);
+  }
+});
+const floor = new THREE.Mesh(
+  new THREE.CircleGeometry(26,64),
+  new THREE.MeshStandardMaterial({ map:floorTex, color:0xffffff, roughness:0.92, metalness:0.05 })
+);
+floor.rotation.x = -Math.PI/2;
+scene.add(floor);
+
+/* ---------- pedestal ---------- */
+const pedGroup = new THREE.Group();
+const pedMat = new THREE.MeshStandardMaterial({ color:0x0e1116, roughness:0.45, metalness:0.65 });
+const ped = new THREE.Mesh(new THREE.CylinderGeometry(2.3,2.5,0.16,64), pedMat);
+ped.position.y = 0.08;
+pedGroup.add(ped);
+const pedTop = new THREE.Mesh(new THREE.CylinderGeometry(2.1,2.1,0.05,64),
+  new THREE.MeshStandardMaterial({ color:0x141820, roughness:0.3, metalness:0.8 }));
+pedTop.position.y = 0.13;
+pedGroup.add(pedTop);
+scene.add(pedGroup);
+
+/* ---------- glass box ---------- */
+const BOX = 2.6;
+const BOX_Y = 0.16 + BOX/2;  // center y
+const glassGroup = new THREE.Group();
+glassGroup.position.y = BOX_Y;
+
+const glassGeo = new THREE.BoxGeometry(BOX, BOX, BOX);
+const glassMat = new THREE.MeshPhysicalMaterial({
+  color:0xffffff, metalness:0, roughness:0.05,
+  transmission:1, thickness:0.35, ior:1.5,
+  clearcoat:1, clearcoatRoughness:0.08,
+  envMapIntensity:1.2,
+  transparent:true, opacity:0.12,
+  side:THREE.DoubleSide,
+  depthWrite:false
+});
+const glass = new THREE.Mesh(glassGeo, glassMat);
+glassGroup.add(glass);
+
+// edges
+const edgesGeo = new THREE.EdgesGeometry(glassGeo);
+const edgesMat = new THREE.LineBasicMaterial({ color:0xaaccee, transparent:true, opacity:0.35 });
+const edges = new THREE.LineSegments(edgesGeo, edgesMat);
+glassGroup.add(edges);
+
+// corner posts
+const postGeo = new THREE.BoxGeometry(0.06, BOX, 0.06);
+const postMat = new THREE.MeshStandardMaterial({ color:0x1a2028, roughness:0.3, metalness:0.7 });
+for(let i=0;i<4;i++){
+  const px = (i%2===0?-1:1) * BOX/2;
+  const pz = (i<2?-1:1) * BOX/2;
+  const post = new THREE.Mesh(postGeo, postMat);
+  post.position.set(px, 0, pz);
+  glassGroup.add(post);
+}
+scene.add(glassGroup);
+
+// front glass highlight
+const hlTex = makeTex(256,256, (g,w,h)=>{
+  const lg = g.createLinearGradient(0,0,w,h);
+  lg.addColorStop(0,'rgba(255,255,255,0)');
+  lg.addColorStop(0.4,'rgba(255,255,255,0.06)');
+  lg.addColorStop(0.5,'rgba(255,255,255,0.12)');
+  lg.addColorStop(0.6,'rgba(255,255,255,0.06)');
+  lg.addColorStop(1,'rgba(255,255,255,0)');
+  g.fillStyle=lg; g.fillRect(0,0,w,h);
+});
+const hlMat = new THREE.MeshStandardMaterial({
+  map:hlTex, color:0xffffff, transparent:true, opacity:0.5,
+  roughness:0.15, metalness:0, depthWrite:false
+});
+const hl1 = new THREE.Mesh(new THREE.PlaneGeometry(BOX,BOX), hlMat);
+hl1.position.set(0, BOX_Y, BOX/2 + 0.01);
+scene.add(hl1);
+const hl2 = hl1.clone(); hl2.position.z = -(BOX/2 + 0.01); hl2.rotation.y = Math.PI;
+scene.add(hl2);
+
+/* ---------- env scene (for PMREM) ---------- */
+const envScene = new THREE.Scene();
+ const envGeo = new THREE.SphereGeometry(10, 16, 12);
+const envMat = new THREE.MeshBasicMaterial({ color:0x0a0c12, side:THREE.BackSide });
+envScene.add(new THREE.Mesh(envGeo, envMat));
+
+// ceiling lights
+const clGeo = new THREE.PlaneGeometry(4,4);
+const clMat = new THREE.MeshBasicMaterial({ color:0x223344, side:THREE.DoubleSide });
+const cl1 = new THREE.Mesh(clGeo, clMat);
+cl1.position.set(0, 5, 0); cl1.rotation.x = Math.PI/2;
+envScene.add(cl1);
+const cl2 = new THREE.Mesh(clGeo, new THREE.MeshBasicMaterial({ color:0x1a2535, side:THREE.DoubleSide }));
+cl2.position.set(3, 4, -2); cl2.rotation.x = Math.PI/2;
+envScene.add(cl2);
+
+// fire glow sphere
+const fireGlowMat = new THREE.MeshBasicMaterial({ color:0xff6600 });
+const fireGlow = new THREE.Mesh(new THREE.SphereGeometry(1.2, 12, 10), fireGlowMat);
+fireGlow.position.set(0, 1.2, 0);
+envScene.add(fireGlow);
+
+const pm = new THREE.PMREMGenerator(renderer);
+let envTarget = pm.fromScene(envScene, 0.04);
+scene.environment = envTarget.texture;
+
+/* ---------- lights ---------- */
+const fireLight = new THREE.PointLight(0xff7722, 0, 10, 2);
+fireLight.position.set(0, 0.7, 0);
+scene.add(fireLight);
+
+const fireLight2 = new THREE.PointLight(0xff5500, 0, 6, 2);
+fireLight2.position.set(0, 0.4, 0);
+scene.add(fireLight2);
+
+const ambLight = new THREE.AmbientLight(0x0a0e18, 0.4);
+scene.add(ambLight);
+
+const fillLight = new THREE.DirectionalLight(0x1a2540, 0.3);
+fillLight.position.set(2, 5, 3);
+scene.add(fillLight);
+
+/* ---------- particle helpers ---------- */
+ function makePoints(count, pos, seed, f, size, alpha, mat, sceneRef){
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('aSeed', new THREE.BufferAttribute(seed, 1));
+  geo.setAttribute('aF', new THREE.BufferAttribute(f, 1));
+  geo.setAttribute('aSize', new THREE.BufferAttribute(size,  1));
+  geo.setAttribute('aAlpha', new THREE.BufferAttribute(alpha, 1));
+  const pts = new THREE.Points(geo, mat);
+  sceneRef.add(pts);
+  return pts;
+}
+
+/* ---------- flame shader ---------- */
+const flameUniforms = {
+  uTime: { value:0 },
+  uIntensity: { value:0 },
+  uWind: { value: new THREE.Vector3(0,0,0) },
+  uHeight: { value:1.5 },
+  uWidth: { value:0.32 },
+  uPixelRatio: { value: renderer.getPixelRatio() }
+};
+
+const flameMat = new THREE.ShaderMaterial({
+  uniforms: flameUniforms,
+  vertexShader: `
+    attribute float aSeed;
+    attribute float aF;
+    attribute float aSize;
+    attribute float aAlpha;
+    uniform float uTime, uIntensity, uHeight, uWidth, uPixelRatio;
+    uniform vec3 uWind;
+    varying float vA, vT, vSeed;
+    void main(){
+      vec3 base = position;
+      float r = uWidth;
+      float h = uHeight * (0.2 + 0.8 * uIntensity);
+      float t = aF;
+      float wob = 0.75 + 0.25 * uIntensity;
+      vec3 p;
+      p.x = base.x * r * (0.45 + 0.75 * t);
+      p.y = base.y * h * (0.15 + 0.85 * t) + 0.12;
+      p.z = base.z * r * (0.45 + 0.75 * t);
+      float ph = uTime * (1.4 + aSeed * 1.3) + aSeed * 43.7;
+      float w1 = sin(ph + p.y * 2.3), w2 = cos(ph * 0.83 + p.x * 3.1);
+      vec3 wind = vec3(uWind.x, 0.0, uWind.z);
+      float bend = t * t * (0.35 + 0.65 * uIntensity);
+      p.x += (w1 * 0.10 * wob + w2 * 0.05) * (0.3 + 0.7 * t) + wind.x * bend * 0.55;
+      p.z += (w2 * 0.10 * wob + w1 * 0.04) * (0.3 + 0.7 * t) + wind.z * bend * 0.55;
+      p.y += uWind.x * t * 0.12 + uWind.z * t * 0.08;
+      vec4 mv = modelViewMatrix * vec4(p, 1.0);
+      gl_Position = projectionMatrix * mv;
+      float fade = smoothstep(0.0, 0.10, t) * (1.0 - smoothstep(0.80, 1.0, t));
+      vA = aAlpha * fade * (0.85 + 0.15 * uIntensity);
+      vT = t; vSeed = aSeed;
+      gl_PointSize = aSize * (0.7 + 0.9 * t) * (0.8 + 0.6 * uIntensity) * (180.0 / -mv.y);
+    }
+  `,
+  fragmentShader: `
+    varying float vA, vT, vSeed;
+    void main(){
+      vec2 uv = gl_PointCoord * 2.0 - 1.0;
+      float d = length(uv);
+      float a = smoothstep(1.0, 0.0, d);
+      a = a * a;
+      float t = vT;
+      vec3 c1 = vec3(1.0, 0.97, 0.86);
+      vec3 c2 = vec3(1.0, 0.78, 0.28);
+      vec3 c3 = vec3(1.0, 0.45, 0.08);
+      vec3 c4 = vec3(0.72, 0.16, 0.05);
+      vec3 col = mix(c1, c2, smoothstep(0.0, 0.22, t));
+      col = mix(col, c3, smoothstep(0.22, 0.55, t));
+      col = mix(col, c4, smoothstep(0.55, 0.85, t));
+      float shimmer = 0.85 + 0.15 * sin(vSeed * 91.7 + t * 14.0);
+      gl_FragColor = vec4(col * (1.2 + 0.3 * vT) * shimmer, vA);
+    }
+  `,
+  transparent:true, depthWrite:false, blending:THREE.AdditiveBlending
+});
+
+// flame particles: base positions in unit cylinder, y in 0..1
+const FN = 600;
+const fPos = new Float32Array(FN*3);
+const fSeed = new Float32Array(FN);
+const fF = new Float32Array(FN);
+const fSize = new Float32Array(FN);
+const fAlpha = new Float32Array(FN);
+for(let i=0;i<FN;i++){
+  const ang = Math.random()*Math.PI*2;
+  const rad = Math.pow(Math.random(), 0.7);
+  fPos[i*3] = Math.cos(ang)*rad;
+  fPos[i*3+1] = Math.random();
+  fPos[i*3+2] = Math.sin(ang)*rad;
+  fSeed[i] = Math.random();
+  fF[i] = Math.random();
+  fSize[i] = 0.25 + Math.random()*0.35;
+  fAlpha[i] = 0.5 + Math.random()*0.5;
+}
+const flameGroup = new THREE.Group();
+ flameGroup.position.y = 0.2;
+scene.add(flameGroup);
+const flamePts = new THREE.Points(
+  new THREE.BufferGeometry(), flameMat
+);
+flameGroup.add(flamePts);
+{
+  const g = flamePts.geometry;
+  g.setAttribute('position', new THREE.BufferAttribute(fPos, 3));
+  g.setAttribute('aSeed', new THREE.BufferAttribute(fSeed, 1));
+  g.setAttribute('aF', new THREE.BufferAttribute(fF, 1));
+  g.setAttribute('aSize', new THREE.BufferAttribute(fSize, 1));
+  g.setAttribute('aAlpha', new THREE.BufferAttribute(fAlpha, 1));
+}
+
+/* ---------- embers (points) ---------- */
+const EN = 120;
+const ePos = new Float32Array(EN*3);
+const eSeed = new Float32Array(EN);
+const eF = new Float32Array(EN);
+const eSize = new Float32Array(EN);
+const eAlpha = new Float32Array(EN);
+for(let i=0;i<EN;i++){
+  const ang = Math.random()*Math.PI*2;
+  const rad = Math.random()*0.3;
+  ePos[i*3] = Math.cos(ang)*rad;
+  ePos[i*3+1] = Math.random();
+  ePos[i*3+2] = Math.sin(ang)*rad;
+  eSeed[i] = Math.random();
+  eF[i] = Math.random();
+  eSize[i] = 0.08 + Math.random()*0.12;
+  eAlpha[i] = 0.5 + Math.random()*0.5;
+}
+const emberMat = new THREE.ShaderMaterial({
+  uniforms: { uTime:{value:0}, uWind:{value:new THREE.Vector3()}, uIntensity:{value:0} },
+  vertexShader:`
+    attribute float aSeed, aF, aSize, aAlpha;
+    uniform float uTime, uIntensity;
+    uniform vec3 uWind;
+    varying float vGlow;
+    void main(){
+      float t = aF, ph = aSeed * 43.0;
+      float ang = aSeed * 6.28318 + t * (0.5 + aSeed * 1.5);
+      float rad = (0.05 + 0.30 * aSeed) * (0.4 + 0.8 * t);
+      vec3 p;
+      p.x = cos(ang) * rad;
+      p.y = 0.15 + t * (1.1 + aSeed * 0.7);
+      p.z = sin(ang) * rad;
+      p.x += sin(uTime * (0.8 + aSeed) + ph) * 0.05 * t;
+      p.z += cos(uTime * (0.7 + aSeed * .7) + ph) * 0.05 * t;
+      vec3 wind = vec3(uWind.x, 0.0, uWind.z);
+      float bend = t * (0.5 + aSeed * 0.5);
+      p.x += wind.x * bend * (0.5 + aSeed * 0.5);
+      p.z += wind.z * bend * (0.5 + aSeed * 0.5);
+      p.y += uWind.x * t * 0.1;
+      float tw = 0.55 + 0.45 * sin(uTime * (3.0 + aSeed * 6.0) + ph * 7.0);
+      vGlow = tw * uIntensity * (0.4 + Seed * 0.6);
+      vec4 mv = modelViewMatrix * vec4(p, 1.0);
+      gl_Position = projectionMatrix * mv;
+      gl_PointSize = aSize * (180.0 / -mv.y);
+    }
+  `,
+  fragmentShader:`
+    varying float vGlow;
+    void main(){
+      vec2 uv = gl_PointCoord * 2.0 - 1.0;
+      float d = length(uV);
+      float a = smooth(1.0, 0.0, d) * vGlow;
+      gl_FragColor = vec4(1.0, 0.75, 0.35, a);
+    }
+  `,
+  transparent:true, depthWrite:false, blending:THREE.AdditiveBlending
+});
+const emberGroup = new THREE.Group();
+emberGroup.position.y = 0.2;
+scene.add(emberGroup);
+const emberPts = new THREE.Points(
+  new THREE.BufferGeometry(), emberMat
+);
+emberGroup.add(emberPts);
+{
+  const g = emberPts.geometry;
+  g.setAttribute('position', new THREE.BufferAttribute(ePos, 3));
+  g.setAttribute('aSeed', new THREE.BufferAttribute(eSeed, 1));
+  g.setAttribute('aF', new THREE.BufferAttribute(eF, 1));
+  g.setAttribute('aSize', new THREE.BufferAttribute(eSize, 1));
+  g.setAttribute('aAlpha', new THREE.BufferAttribute(eAlpha, 1));
+}
+
+/* ---------- ember streaks (lines) ---------- */
+const LN = 40;
+const lPos = new Float32Array(LN*3*2);
+ const lSeed = new Float32Array(LN*2);
+const lF = new Float32Array(LN*2);
+const lSize = new Float32Array(LN*2);
+const lAlpha = new Float32Array(LN*2);
+for(let i=0;i<LN;i++){
+  const ang = Math.random()*Math.PI*2;
+  const rad = Math.random()*0.3;
+  for(let j=0;j<2;j++){
+    const idx = (i*2+j);
+    lPos[idx*3]   = Math.cos(ang)*rad;
+    lPos[idx*3+1] = Math.random();
+    lPos[idx*3+2] = Math.sin(ang)*rad;
+    lSeed[idx] = Math.random();
+    lF[idx] = Math.random();
+    lSize[idx] = 0.06 + Math.random()*0.08;
+    lAlpha[idx] = 0.4 + Math.random()*0.4;
+  }
+}
+const lineMat = new THREE.ShaderMaterial({
+  uniforms: { uTime:{value:0}, uWind:{value:new THREE.Vector3()}, uIntensity:{value:0} },
+  vertexShader:`
+    attribute float aSeed, aF, aSize, aAlpha;
+    uniform float uTime, uIntensity;
+    uniform vec3 uWind;
+    varying float vA;
+    void main(){
+      float t = aF, ph = aSeed * 43.0;
+      float ang = aSeed * 6.28318 + t * (0.5 + aSeed * 1.5);
+      float rad = (0.05 + 0.30 * aSeed) * (0.4 + 0.8 * t);
+      vec3 p;
+      p.x = cos(ang) * rad;
+      p.y = 0.15 + t * (1.1 + aSeed * 0.7);
+      p.z = sin(ang) * rad;
+      p.x += sin(uTime * (0.8 + aSeed) + ph) * 0.05 * t;
+      p.z += cos(uTime * (0.7 + aSeed * 0.7) + ph) * 0.05 * t;
+      vec3 wind = vec3(uWind.x, 0.0, uWind.z);
+      float bend = t * (0.5 + aSeed * .5);
+      p.x += wind.x * bend * (0.5 + aSeed * 0.5);
+      p.z += wind.z * bend * (0.5 + aSeed * 0.5);
+      p.y += uWind.x * t * 0.1;
+      float tw = 0.55 + 0.45 * sin(uTime * (3.0 + aSeed * 6.0) + ph * 7.0);
+      vA = tw * uIntensity * (0.4 + aSeed * 0.6);
+      vec4 mv = modelViewMatrix * vec4(p, 1.0);
+      gl_Position = projectionMatrix * mv;
+    }
+  `,
+  fragmentShader:`
+    varying float vA;
+    void main(){
+      gl_FragColor = vec4(1.0, 0.7, 0.3, vA);
+    }
+  `,
+  transparent:true, depthWrite:false, blending:THREE.AdditiveBlending
+});
+const lineGeo = new THREE.BufferGeometry();
+lineGeo.setAttribute('position', new THREE.BufferAttribute(lPos, 3));
+lineGeo.setAttribute('aSeed', new THREE.BufferAttribute(lSeed, 1));
+lineGeo.setAttribute('aF', new THREE.BufferAttribute(lF, 1));
+lineGeo.setAttribute('aSize', new THREE.BufferAttribute(lSize, 1));
+lineGeo.setAttribute('aAlpha', new THREE.BufferAttribute(lAlpha, 1));
+const linePts = new THREE.Points(lineGeo, lineMat);
+emberGroup.add(linePts);
+
+/* ---------- smoke ---------- */
+ const SN = 80;
+const sPos = new Float32Array(SN*3);
+const sSeed = new Float32Array(SN);
+const sF = new Float32Array(SN);
+const sSize = new Float32Array(SN);
+const sAlpha = new Float32Array(SN);
+for(let i=0;i<SN;i++){
+  const ang = Math.random()*Math.PI*2;
+  const rad = Math.random()*0.4;
+  sPos[i*3] = Math.cos(ang)*rad;
+  sPos[i*3+1] = Math.random();
+  sPos[i*3+2] = Math.sin(ang)*rad;
+  sSeed[i] = Math.random();
+  sF[i] = Math.random();
+  sSize[i] = 0.15 + Math.random()*0.2;
+  sAlpha[i] = 0.3 + Math.random()*0.3;
+}
+const smokeMat = new THREE.ShaderMaterial({
+  uniforms: { uTime:{value:0}, uWind:{value:new THREE.Vector3()}, uIntensity:{value:0}, uSmoke:{value:0} },
+  vertexShader:`
+    attribute float aSeed, aF, aSize, aAlpha;
+    uniform float uTime, uIntensity, uSmoke;
+    uniform vec3 uWind;
+    varying float vA;
+    void main(){
+      float t = aF, ph = aSeed * 91.0;
+      float ang = aSeed * 6.28318 + t * (0.3 + aSeed * 0.3);
+      float rad = (0.15 + 0.5 * aSeed) * (0.5 + 0.9 * t);
+      vec3 p;
+      p.x = cos(ang) * rad;
+      p.y = 0.25 + t * (1.0 + aSeed * 0.8);
+      p.z = sin(ang) * rad;
+      p.x += sin(uTime * 0.5 + ph + p.y * 1.5) * 0.12 * t;
+      p.z += cos(uTime * 0.45 + ph * 1.3 + p.y * 0.9) * 0.12 * t;
+      float bend = t * (0.5 + aSeed * 0.5);
+      p.x += uWind.x * bend * (0.5 + aSeed);
+      p.z += uWind.z * bend * (0.5 + aSeed);
+      p.y += uWind.x * t * 0.12 + uWind.z * t * 0.1;
+      float fade = smoothstep(0, 0.15, t) * (1.0 - smoothstep(0.75, 1.0, t));
+      vA = aAlpha * fade * uSmoke * (0.8 + 0.4 * aSeed);
+      vec4 mv = modelViewMatrix * vec4(p, 1.0);
+      gl_Position = projectionMatrix * mv;
+      gl_PointSize = aSize * (0.8 + 1.4 * t) * (180.0 / -mv.y);
+    }
+  `,
+  fragmentShader:`
+    varying float vA;
+    void main(){
+      vec2 uv = gl_PointCoord * 2.0 - 1.0;
+      float d = length(uv);
+      float a = smoothstep(1.0, 0.0, d);
+      a = a * a * vA;
+      gl_FragColor = vec4(0.62, 0.58, 0.55, a);
+    }
+  `,
+  transparent:true, depthWrite:false, blending:THREE.NormalBlending
+});
+const smokeGroup = new THREE.Group();
+smokeGroup.position.y = 0.2;
+scene.add(smokeGroup);
+const smokePts = new THREE.Points(
+  new THREE.BufferGeometry(), smokeMat
+);
+smokeGroup.add(smokePts);
+{
+  const g = smokePts.geometry;
+  g.setAttribute('position', new THREE.BufferAttribute(sPos, 3));
+  g.setAttribute('aSeed', new THREE.BufferAttribute(sSeed, 1));
+  g.setAttribute('aF', new THREE.BufferAttribute(sF, 1));
+  g.setAttribute('aSize', new THREE.BufferAttribute(sSize, 1));
+  g.setAttribute('aAlpha', new THREE.BufferAttribute(sAlpha, 1));
+}
+
+/* ---------- halo sprite ---------- */
+const haloTex = makeTex(128,128, (g,w,h)=>{
+  const rg = g.createRadialGradient(w/2,h/2,0,w/2,h/2,w/2);
+  rg.addColorStop(0,'rgba(255,255,255,0.9)');
+  rg.addColorStop(0.3,'rgba(255,200,100,0.5)');
+  rg.addColorStop(0.6,'rgba(255,120,40,0.2)');
+  rg.addColorStop(1,'rgba(255,60,10,0)');
+  g.fillStyle=rg; g.fillRect(0,0,w,h);
+});
+const haloMat = new THREE.SpriteMaterial({
+  map:haloTex, color:0xffaa44, transparent:true, opacity:0,
+  blending:THREE.AdditiveBlending, depthWrite:false
+});
+const halo = new THREE.Sprite(haloMat);
+ halo.scale.setScalar(1.5);
+halo.position.set(0, 0.7, 0);
+scene.add(halo);
+
+/* ---------- emitter (spark glow) ---------- */
+const emitterTex = makeTex(64,64, (g,w,h)=>{
+  const rg = g.createRadialGradient(w/2,h/2,0,w/2,h/2,w/2);
+  rg.addColorStop(0,'rgba(255,255,240,1)');
+  rg.addColorStop(0.5,'rgba(255,200,100,0.6)');
+  rg.addColorStop(1,'rgba(255,120,40,0)');
+  g.fillStyle=rg; g.fillRect(0,0,w,h);
+});
+const emitterMat = new THREE.SpriteMaterial({
+  map:emitterTex, color:0xffffee, transparent:true, opacity:0,
+  blending:THREE.AdditiveBlending, depthWrite:false
+});
+const emitter = new THREE.Sprite(emitterMat);
+emitter.scale.setScalar(0.3);
+emitter.position.set(0, 0.3, 0);
+scene.add(emitter);
+
+/* ---------- afterglow ash ---------- */
+const ashTex = makeTex(128,128, (g,w,h)=>{
+  const rg = g.createRadialGradient(w/2,h/2,0,w/2,h/2,w/2);
+  rg.addColorStop(0,'rgba(255,200,120,0.8)');
+  rg.addColorStop(0.4,'rgba(255,120,40,0.4)');
+  rg.addColorStop(1,'rgba(100,40,10,0)');
+  g.fillStyle=rg; g.fillRect(0,0,w,h);
+});
+const ashMat = new THREE.MeshBasicMaterial({
+  map:ashTex, color:0xffaa66, transparent:true, opacity:0,
+  blending:THREE.AdditiveBlending, depthWrite:false
+});
+const ash = new THREE.Mesh(new THREE.CircleGeometry(0.8, 32), ashMat);
+ash.rotation.x = -Math.PI/2;
+ash.position.y = 0.19;
+scene.add(ash);
+
+/* ---------- phase machine ---------- */
+const PHASES = [
+  { name:'IGNITION',  dur:5.0, num:'ACT I',  cap:'A single spark, flickering in the dark.' },
+  { name:'GROWTH',    dur:7.0, num:'ACT II', cap:'The spark catches. Fire wakes and climbs.' },
+  { name:'STEADY BURN', dur:8.0, num:'ACT III', cap:'Steady. The glass glows from within.' },
+  { name:'WIND',      dur:5.0, num:'ACT IV', cap:'A gust. The flame bends, scatters, dies.' },
+  { name:'AFTERMATH', dur:5.0, num:'ACT V',  cap:'Embers cool. Smoke lingers. Then again.' },
+];
+const CYCLE = PHASES.reduce((a,p)=>a+p.dur, 0);
+
+let phase = 0, phaseTime = 0, cycleCount = 0;
+let fireIntensity = 0, smokeAmt = 0, emberRate = 0;
+let windX = 0, windZ = 0, gust = 0;
+
+function updatePhase(dt) {
+  phaseTime += dt;
+  if (phaseTime >= PHASES[phase].dur) {
+    phaseTime = 0;
+    phase = (phase + 1) % PHASES.length;
+    if (phase === 0) cycleCount++;
+    updatePhaseUI();
+  }
+}
+
+function computeState() {
+  const p = phase, t = phaseTime / PHASES[phase].dur;
+  let I = 0, smoke = 0, ember = 0;
+  let wx = 0, wz = 0, g = 0;
+
+  switch(p) {
+    case 0: // ignition
+      I = 0.08 + 0.05*Math.sin(t*22) + 0.03*Math.sin(t*37);
+      smoke = 0.03;
+      ember = 0;
+      break;
+    case 1: // growth
+      I = sstep(0, 1, t) * 0.85;
+      smoke = 0.35 * t;
+      ember = 0.5 * t;
+      break;
+    case 2: // steady
+      I = 0.85 + 0.1*Math.sin(t*17) + 0.05*Math.sin(t*29);
+      smoke = 0.45;
+      ember = 0.9;
+      break;
+    case 3: // wind
+      I = 0.85 * (1 - sstep(0.55, 1, t));
+      wx = sstep(0, 0.35, t) * 1.3;
+      wz = 0;
+      smoke = 0.5;
+      ember = 1.0;
+      g = sstep(0.1, 0.5, t) * (1 - sstep(0.8, 1, t));
+      break;
+    case 4: // aftermath
+      I = 0.06 + 0.03*Math.sin(t*9);
+      smoke = 0.35 * (1 - t*0.4);
+      ember = 0.15;
+      break;
+  }
+
+  fireIntensity = I;
+  smokeAmt = smoke;
+  emberRate = ember;
+  windX = wx; windZ = wz; gust = g;
+}
+
+/* ---------- camera ---------- */
+const camParams = [
+  { r:4.5, h:1.2, lookY:1.0, speed:0.06 },
+  { r:5.5, h:1.5, lookY:1.2, speed:0.09 },
+  { r:7.0, h:2.0, lookY:1.4, speed:0.12 },
+  { r:6.2, h:1.8, lookY:1.5, speed:0.10 },
+  { r:5.0, h:2.2, lookY:1.1, speed:0.05 },
+];
+let orbitAngle = 0;
+
+function updateCamera(dt) {
+  const p = phase, t = phaseTime / PHASES[phase].dur;
+  const cp = camParams[p];
+  const next = camParams[(p+1) % camParams.length];
+  const blend = sstep(0.82, 1, t);
+  const r = lerp(cp.r, next.r, blend);
+  const h = lerp(cp.h, next.h, blend);
+  const lookY = lerp(cp.lookY, next.lookY, blend);
+  const speed = lerp(cp.speed, next.speed, blend);
+
+  orbitAngle += dt * speed;
+  camera.position.x = Math.cos(orbitAngle) * r;
+  camera.position.z = Math.sin(orbitAngle) * r;
+  camera.position.y = h + Math.sin(orbitAngle * 0.7) * 0.06;
+  camera.lookAt(0, lookY, 0);
+}
+
+/* ---------- UI ---------- */
+const phaseBox = document.getElementById('phaseBox');
+const phaseNum = document.getElementById('phaseNum');
+const phaseName = document.getElementById('phaseName');
+const phaseCap = document.getElementById('phaseCap');
+const dotsEl = document.getElementById('dots');
+const cycleEl = document.getElementById('cycle');
+
+function updatePhaseUI() {
+  const p = PHASES[phase];
+  phaseBox.classList.add('swap');
+  setTimeout(()=>{
+    phaseNum.textContent = p.num;
+    phaseName.textContent = p.name;
+    phaseCap.textContent = p.cap;
+    phaseBox.classList.remove('swap');
+  }, 200);
+  const spans = dotsEl.children;
+  for(let i=0;i<spans.length;i++) spans[i].classList.toggle('on', i===phase);
+  cycleEl.textContent = String(cycleCount+1).padStart(3,'0');
+}
+updatePhaseUI();
+
+/* ---------- animation loop ---------- */
+let last = performance.now();
+
+function animate() {
+  const now = performance.now();
+  const dt = Math.min((now - last) / 1000, 0.05);
+  last = now;
+
+  updatePhase(dt);
+  computeState();
+  updateCamera(dt);
+
+  const I = fireIntensity;
+  const t = phaseTime / PHASES[phase].dur;
+  const time = now / 1000;
+
+  // flicker
+  const flicker = 0.85 + 0.15 * Math.sin(time * 12) * Math.sin(time * 17);
+  const lightI = I * flicker;
+
+  // fire light
+  fireLight.intensity = lightI * 8;
+  fireLight.position.set(windX * 0.15, 0.7 + t * 0.2, windZ * 0.15);
+  fireLight.color.setHSL(0.08 + 0.03 * Math.sin(time * 5), 0.9, 0.55 + 0.1 * I);
+  fireLight2.intensity = lightI * 4;
+  fireLight2.position.set(windX * 0.1, 0.4, windZ * 0.1);
+
+  // halo
+  haloMat.opacity = I * 0.7 * flicker;
+  halo.scale.setScalar(1.2 + 0.5 * I);
+  halo.position.set(windX * 0.2, 0.7 + t * 0.3, windZ * 0.2);
+
+  // emitter
+  emitterMat.opacity = I * 0.9 * flicker;
+  emitter.scale.setScalar(0.25 + 0.15 * I);
+  emitter.position.set(windX * 0.1, 0.3, windZ * 0.1);
+
+  // flame uniforms
+  const hump = phase === 1 ? sstep(0,0.5,t) * (1 - sstep(0.7,1,t)) : 0;
+  flameUniforms.uTime.value = time;
+  flameUniforms.uIntensity.value = I;
+  flameUniforms.uWind.value.set(windX, 0, windZ);
+  flameUniforms.uHeight.value = 1.7 * (0.2 + 0.8 * I) + 0.6 * hump;
+  flameUniforms.uWidth.value = 0.34 - 0.12 * hump + 0.06 * I;
+
+  // ember uniforms
+  emberMat.uniforms.uTime.value = time;
+  emberMat.uniforms.uWind.value.set(windX, 0, windZ);
+  emberMat.uniforms.uIntensity.value = I * emberRate;
+
+  // line uniforms
+  lineMat.uniforms.uTime.value = time;
+  lineMat.uniforms.uWind.value.set(windX, 0, windZ);
+  lineMat.uniforms.uIntensity.value = I * emberRate;
+
+  // smoke uniforms
+  smokeMat.uniforms.uTime.value = time;
+  smokeMat.uniforms.uWind.value.set(windX, 0, windZ);
+  smokeMat.uniforms.uIntensity.value = I;
+  smokeMat.uniforms.uSmoke.value = smokeAmt;
+
+  // ash
+  const ashGlow = phase === 4 ? (0.3 + 0.2 * Math.sin(time * 3)) : 0;
+  ashMat.opacity = ashGlow;
+
+  // env glow sphere
+  fireGlowMat.color.setHSL(0.08 + 0.03 * Math.sin(time * 5), 0.9, 0.3 + 0.4 * I);
+  fireGlow.scale.setScalar(0.5 + 1.5 * I);
+  fireGlow.position.set(windX * 0.3, 1.2 + t * 0.3, windZ * 0.3);
+
+  // glass
+  glassMat.envMapIntensity = 1.0 + 0.4 * I;
+  edgesMat.opacity = 0.25 + 0.2 * I;
+
+  // render env (every other frame for perf)
+  if (Math.floor(time * 30) % 2 === 0) {
+    envTarget = pm.fromScene(envScene, 0.04);
+    scene.environment = envTarget.texture;
+  }
+
+  renderer.render(scene, camera);
+  requestAnimationFrame(animate);
+}
+
+/* ---------- resize ---------- */
+addEventListener('resize', ()=>{
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  flameUniforms.uPixelRatio.value = renderer.getPixelRatio();
+});
+
+animate();
+})();
+</script>
+</body>
+</html>

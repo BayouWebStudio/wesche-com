@@ -1,0 +1,133 @@
+{
+  "title": "A World Built. A Failure Kept.",
+  "recording": {
+    "source_filename": "voxel_duel_final_3way.mp4",
+    "source_sha256": "adb29b2e235eaed2ecff90b804fb5cca8436599a83a111151847706c74f39a62",
+    "output_sha256": "79a947aca01ed0d129572ae2eff40a25b4277f7c1c7ccef95d01919c65775902",
+    "edit": "Scene-only crop; historical stat board removed. Spatial downscale and H264 re-encode; source cadence retained.",
+    "crop": "1920:720:0:100",
+    "probe": {
+      "programs": [],
+      "stream_groups": [],
+      "streams": [
+        {
+          "width": 1280,
+          "height": 480,
+          "avg_frame_rate": "25/1"
+        }
+      ],
+      "format": {
+        "duration": "47.000000",
+        "size": "4025142"
+      }
+    }
+  },
+  "arms": [
+    {
+      "label": "Qwen Flash-Next FP8 \u00b7 TP2",
+      "wall_s": 1664.1,
+      "completion_tokens": 65985,
+      "reasoning_chars": 130653,
+      "content_chars": 63007,
+      "finish": "stop",
+      "settings": {
+        "thinking": true,
+        "reasoning_effort": "xhigh",
+        "temperature": 0.7,
+        "max_tokens": 120000
+      }
+    },
+    {
+      "label": "Qwen 27B MLX 8-bit \u00b7 Mac",
+      "wall_s": 2744.2,
+      "completion_tokens": 65536,
+      "reasoning_chars": 151569,
+      "content_chars": 32296,
+      "finish": "stop",
+      "settings": {
+        "thinking": true,
+        "reasoning_effort": "xhigh",
+        "temperature": 0.7,
+        "max_tokens": 120000
+      },
+      "repairs": [
+        "renamed duplicate top-level identifier `_s` (scratch Vector3) to `_sv` (2 lines); original preserved as mac-8bit-original.html"
+      ]
+    },
+    {
+      "label": "aeon-nvfp4-attempt1-cap-dnf",
+      "wall_s": 1640.8,
+      "completion_tokens": 32768,
+      "reasoning_chars": 0,
+      "content_chars": 0,
+      "finish": "length",
+      "settings": {
+        "thinking": true,
+        "reasoning_effort": "xhigh",
+        "temperature": 0.7,
+        "max_tokens": 32768
+      }
+    },
+    {
+      "label": "aeon-nvfp4-attempt2-clienttimeout-dnf",
+      "outcome": "DNF-client-timeout",
+      "detail": "non-streaming urllib client hit timeout=3600s while server was still generating; vLLM aborted request on disconnect; no tokens recovered. Fix: switched run_arm.py to SSE streaming (continuous bytes -> no idle-socket timeout) with partial-progress file."
+    },
+    {
+      "label": "aeon-nvfp4-attempt3-degeneration-dnf",
+      "wall_s": 3394.7,
+      "completion_tokens": 67714,
+      "reasoning_chars": 58688,
+      "content_chars": 132644,
+      "finish": "stop",
+      "settings": {
+        "thinking": true,
+        "reasoning_effort": "xhigh",
+        "temperature": 0.7,
+        "max_tokens": 120000,
+        "stream": true
+      },
+      "outcome": "DNF-model-degeneration",
+      "detail": "reasoning completed cleanly (58,688 chars) but content degenerated at ~15K chars into a repetition loop: 'const vTop/vMain/vWall/vPond = new (Group);' cycle x1098 with progressive token decay (THREE.Group -> TH.Group -> Group); 117K of 132K content chars are loop output; no </body>/</html>; finish_reason=stop after 67,714 tokens. First genuine MODEL failure (attempts 1-2 were harness: 32K cap, client timeout). Settings identical to other arms."
+    },
+    {
+      "label": "aeon-nvfp4-attempt4-nocontent-dnf",
+      "wall_s": 1072.2,
+      "completion_tokens": 19815,
+      "reasoning_chars": 55334,
+      "content_chars": 0,
+      "finish": "stop",
+      "settings": {
+        "thinking": true,
+        "reasoning_effort": "xhigh",
+        "temperature": 0.7,
+        "max_tokens": 120000,
+        "stream": true
+      },
+      "outcome": "DNF-model-premature-stop",
+      "detail": "second genuine model failure, distinct mode: thinking completed (55,334 chars, ~19.8K tokens) then model emitted EOS with ZERO content \u2014 never began the artifact. finish=stop at 19,815 tokens, 115K of budget unused. Combined with attempt 3 (degeneration loop), AEON NVFP4 is 0/2 on this task under the matched contract (xhigh, temp 0.7, thinking ON). Attempts 1-2 were harness faults, not counted."
+    }
+  ],
+  "artifact_hashes": [
+    {
+      "file": "tp2-qwen-next.html",
+      "sha256": "f0a658c8abd887c8ee7336096b04e52d444b715ca8bf4be34a1a2ab3a13f58a2",
+      "bytes": 61498
+    },
+    {
+      "file": "mac-8bit.html",
+      "sha256": "8187cb0ef432e47533fdddcbe05a37f9f199497eafc3296693eb76f39e8ad175",
+      "bytes": 30928
+    },
+    {
+      "file": "mac-8bit-original.html",
+      "sha256": "76c75b900fb9983450aec9e8669de6762f59fc394e380078bb9d1be253795b46",
+      "bytes": 30926
+    }
+  ],
+  "notes": [
+    "Successful displayed runs requested thinking ON, xhigh, temperature 0.7 and a 120,000-token output budget. Different model variants and engines mean this is not a controlled quantization-only experiment.",
+    "AEON attempts 1\u20132 failed because of harness limits (an output cap and a client timeout). Attempts 3\u20134 are distinct model failures: repetitive degeneration, then a natural stop with no final content. These must not be counted as four model failures.",
+    "The Mac scene includes a two-line duplicate-identifier repair. Flash-Next has no recorded repair. This excerpt preserves the original recordings\u2019 motion; it is not a rendering-FPS benchmark."
+  ]
+}

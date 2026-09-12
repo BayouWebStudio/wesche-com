@@ -1,0 +1,83 @@
+{
+  "title": "Nex vs Ling: The Repair Is Part of the Story.",
+  "recording": {
+    "source_filename": "nex-repaired-vs-ling-pagoda.mp4",
+    "source_sha256": "a12065200d57c41020e80be63d5d2e7d7fbbea120c12e1d5e07ce58cf1f57c80",
+    "output_sha256": "ee20a9afeaf903023288a920d967269a879170ac3ace9559221743f106fa178a",
+    "edit": "Scene-only crop; historical stat board removed. Spatial downscale and H264 re-encode; source cadence retained.",
+    "crop": "1920:720:0:100",
+    "probe": {
+      "programs": [],
+      "stream_groups": [],
+      "streams": [
+        {
+          "width": 1280,
+          "height": 480,
+          "avg_frame_rate": "30/1"
+        }
+      ],
+      "format": {
+        "duration": "10.000000",
+        "size": "1139898"
+      }
+    }
+  },
+  "arms": [
+    {
+      "label": "Nex-N2.5-mini",
+      "wall_s": 2745.2421540410724,
+      "usage": {
+        "prompt_tokens": 78,
+        "total_tokens": 68586,
+        "completion_tokens": 68508,
+        "completion_tokens_details": {
+          "reasoning_tokens": 56094
+        }
+      },
+      "finish_reason": "stop",
+      "settings": {
+        "temperature": 0.6,
+        "max_tokens": null,
+        "thinking": "ON; xhigh falls through to normal"
+      }
+    },
+    {
+      "label": "Ling-3.0 Flash VL",
+      "wall_s": 862.2,
+      "completion_tokens": 22139,
+      "reasoning_chars": 37221,
+      "content_chars": 24679,
+      "finish": "stop",
+      "settings": {
+        "thinking": true,
+        "reasoning_effort": "xhigh",
+        "temperature": 0.7,
+        "max_tokens": 120000,
+        "stream": true
+      }
+    }
+  ],
+  "artifact_hashes": [
+    {
+      "file": "nex-repaired.html",
+      "sha256": "bca4ae75b488a17aff6c0fc3edf6a92f9e9be17c7ffc577c2144cc7105006b56",
+      "bytes": 30002
+    },
+    {
+      "file": "nex-original.html",
+      "sha256": "f6ccbe026972800a2ea6125b5ea02166816b8211836030d72c9b29cfd250e607",
+      "bytes": 29956
+    },
+    {
+      "file": "ling-original.html",
+      "sha256": "677871fe4e1f14b2841c3117445baf553a11858610c8c1792822fecc14f654ab",
+      "bytes": 24675
+    }
+  ],
+  "notes": [
+    "Nex: one DGX Spark, BF16, eager execution, no speculation, 131,072 configured context, temperature 0.6 and no request output-token cap. Requested xhigh falls through to normal thinking in its native template; it is not a distinct supported effort.",
+    "Ling is the earlier two-Spark FP8 run: temperature 0.7, thinking enabled, xhigh requested and a 120,000-token cap. Different hardware, precision, sampling and cap policy make this a visual comparison\u2014not a controlled speed contest.",
+    "The Nex repair adds only const lampSprites = []; and let waterMesh = null;. The saved verification exercised Day, Dusk, Night, Rotate, Petals and Reset. This is a ten-second render excerpt. Full-benchmark scores are separate and are not ranked here.",
+    "The Ling output is the same saved generation used in both the Qwen vs Ling and Nex vs Ling comparisons, not an independent second sample."
+  ]
+}

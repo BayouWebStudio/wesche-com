@@ -1,0 +1,112 @@
+{
+  "title": "Fire in a Glass Box",
+  "recording": {
+    "source_filename": "fire_duel_3way.mp4",
+    "source_sha256": "137ea939e9cf86b57408aa64db4ea2e633c0a250334b587713c311dd92dbd7c5",
+    "output_sha256": "0f43b009eb6d741650679804e68f575c703852b429974c08505ff6318fc1f627",
+    "edit": "Scene-only crop; historical stat board removed. Spatial downscale and H264 re-encode; source cadence retained.",
+    "crop": "1920:480:0:100",
+    "probe": {
+      "programs": [],
+      "stream_groups": [],
+      "streams": [
+        {
+          "width": 1280,
+          "height": 320,
+          "avg_frame_rate": "30/1"
+        }
+      ],
+      "format": {
+        "duration": "60.000000",
+        "size": "2679522"
+      }
+    }
+  },
+  "arms": [
+    {
+      "label": "Qwen Flash-Next FP8 \u00b7 TP2",
+      "wall_s": 1292.8,
+      "completion_tokens": 52046,
+      "reasoning_chars": 100337,
+      "content_chars": 56279,
+      "finish": "stop",
+      "settings": {
+        "thinking": true,
+        "reasoning_effort": "xhigh",
+        "temperature": 0.7,
+        "max_tokens": 120000,
+        "stream": true
+      },
+      "repairs": [
+        "single-token corruption in hex color literal: '0xffa martial' -> '0xffaa66' (uWarm uniform; replacement drawn from file's own warm palette); original preserved as tp2-qwen-next-original.html"
+      ]
+    },
+    {
+      "label": "Qwen 27B AEON NVFP4 \u00b7 TP1",
+      "wall_s": 1398.2,
+      "completion_tokens": 27498,
+      "reasoning_chars": 49790,
+      "content_chars": 31081,
+      "finish": "stop",
+      "settings": {
+        "thinking": true,
+        "reasoning_effort": "xhigh",
+        "temperature": 0.7,
+        "max_tokens": 120000,
+        "stream": true
+      },
+      "repairs": [
+        "src URL typo 'there'->'three' + removed non-executing inline .replace() hack the model wrote to patch its own typo (1 line)",
+        "deduped stray double <script> open/close tags (2 lines)",
+        "original preserved as aeon-nvfp4-original.html"
+      ]
+    },
+    {
+      "label": "Qwen 27B MLX 8-bit \u00b7 Mac",
+      "wall_s": 3701.1,
+      "completion_tokens": 85305,
+      "reasoning_chars": 215495,
+      "content_chars": 32857,
+      "finish": "stop",
+      "settings": {
+        "thinking": true,
+        "reasoning_effort": "xhigh",
+        "temperature": 0.7,
+        "max_tokens": 120000,
+        "stream": true
+      }
+    }
+  ],
+  "artifact_hashes": [
+    {
+      "file": "tp2-qwen-next.html",
+      "sha256": "4e2832e138b647bfafce6c395cdfe8798f4327370ac5c2526b1356e266bd7b41",
+      "bytes": 57232
+    },
+    {
+      "file": "tp2-qwen-next-original.html",
+      "sha256": "974721cfa852e85e239056165148fb1d28ba0e551deeedf8ddb02fa1d6a2e143",
+      "bytes": 57237
+    },
+    {
+      "file": "aeon-nvfp4.html",
+      "sha256": "35f93bd7ec36dce625bc1bb9686afbc4064a9e0f281b01e72a10c240619852be",
+      "bytes": 30378
+    },
+    {
+      "file": "aeon-nvfp4-original.html",
+      "sha256": "b60625b48f50b4ec30a98b992ad81f63e703f2288ecb14ab407403dd000576a6",
+      "bytes": 30422
+    },
+    {
+      "file": "mac-8bit.html",
+      "sha256": "b3f88490c9f6f0b56ed762feb5c53d7e5160e07f848c098a3c126defc646a1a5",
+      "bytes": 31125
+    }
+  ],
+  "notes": [
+    "Thinking enabled; xhigh was requested; temperature 0.7; explicit 120,000-token request budget. These historical runs were capped, not uncapped.",
+    "Qwen Flash-Next required a hex-color literal repair. AEON required a library-URL correction and script-tag cleanup. The Mac artifact has no recorded repair. Generated originals are linked beside repaired versions.",
+    "The page shows a scene-only crop of the existing comparison recording. Historical stat overlays were removed; per-arm usage and wall time below come from the saved generation metadata. These are deployment-level comparisons, not quant-only controls."
+  ]
+}
