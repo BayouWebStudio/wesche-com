@@ -28,5 +28,5 @@ export function createWorld(canvas){
  function resize(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix();}
  function view(top=false){const mobile=innerWidth<650;camera.position.copy(top?new THREE.Vector3(0,19,.01):new THREE.Vector3(mobile?11:11,mobile?15:12,mobile?16:13));camera.position.multiplyScalar(Math.max(1,.86/(innerWidth/innerHeight)));controls.target.set(0,0,0);controls.update();}
  resize();view();addEventListener('resize',resize);
- return {scene,camera,renderer,controls,pieces,tiles,sync,addPiece,highlight,view,render(){controls.update();renderer.render(scene,camera);}};
+ return {scene,camera,renderer,controls,pieces,tiles,sync,addPiece,highlight,view,render(offset){controls.update();if(offset)camera.position.add(offset);renderer.render(scene,camera);if(offset)camera.position.sub(offset);}};
 }
