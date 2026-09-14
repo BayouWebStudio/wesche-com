@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Isla Fuego — Interactive Volcano</title>
+<link rel="icon" href="data:,">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { width:100%; height:100%; overflow:hidden; background:#0a1420;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+  canvas { display:block; }
+
+  .hud { position:fixed; z-index:10; user-select:none; }
+  .title { top:22px; left:26px; color:#fff; pointer-events:none; }
+  .title h1 { font-size:26px; font-weight:800; letter-spacing:.06em;
+    text-shadow:0 2px 12px rgba(0,0,0,.55); }
+  .title p  { font-size:12.5px; color:rgba(255,255,255,.68); margin-top:3px;
+    text-shadow:0 1px 6px rgba(0,0,0,.5); letter-spacing:.04em; }
+
+  .status { top:30px; right:26px; display:inline-flex; align-items:center; gap:8px;
+    padding:7px 14px; border-radius:999px; font-size:12px; font-weight:700; letter-spacing:.14em;
+    color:#d8ffe9; background:rgba(10,26,22,.55); border:1px solid rgba(120,255,190,.35);
+    backdrop-filter:blur(6px); transition:all .5s ease; }
+  .status .dot { width:8px; height:8px; border-radius:50%; background:#39e6a0;
+    box-shadow:0 0 8px #39e6a0; transition:all .5s ease; }
+  .status.erupting { color:#ffe3d0; background:rgba(48,14,8,.6);
+    border-color:rgba(255,120,60,.55); animation:pulse 1s infinite; }
+  .status.erupting .dot { background:#ff5a2a; box-shadow:0 0 10px #ff5a2a; }
+  .status.calming { color:#ffdcb8; background:rgba(40,24,10,.55);
+    border-color:rgba(255,170,90,.4); }
+  .status.calming .dot { background:#ffab4a; box-shadow:0 0 8px #ffab4a; }
+  @keyframes pulse { 50% { box-shadow:0 0 22px rgba(255,90,42,.8); } }
+
+  .panel { bottom:24px; left:26px; display:flex; gap:12px; align-items:center; }
+  button { pointer-events:auto; cursor:pointer; border:none; border-radius:12px;
+    font-weight:800; letter-spacing:.12em; padding:13px 26px; font-size:14px;
+    transition:transform .12s ease, box-shadow .2s ease, opacity .2s ease; }
+  button:active { transform:scale(.96); }
+  #btnErupt { color:#fff; background:linear-gradient(135deg,#ff9500,#e63b1c);
+    box-shadow:0 4px 24px rgba(255,90,20,.45), inset 0 1px 0 rgba(255,255,255,.35); }
+  #btnErupt:hover:not(:disabled) { box-shadow:0 6px 34px rgba(255,110,30,.7), inset 0 1px 0 rgba(255,255,255,.35); transform:translateY(-1px); }
+  #btnErupt:disabled { opacity:.45; cursor:default; }
+  #btnReset { color:#eef4ff; background:rgba(255,255,255,.09);
+    border:1px solid rgba(255,255,255,.34); backdrop-filter:blur(6px); }
+  #btnReset:hover { background:rgba(255,255,255,.18); }
+
+  .hint { bottom:30px; right:26px; color:rgba(255,255,255,.5); font-size:12px;
+    text-align:right; pointer-events:none; letter-spacing:.03em; line-height:1.7;
+    text-shadow:0 1px 4px rgba(0,0,0,.6); }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<div class="hud title">
+  <h1>🌋 ISLA FUEGO</h1>
+  <p>an interactive volcanic island</p>
+</div>
+
+<div class="hud status" id="statusChip"><span class="dot"></span><span id="statusText">DORMANT</span></div>
+
+<div class="hud panel">
+  <button id="btnErupt">⛔&nbsp;ERUPT</button>
+  <button id="btnReset">↺&nbsp;RESET</button>
+</div>
+
+<div class="hud hint">drag to orbit · scroll / pinch to zoom</div>
+
+<script type="module">
+
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+
+window.__err = [];
+window.addEventListener('error', e => window.__err.push(String(e.message)));
+
+// ---------------------------------------------------------------- core setup
+const renderer = new THREE.WebGLRenderer({ antialias:true, preserveDrawingBuffer:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.98;
+document.getElementById('app').appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const CAM = { yaw: 0.65, pitch: 0.42, dist: 175, target: new THREE.Vector3(0, 16, 0) };
+const camBase = new THREE.Vector3();
+const camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.5, 3200);
+
+const clock = new THREE.Clock();
+
+const G = {
+  phase: 'idle',          // idle | erupting | calming
+  t: 0, eruptT: 0, calmT: 0,
+  lava: 0, shake: 0,
+  nextSmoke: 0, windX: 2.2, windZ: 0.8,
+};
+
+// --------------------------------------------------------------- shared fns
+const smooth = THREE.MathUtils.smoothstep;
+
+function waveHeight(x, z, t) {
+  let y = 0;
+  y += Math.sin(x*0.055 + t*1.10) * 0.32;
+  y += Math.sin(z*0.045 - t*0.90) * 0.26;
+  y += Math.sin((x+z)*0.090 + t*1.60) * 0.16;
+  y += Math.sin((x*0.5 - z)*0.110 - t*2.20) * 0.10;
+  const shore = smooth(Math.hypot(x, z), 64, 110);   // calmer lagoon near island
+  return y * (0.18 + 0.82*shore);
+}
+
+const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
+const rand = (a, b) => a + Math.random()*(b-a);
+
+// ------------------------------------------------------------------- sky
+const sunDir = V3(-0.66, 0.16, -0.55).normalize();
+const skyMat = new THREE.ShaderMaterial({
+  side: THREE.BackSide, depthWrite: false, fog: false,
+  uniforms: {
+    topColor:     { value: new THREE.Color(0x27547f) },
+    bottomColor:  { value: new THREE.Color(0xf0c088) },
+    sunColor:     { value: new THREE.Color(0xffcf90) },
+    sunDir:       { value: sunDir.clone() },
+    glowStrength: { value: 1.0 },
+    glowColor:    { value: new THREE.Color(0xffc07a) },
+  },
+  vertexShader: `
+    varying vec3 vDir;
+    void main() {
+      vDir = normalize(position);
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }`,
+  fragmentShader: `
+    uniform vec3 topColor, bottomColor, sunColor, glowColor;
+    uniform vec3 sunDir;
+    uniform float glowStrength;
+    varying vec3 vDir;
+    void main() {
+      float h = clamp(vDir.y, -0.12, 1.0);
+      vec3 col = mix(bottomColor, topColor, smoothstep(0.0, 0.42, h));
+      float s = max(dot(vDir, sunDir), 0.0);
+      col += sunColor * pow(s, 220.0) * 0.75;   // tight sun disc
+      col += sunColor * pow(s, 7.0) * 0.16;     // soft halo
+      // volcano glow: warm band along the horizon, deepest at the island side
+      float band = smoothstep(0.38, 0.0, abs(vDir.y));
+      col += glowColor * glowStrength * band * band * 0.5;
+      gl_FragColor = vec4(col, 1.0);
+    }`
+});
+scene.add(new THREE.Mesh(new THREE.SphereGeometry(1500, 32, 16), skyMat));
+
+// ocean horizon fog
+scene.fog = new THREE.Fog(0xd8b98c, 260, 1250);
+
+// ---------------------------------------------------------------- lights
+const hemi = new THREE.HemisphereLight(0xa8c8e8, 0x5c5340, 0.75);
+scene.add(hemi);
+
+const sun = new THREE.DirectionalLight(0xffd9a8, 1.7);
+sun.position.copy(sunDir).multiplyScalar(300);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -90; sun.shadow.camera.right = 90;
+sun.shadow.camera.top = 90;  sun.shadow.camera.bottom = -90;
+sun.shadow.camera.near = 100; sun.shadow.camera.far = 700;
+sun.shadow.bias = -0.0006;
+scene.add(sun);
+
+const craterLight = new THREE.PointLight(0xff5a1e, 0, 240, 1.6);
+craterLight.position.set(0, 22, 0);
+scene.add(craterLight);
+
+// ----------------------------------------------------------------- ocean
+const oceanMat = new THREE.MeshStandardMaterial({
+  color: 0x2b8fa3, roughness: 0.14, metalness: 0.48,
+  transparent: true, opacity: 0.9,
+});
+const oceanGeo = new THREE.PlaneGeometry(240, 240, 150, 150);
+oceanGeo.rotateX(-Math.PI/2);
+const ocean = new THREE.Mesh(oceanGeo, oceanMat);
+ocean.renderOrder = -1;
+scene.add(ocean);
+const oceanPos = oceanGeo.attributes.position;
+
+// outer calm sea to the horizon
+const outerSea = new THREE.Mesh(
+  new THREE.PlaneGeometry(3200, 3200),
+  new THREE.MeshStandardMaterial({ color: 0x1d7280, roughness: 0.28, metalness: 0.45 }));
+outerSea.rotation.x = -Math.PI/2;
+outerSea.position.y = -0.35;
+outerSea.renderOrder = -2;
+scene.add(outerSea);
+
+// ---------------------------------------------------------------- terrain
+const CRATER_R = 10, PEAK_H = 46, CRATER_FLOOR = 18;
+function terrainHeight(x, z) {
+  const d = Math.hypot(x, z);
+  const dome = 8 * Math.max(0, 1 - (d/62)**2);
+  let h = dome;
+  if (d < 40) {
+    const k = 1 - d/40;
+    h += PEAK_H * k*k*(3 - 2*k);
+  }
+  if (d < CRATER_R) {
+    h -= (PEAK_H - CRATER_FLOOR) * (1 - smooth(d, 4, CRATER_R));
+  }
+  // rocky ridges on the cone: radial + circumferential noise
+  if (h > 2) {
+    const ridge = Math.sin(Math.atan2(z, x)*7 + d*0.35) * Math.sin(d*0.5 + Math.atan2(z,x)*3);
+    h += ridge * smooth(h, 2, 18) * 1.6;
+    h += Math.sin(x*0.35)*Math.cos(z*0.31) * 0.5 * smooth(h, 1, 12);
+  }
+  h -= smooth(d, 56, 78) * 8;
+  return h;
+}
+
+const ISLAND_SAND = new THREE.Color(0xe8d5a8);
+const ISLAND_GRASS = new THREE.Color(0x4f9a4f);
+const ISLAND_DRY = new THREE.Color(0x6b6455);
+const ISLAND_ROCK = new THREE.Color(0x463f38);
+const ISLAND_ASH = new THREE.Color(0x554c46);
+const ISLAND_RUST = new THREE.Color(0x6e4a38);
+const tmpCol = new THREE.Color();
+
+const terrainGeo = new THREE.PlaneGeometry(170, 170, 150, 150);
+terrainGeo.rotateX(-Math.PI/2);
+{
+  const p = terrainGeo.attributes.position;
+  const colors = new Float32Array(p.count*3);
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), z = p.getZ(i);
+    const d = Math.hypot(x, z);
+    let h = terrainHeight(x, z) + (d > 5 ? rand(-0.45, 0.45) : 0);
+    p.setY(i, h);
+    if (h < 0.5)       tmpCol.copy(ISLAND_SAND).offsetHSL(0, 0, rand(-0.03, 0.02));
+    else if (h < 9)    tmpCol.copy(ISLAND_GRASS).offsetHSL(rand(-0.02, 0.02), rand(-0.08, 0), rand(-0.06, 0.03));
+    else if (h < 22)   tmpCol.copy(ISLAND_GRASS).lerp(ISLAND_DRY, smooth(h, 9, 22)).offsetHSL(0, 0, rand(-0.04, 0.02));
+    else if (h < 34)   tmpCol.copy(ISLAND_DRY).lerp(ISLAND_ROCK, smooth(h, 22, 34)).offsetHSL(0, 0, rand(-0.05, 0.03));
+    else               tmpCol.copy(ISLAND_ROCK).lerp(ISLAND_RUST, smooth(h, 34, 46)).offsetHSL(0, 0, rand(-0.04, 0.04));
+    if (d < CRATER_R && h < PEAK_H - 2) tmpCol.copy(ISLAND_RUST).offsetHSL(0, 0.06, rand(-0.03, 0.03));
+    colors[i*3] = tmpCol.r; colors[i*3+1] = tmpCol.g; colors[i*3+2] = tmpCol.b;
+  }
+  terrainGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  terrainGeo.computeVertexNormals();
+}
+const terrain = new THREE.Mesh(terrainGeo, new THREE.MeshStandardMaterial({
+  vertexColors: true, flatShading: true, roughness: 0.95, metalness: 0.02,
+}));
+terrain.receiveShadow = true;
+terrain.castShadow = true;
+scene.add(terrain);
+
+// lava lake in the crater
+const lavaLake = new THREE.Mesh(
+  new THREE.CircleGeometry(4.2, 28),
+  new THREE.MeshStandardMaterial({ color: 0x3a0d02, emissive: 0xff3c00,
+    emissiveIntensity: 0.15, roughness: 0.6 }));
+lavaLake.rotation.x = -Math.PI/2;
+lavaLake.position.y = terrainHeight(0, 0) + 0.35;
+scene.add(lavaLake);
+
+// ------------------------------------------------------------ decorations
+// shared materials
+const M = {
+  trunk:  new THREE.MeshStandardMaterial({ color: 0x8a6a44, roughness: 0.9 }),
+  darkTrunk: new THREE.MeshStandardMaterial({ color: 0x6e5236, roughness: 0.9 }),
+  leafA:  new THREE.MeshStandardMaterial({ color: 0x2f8f3e, roughness: 0.8, side: THREE.DoubleSide }),
+  leafB:  new THREE.MeshStandardMaterial({ color: 0x3fae52, roughness: 0.8, side: THREE.DoubleSide }),
+  leafC:  new THREE.MeshStandardMaterial({ color: 0x237033, roughness: 0.8, side: THREE.DoubleSide }),
+  wall:   new THREE.MeshStandardMaterial({ color: 0xe8dcc4, roughness: 0.9 }),
+  wall2:  new THREE.MeshStandardMaterial({ color: 0xd9c3a1, roughness: 0.9 }),
+  wall3:  new THREE.MeshStandardMaterial({ color: 0xc8b295, roughness: 0.9 }),
+  roof:   new THREE.MeshStandardMaterial({ color: 0xb04a32, roughness: 0.85 }),
+  roof2:  new THREE.MeshStandardMaterial({ color: 0x8a6a44, roughness: 0.9 }),
+  door:   new THREE.MeshStandardMaterial({ color: 0x5a4630, roughness: 0.9 }),
+  wood:   new THREE.MeshStandardMaterial({ color: 0x9a7048, roughness: 0.85 }),
+  darkWood: new THREE.MeshStandardMaterial({ color: 0x4e3a26, roughness: 0.9 }),
+  rock:   new THREE.MeshStandardMaterial({ color: 0x57504a, roughness: 1.0, flatShading: true }),
+};
+
+const swayables = [];   // { obj, phase, amp } — plants that sway in the wind
+
+// -- palm tree ------------------------------------------------------------
+function makePalm(scale = 1) {
+  const g = new THREE.Group();
+  const bends = 6, seg = 1.5*scale;
+  const lean = rand(-0.35, 0.35), leanDir = rand(0, Math.PI*2);
+  let y = 0, px = 0, pz = 0, angle = 0;
+  const crown = new THREE.Group();
+  for (let i = 0; i < bends; i++) {
+    angle += lean/bends;
+    const t = new THREE.Mesh(new THREE.CylinderGeometry(0.30*scale*(1-i*0.09), 0.38*scale*(1-i*0.09), seg, 6),
+      Math.random() < 0.5 ? M.trunk : M.darkTrunk);
+    t.position.set(px, y + seg/2*Math.cos(angle), pz);
+    t.rotation.x = angle * Math.cos(leanDir);
+    t.rotation.z = -angle * Math.sin(leanDir);
+    t.castShadow = true;
+    g.add(t);
+    px += seg*Math.sin(angle)*Math.sin(leanDir+Math.PI);
+    pz += seg*Math.sin(angle)*Math.cos(leanDir+Math.PI);
+    y += seg*Math.cos(angle);
+  }
+  crown.position.set(px, y, pz);
+  const fronds = 7 + (Math.random()*3|0);
+  for (let i = 0; i < fronds; i++) {
+    const a = (i/fronds)*Math.PI*2 + rand(-0.2, 0.2);
+    const len = rand(4.2, 6.2)*scale;
+    const shape = new THREE.Shape();
+    shape.moveTo(0, -0.42);
+    shape.quadraticCurveTo(len*0.5, -0.9, len, 0);
+    shape.quadraticCurveTo(len*0.5, 0.9, 0, 0.42);
+    const leafGeo = new THREE.ShapeGeometry(shape, 5);
+    const leaf = new THREE.Mesh(leafGeo, [M.leafA, M.leafB, M.leafC][i%3]);
+    leaf.rotation.order = 'YXZ';
+    leaf.rotation.y = a;
+    leaf.rotation.x = rand(0.25, 0.75);
+    leaf.castShadow = true;
+    crown.add(leaf);
+  }
+  // coconuts
+  for (let i = 0; i < 3; i++) {
+    const c = new THREE.Mesh(new THREE.SphereGeometry(0.38*scale, 6, 6), M.darkTrunk);
+    c.position.set(rand(-0.6,0.6), -0.4, rand(-0.6,0.6));
+    crown.add(c);
+  }
+  g.add(crown);
+  swayables.push({ obj: crown, phase: rand(0, 9), amp: rand(0.05, 0.10) });
+  g.scale.setScalar(scale * rand(0.85, 1.15));
+  return g;
+}
+
+// -- broadleaf bush --------------------------------------------------------
+function makeBush(scale = 1) {
+  const g = new THREE.Group();
+  const n = 3 + (Math.random()*3|0);
+  for (let i = 0; i < n; i++) {
+    const b = new THREE.Mesh(new THREE.IcosahedronGeometry(rand(0.7, 1.4)*scale, 0),
+      [M.leafA, M.leafB, M.leafC][i%3]);
+    b.position.set(rand(-1,1)*scale, rand(0.3,1.1)*scale, rand(-1,1)*scale);
+    b.castShadow = true;
+    g.add(b);
+  }
+  swayables.push({ obj: g, phase: rand(0, 9), amp: rand(0.02, 0.05) });
+  return g;
+}
+
+// -- grass tuft ------------------------------------------------------------
+const grassTufts = [];
+function makeGrass() {
+  const g = new THREE.Group();
+  for (let i = 0; i < 5; i++) {
+    const bl = new THREE.Mesh(new THREE.ConeGeometry(0.07, rand(0.7,1.3), 3),
+      Math.random() < 0.5 ? M.leafB : M.leafA);
+    bl.position.set(rand(-0.4,0.4), 0.35, rand(-0.4,0.4));
+    bl.rotation.set(rand(-0.2,0.2), rand(0,6), rand(-0.2,0.2));
+    g.add(bl);
+  }
+  swayables.push({ obj: g, phase: rand(0, 9), amp: rand(0.08, 0.16) });
+  grassTufts.push(g);
+  return g;
+}
+
+// place vegetation ---------------------------------------------------------
+const decoRoot = new THREE.Group();
+scene.add(decoRoot);
+let guard = 0;
+function place(minD, maxD, minH, maxH, fn, count) {
+  let placed = 0, tries = 0;
+  while (placed < count && tries < 400) {
+    tries++;
+    const a = rand(0, Math.PI*2), d = rand(minD, maxD);
+    const x = Math.cos(a)*d, z = Math.sin(a)*d;
+    const h = terrainHeight(x, z);
+    if (h < minH || h > maxH) continue;
+    const o = fn();
+    o.position.set(x, h - 0.4, z);
+    o.rotation.y = rand(0, Math.PI*2);
+    decoRoot.add(o);
+    placed++;
+  }
+}
+place(46, 74, 0.6, 6,   makePalm, 26);   // beach palms
+place(24, 46, 4, 16,    makePalm, 16);   // village palms
+place(28, 54, 5, 14,    makeBush, 22);
+place(14, 42, 3, 20,    makeGrass, 34);
+
+// rocks
+for (let i = 0; i < 30; i++) {
+  const a = rand(0, Math.PI*2), d = rand(12, 76);
+  const x = Math.cos(a)*d, z = Math.sin(a)*d, h = terrainHeight(x, z);
+  if (h < 0.2) continue;
+  const r = new THREE.Mesh(new THREE.DodecahedronGeometry(rand(0.4, 1.6), 0), M.rock);
+  r.position.set(x, h + 0.1, z);
+  r.rotation.set(rand(0,3), rand(0,3), rand(0,3));
+  r.castShadow = true;
+  decoRoot.add(r);
+}
+
+// ---------------------------------------------------------------- village
+const village = new THREE.Group();
+scene.add(village);
+
+function makeHouse(w, d, h, wallMat, roofMat) {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallMat);
+  body.position.y = h/2;
+  body.castShadow = true; body.receiveShadow = true;
+  g.add(body);
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(Math.max(w, d)*0.78, h*0.75, 4), roofMat);
+  roof.position.y = h + h*0.37;
+  roof.rotation.y = Math.PI/4;
+  roof.castShadow = true;
+  g.add(roof);
+  const door = new THREE.Mesh(new THREE.BoxGeometry(w*0.22, h*0.5, 0.1), M.door);
+  door.position.set(0, h*0.25, d/2 + 0.03);
+  g.add(door);
+  // windows (warm glow in the dusk light)
+  const winMat = new THREE.MeshStandardMaterial({ color: 0x87b5c9, roughness: 0.3, metalness: 0.1,
+    emissive: 0xffb45a, emissiveIntensity: 0.25 });
+  for (const wx of [-w*0.3, w*0.3]) {
+    const win = new THREE.Mesh(new THREE.BoxGeometry(w*0.16, h*0.22, 0.08), winMat);
+    win.position.set(wx, h*0.58, d/2 + 0.03);
+    g.add(win);
+  }
+  return g;
+}
+
+const houseSpots = [
+  [34, 0.15, 4.5, 4, 3.4, 'a'], [39, 0.9, 5, 4.2, 3.8, 'b'], [31, 1.7, 3.8, 3.8, 3.2, 'c'],
+  [37, 2.5, 4.8, 4, 3.6, 'a'], [42, 1.9, 4.2, 3.6, 3.2, 'b'], [35, 3.3, 5.2, 4.4, 3.9, 'c'],
+  [29, 5.8, 4, 4, 3.4, 'a'], [36, 5.0, 4.6, 4, 3.5, 'b'],
+];
+const houseMeshes = [];
+for (const [d, a, w, dd, hh, kind] of houseSpots) {
+  const x = Math.cos(a)*d, z = Math.sin(a)*d;
+  const wall = kind === 'a' ? M.wall : kind === 'b' ? M.wall2 : M.wall3;
+  const roof = Math.random() < 0.7 ? M.roof : M.roof2;
+  const hs = makeHouse(w, dd, hh, wall, roof);
+  hs.position.set(x, terrainHeight(x, z) - 0.35, z);
+  hs.rotation.y = rand(-0.6, 0.6);
+  village.add(hs);
+  houseMeshes.push(hs);
+}
+
+// church with bell tower on the hill above the village
+{
+  const cx = 27, cz = 12, h = terrainHeight(cx, cz);
+  const ch = makeHouse(5.5, 8, 4.4, M.wall, M.roof);
+  ch.position.set(cx, h - 0.35, cz);
+  ch.rotation.y = -0.4;
+  village.add(ch);
+  const tower = new THREE.Mesh(new THREE.BoxGeometry(2.2, 8, 2.2), M.wall);
+  tower.position.set(cx - 2.2, h + 4, cz + 2.4);
+  tower.castShadow = true;
+  village.add(tower);
+  const spire = new THREE.Mesh(new THREE.ConeGeometry(1.9, 3.2, 4), M.roof);
+  spire.position.set(cx - 2.2, h + 9.6, cz + 2.4);
+  spire.rotation.y = Math.PI/4;
+  spire.castShadow = true;
+  village.add(spire);
+}
+
+// docks + bonfire
+function makeDock(angle, len) {
+  const g = new THREE.Group();
+  const planks = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.25, len), M.wood);
+  planks.position.set(0, 0.9, -len/2);
+  planks.castShadow = true;
+  g.add(planks);
+  for (let i = 1; i <= Math.floor(len/2.6); i++) {
+    for (const sx of [-0.8, 0.8]) {
+      const p = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 3, 6), M.darkWood);
+      p.position.set(sx, -0.5, -i*2.6);
+      g.add(p);
+    }
+  }
+  g.position.set(Math.cos(angle)*70.5, 0, Math.sin(angle)*70.5);
+  g.rotation.y = Math.PI/2 - angle;   // planks run radially inward to the beach
+  scene.add(g);
+  return g;
+}
+makeDock(-0.18, 12);
+makeDock(0.55, 10);
+
+const bonfire = new THREE.Group();
+for (let i = 0; i < 5; i++) {
+  const l = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 2, 5), M.darkWood);
+  l.rotation.set(Math.PI/2.6, i*(Math.PI*2/5), 0);
+  l.position.y = 0.5;
+  bonfire.add(l);
+}
+bonfire.position.set(38, terrainHeight(38, 4.2) - 0.1, 4.2);
+scene.add(bonfire);
+const fireLight = new THREE.PointLight(0xff7730, 1.2, 26, 2);
+fireLight.position.set(38, terrainHeight(38, 4.2) + 1.4, 4.2);
+scene.add(fireLight);
+
+// ---------------------------------------------------------------- birds
+const birds = [];
+const birdMat = new THREE.MeshBasicMaterial({ color: 0x2a2f38 });
+for (let i = 0; i < 8; i++) {
+  const b = new THREE.Group();
+  const wingGeo = new THREE.PlaneGeometry(1.6, 0.5);
+  const l = new THREE.Mesh(wingGeo, birdMat), r = new THREE.Mesh(wingGeo, birdMat);
+  l.position.x = -0.8; r.position.x = 0.8;
+  b.add(l, r);
+  b.userData = { r: rand(55, 90), h: rand(34, 60), a: rand(0, 6.28),
+    sp: rand(0.10, 0.22)*(Math.random()<0.5?-1:1), l, r, ph: rand(0, 6) };
+  scene.add(b);
+  birds.push(b);
+}
+
+// ---------------------------------------------------------------- clouds
+const cloudMat = new THREE.MeshStandardMaterial({ color: 0xf2ede4, roughness: 1, transparent: true, opacity: 0.85, flatShading: true });
+const clouds = [];
+for (let i = 0; i < 12; i++) {
+  const c = new THREE.Group();
+  const n = 4 + (Math.random()*4|0);
+  for (let j = 0; j < n; j++) {
+    const puff = new THREE.Mesh(new THREE.IcosahedronGeometry(rand(6, 13), 1), cloudMat);
+    puff.position.set(rand(-14, 14), rand(-2, 2.5), rand(-7, 7));
+    puff.scale.y = 0.55;
+    c.add(puff);
+  }
+  const a = rand(0, Math.PI*2), d = rand(180, 520);
+  c.position.set(Math.cos(a)*d, rand(90, 160), Math.sin(a)*d);
+  c.userData.sp = rand(0.5, 1.4);
+  scene.add(c);
+  clouds.push(c);
+}
+
+// ---------------------------------------------------------------- boats
+function makeBoat(hullColor, sailColor, scale = 1) {
+  const g = new THREE.Group();
+  const hullMat = new THREE.MeshStandardMaterial({ color: hullColor, roughness: 0.8 });
+  const hull = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.9, 6), hullMat);
+  hull.position.y = 0.35;
+  hull.castShadow = true;
+  g.add(hull);
+  const bow = new THREE.Mesh(new THREE.ConeGeometry(1.05, 1.8, 4), hullMat);
+  bow.rotation.x = -Math.PI/2; bow.rotation.z = Math.PI/4;
+  bow.position.set(0, 0.35, 3.8);
+  bow.castShadow = true;
+  g.add(bow);
+  const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.12, 4.6, 6), M.darkWood);
+  mast.position.y = 2.8;
+  g.add(mast);
+  const sailMat = new THREE.MeshStandardMaterial({ color: sailColor, roughness: 0.9, side: THREE.DoubleSide });
+  const sail = new THREE.Mesh(new THREE.ConeGeometry(1.7, 3.4, 3, 1, true), sailMat);
+  sail.position.set(0, 2.6, -0.6);
+  sail.scale.z = 0.45;
+  sail.castShadow = true;
+  g.add(sail);
+  const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.5), sailMat);
+  flag.position.set(0.46, 4.7, 0);
+  g.add(flag);
+  g.scale.setScalar(scale);
+  g.userData.sail = sail; g.userData.flag = flag; g.userData.ph = rand(0, 6);
+  return g;
+}
+
+const boats = [];
+const boatHome = [
+  { a: -0.18, d: 66, hull: 0x8a3a2a, sail: 0xf2e6cf, s: 1.0 },
+  { a:  0.55, d: 65, hull: 0x2a5a7a, sail: 0xffd9a0, s: 0.85 },
+  { a:  2.30, d: 68, hull: 0x3a7a5a, sail: 0xf2e6cf, s: 1.15 },
+  { a: -2.10, d: 67, hull: 0x7a5a2a, sail: 0xffe0b8, s: 0.9 },
+  { a:  3.90, d: 66, hull: 0x4a4a6a, sail: 0xf2e6cf, s: 1.05 },
+];
+for (const b of boatHome) {
+  const boat = makeBoat(b.hull, b.sail, b.s);
+  boat.userData.home = { a: b.a, d: b.d };
+  boat.userData.mode = 'idle';
+  boats.push(boat);
+  scene.add(boat);
+}
+
+function boatYaw(boat) {
+  // face along its heading (tangent of circle)
+  return boat.userData.heading || 0;
+}
+
+// ---------------------------------------------------------------- lava flows
+// pre-computed flow paths down the cone, snapped to terrain height
+const lavaFlows = [];
+const flowAngles = [0.35, 1.25, 2.15, 3.10, 4.05, 5.00, 5.75];
+for (const a0 of flowAngles) {
+  const pts = [];
+  let a = a0 + rand(-0.15, 0.15);
+  for (let d = 8; d <= 64; d += 2) {
+    a += rand(-0.06, 0.06);
+    const x = Math.cos(a)*d, z = Math.sin(a)*d;
+    pts.push(V3(x, terrainHeight(x, z) + 0.75, z));
+  }
+  const geo = new THREE.BufferGeometry().setFromPoints(pts);
+  const mat = new THREE.LineBasicMaterial({ color: 0xff3800, transparent: true, opacity: 0 });
+  const line = new THREE.Line(geo, mat);
+  line.frustumCulled = false;
+  scene.add(line);
+  // glowing tube underneath for volume
+  const curve = new THREE.CatmullRomCurve3(pts);
+  const tube = new THREE.Mesh(
+    new THREE.TubeGeometry(curve, 32, 0.9, 6, false),
+    new THREE.MeshStandardMaterial({ color: 0x2a0800, emissive: 0xff4400,
+      emissiveIntensity: 0, roughness: 0.7, transparent: true, opacity: 0 }));
+  tube.frustumCulled = false;
+  scene.add(tube);
+  lavaFlows.push({ line, tube, geo, total: pts.length, reveal: 0, tubeIdx: 32*6*6 });
+}
+
+// ---------------------------------------------------------------- particles
+function makeSpriteTexture(stops) {
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const ctx = c.getContext('2d');
+  const grd = ctx.createRadialGradient(32, 32, 2, 32, 32, 30);
+  for (const [pos, col] of stops) grd.addColorStop(pos, col);
+  ctx.fillStyle = grd; ctx.fillRect(0, 0, 64, 64);
+  const tex = new THREE.CanvasTexture(c);
+  return tex;
+}
+const smokeTex = makeSpriteTexture([[0, 'rgba(230,230,230,0.9)'], [0.5, 'rgba(120,120,125,0.55)'], [1, 'rgba(60,60,65,0)']]);
+const ashTex   = makeSpriteTexture([[0, 'rgba(90,85,80,0.95)'], [0.6, 'rgba(60,56,52,0.6)'], [1, 'rgba(40,38,36,0)']]);
+const emberTex = makeSpriteTexture([[0, 'rgba(255,255,210,1)'], [0.35, 'rgba(255,160,40,0.9)'], [1, 'rgba(255,60,0,0)']]);
+const sprayTex = makeSpriteTexture([[0, 'rgba(255,255,255,0.95)'], [0.5, 'rgba(180,230,240,0.5)'], [1, 'rgba(140,200,220,0)']]);
+
+class ParticlePool {
+  constructor(max, tex, additive, sizeRange) {
+    this.max = max; this.p = [];
+    this.pos = new Float32Array(max*3);
+    this.col = new Float32Array(max*3);
+    this.size = new Float32Array(max);
+    this.alpha = new Float32Array(max);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(this.pos, 3));
+    geo.setAttribute('aColor', new THREE.BufferAttribute(this.col, 3));
+    geo.setAttribute('aSize', new THREE.BufferAttribute(this.size, 1));
+    geo.setAttribute('aAlpha', new THREE.BufferAttribute(this.alpha, 1));
+    const mat = new THREE.ShaderMaterial({
+      transparent: true, depthWrite: false,
+      blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending,
+      uniforms: { map: { value: tex } },
+      vertexShader: `
+        attribute float aSize; attribute float aAlpha; attribute vec3 aColor;
+        varying float vAlpha; varying vec3 vColor;
+        void main() {
+          vAlpha = aAlpha; vColor = aColor;
+          vec4 mv = modelViewMatrix * vec4(position, 1.0);
+          gl_PointSize = clamp(aSize * (700.0 / -mv.z), 1.0, 512.0);
+          gl_Position = projectionMatrix * mv;
+        }`,
+      fragmentShader: `
+        uniform sampler2D map;
+        varying float vAlpha; varying vec3 vColor;
+        void main() {
+          vec4 tex = texture2D(map, gl_PointCoord);
+          gl_FragColor = vec4(vColor, tex.a * vAlpha);
+          if (gl_FragColor.a < 0.01) discard;
+        }`
+    });
+    this.mesh = new THREE.Points(geo, mat);
+    this.mesh.frustumCulled = false;
+    scene.add(this.mesh);
+    this.free = [...Array(max).keys()];
+    this.sizeRange = sizeRange;
+  }
+  emit(x, y, z, opts) {
+    if (!this.free.length) return null;
+    const i = this.free.pop();
+    const pt = {
+      i, x, y, z,
+      vx: opts.vx || 0, vy: opts.vy || 0, vz: opts.vz || 0,
+      life: opts.life || 3, maxLife: opts.life || 3,
+      size: opts.size || rand(...this.sizeRange),
+      growth: opts.growth || 0,
+      r: opts.r ?? 1, g: opts.g ?? 1, b: opts.b ?? 1,
+      alpha: opts.alpha ?? 1,
+      drag: opts.drag ?? 0.98, grav: opts.grav ?? 0,
+      swirl: opts.swirl ?? 0,
+    };
+    this.p.push(pt);
+    this.pos[i*3] = x; this.pos[i*3+1] = y; this.pos[i*3+2] = z;
+    this.col[i*3] = pt.r; this.col[i*3+1] = pt.g; this.col[i*3+2] = pt.b;
+    this.size[i] = pt.size; this.alpha[i] = 0;
+    return pt;
+  }
+  update(dt) {
+    for (let k = this.p.length - 1; k >= 0; k--) {
+      const pt = this.p[k];
+      pt.life -= dt;
+      if (pt.life <= 0) {
+        this.alpha[pt.i] = 0;
+        this.free.push(pt.i);
+        this.p.splice(k, 1);
+        continue;
+      }
+      const f = 1 - pt.life/pt.maxLife;
+      pt.vy += pt.grav*dt;
+      pt.vx *= Math.pow(pt.drag, dt*60);
+      pt.vz *= Math.pow(pt.drag, dt*60);
+      if (pt.swirl) {
+        pt.vx += Math.sin(pt.y*0.1 + pt.life*3)*pt.swirl*dt;
+        pt.vz += Math.cos(pt.y*0.12 + pt.life*2.4)*pt.swirl*dt;
+      }
+      pt.x += pt.vx*dt; pt.y += pt.vy*dt; pt.z += pt.vz*dt;
+      pt.size += pt.growth*dt;
+      const fade = f < 0.12 ? f/0.12 : 1 - smooth(f, 0.55, 1);
+      this.pos[pt.i*3] = pt.x; this.pos[pt.i*3+1] = pt.y; this.pos[pt.i*3+2] = pt.z;
+      this.size[pt.i] = pt.size;
+      this.alpha[pt.i] = pt.alpha * fade;
+    }
+    this.mesh.geometry.attributes.position.needsUpdate = true;
+    this.mesh.geometry.attributes.aSize.needsUpdate = true;
+    this.mesh.geometry.attributes.aAlpha.needsUpdate = true;
+    this.mesh.geometry.attributes.aColor.needsUpdate = true;
+  }
+  reset() {
+    for (const pt of this.p) { this.alpha[pt.i] = 0; this.free.push(pt.i); }
+    this.p.length = 0;
+  }
+}
+
+const smokePool  = new ParticlePool(600, smokeTex, false, [6, 14]);
+const ashPool    = new ParticlePool(700, ashTex,   false, [1.4, 3.4]);
+const emberPool = new ParticlePool(400, emberTex,  true,  [0.7, 1.8]);
+const sprayPool = new ParticlePool(300, sprayTex,   true,  [1.2, 3]);
+const firePool  = new ParticlePool(200, emberTex,   true,  [1.5, 3.2]);
+smokePool.mesh.renderOrder = 20;
+ashPool.mesh.renderOrder   = 21;
+sprayPool.mesh.renderOrder = 22;
+emberPool.mesh.renderOrder = 23;
+firePool.mesh.renderOrder  = 24;
+
+const CRATER = V3(0, terrainHeight(0, 0) + 1, 0);
+
+// ------------------------------------------------------------- eruption ctrl
+const btnErupt = document.getElementById('btnErupt');
+const btnReset = document.getElementById('btnReset');
+const statusChip = document.getElementById('statusChip');
+const statusText = document.getElementById('statusText');
+
+function setStatus(cls, txt) {
+  statusChip.className = 'hud status ' + cls;
+  statusText.textContent = txt;
+}
+
+function erupt() {
+  if (G.phase !== 'idle') return;
+  G.phase = 'erupting';
+  G.eruptT = 0;
+  btnErupt.disabled = true;
+  btnErupt.innerHTML = '🌋&nbsp;ERUPTING';
+  setStatus('erupting', 'ERUPTING');
+  // boats panic then flee
+  for (const b of boats) {
+    b.userData.mode = 'flee';
+    b.userData.fleeDelay = rand(0.4, 2.2);
+    b.userData.fleeT = 0;
+  }
+}
+
+function resetScene() {
+  G.phase = 'idle'; G.eruptT = 0; G.calmT = 0;
+  G.lava = 0; G.shake = 0;
+  smokePool.reset(); ashPool.reset(); emberPool.reset(); sprayPool.reset(); firePool.reset();
+  for (const f of lavaFlows) { f.reveal = 0; f.line.material.opacity = 0; f.tube.material.emissiveIntensity = 0; f.tube.material.opacity = 0; }
+  craterLight.intensity = 0;
+  skyMat.uniforms.glowStrength.value = 1.0;
+  skyMat.uniforms.glowColor.value.set(0xffc07a);
+  hemi.intensity = 0.75; sun.intensity = 1.7;
+  for (const b of boats) { b.userData.mode = 'idle'; }
+  for (const b of birds) b.visible = true;
+  btnErupt.disabled = false;
+  btnErupt.innerHTML = '⛔&nbsp;ERUPT';
+  setStatus('', 'DORMANT');
+  oceanMat.emissiveIntensity = 0;
+  outerSea.material.emissiveIntensity = 0;
+}
+btnErupt.addEventListener('click', erupt);
+btnReset.addEventListener('click', resetScene);
+
+// ------------------------------------------------------------ orbit control
+let dragging = false, lastX = 0, lastY = 0, autoSpin = true, idleTime = 0;
+const cv = renderer.domElement;
+cv.style.touchAction = 'none';
+
+cv.addEventListener('pointerdown', e => {
+  dragging = true; autoSpin = false;
+  lastX = e.clientX; lastY = e.clientY;
+  cv.setPointerCapture(e.pointerId);
+});
+cv.addEventListener('pointermove', e => {
+  if (!dragging) return;
+  CAM.yaw   -= (e.clientX - lastX) * 0.0055;
+  CAM.pitch += (e.clientY - lastY) * 0.0045;
+  CAM.pitch = Math.max(0.06, Math.min(1.35, CAM.pitch));
+  lastX = e.clientX; lastY = e.clientY;
+  idleTime = 0;
+});
+const endDrag = () => { dragging = false; idleTime = 0; };
+cv.addEventListener('pointerup', endDrag);
+cv.addEventListener('pointercancel', endDrag);
+
+cv.addEventListener('wheel', e => {
+  e.preventDefault();
+  CAM.dist *= 1 + Math.sign(e.deltaY) * 0.08;
+  CAM.dist = Math.max(60, Math.min(480, CAM.dist));
+  idleTime = 0;
+}, { passive: false });
+
+// pinch zoom
+let pinchD = 0;
+cv.addEventListener('touchstart', e => {
+  if (e.touches.length === 2) {
+    pinchD = Math.hypot(e.touches[0].clientX - e.touches[1].clientX,
+                        e.touches[0].clientY - e.touches[1].clientY);
+  }
+}, { passive: true });
+cv.addEventListener('touchmove', e => {
+  if (e.touches.length === 2) {
+    const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX,
+                         e.touches[0].clientY - e.touches[1].clientY);
+    CAM.dist *= pinchD / Math.max(d, 1);
+    CAM.dist = Math.max(60, Math.min(480, CAM.dist));
+    pinchD = d;
+    autoSpin = false; idleTime = 0;
+  }
+}, { passive: true });
+
+// ---------------------------------------------------------------- main loop
+window.__loopErr = [];
+
+function eruptionStep(dt, ramp) {
+  const e = G.eruptT;
+  G.lava = ramp;
+
+  // camera shake: strong early, tremors through the eruption
+  const tremor = 0.5 + 0.5*Math.sin(e*2.1)*Math.sin(e*5.3);
+  G.shake = ramp * tremor * (G.phase === 'calming' ? 0.35 : 1);
+
+  // sky + light mood
+  skyMat.uniforms.glowColor.value.setHex(0xff5a20);
+  skyMat.uniforms.glowStrength.value = 1 + ramp * 3.2;
+  craterLight.intensity = ramp * 420;
+  hemi.intensity = 0.75 - ramp * 0.28;
+  sun.intensity = 1.7 - ramp * 0.7;
+  // ocean catches the eruption glow
+  oceanMat.emissive.setHex(0x3a1206);
+  oceanMat.emissiveIntensity = ramp * 0.5;
+  outerSea.material.emissive.setHex(0x2c0f05);
+  outerSea.material.emissiveIntensity = ramp * 0.4;
+
+  // ---- lava flows reveal down the slopes
+  for (let i = 0; i < lavaFlows.length; i++) {
+    const f = lavaFlows[i];
+    const start = 0.4 + i * 0.28 + (i % 3) * 0.15;
+    if (e > start) f.reveal = Math.min(1, f.reveal + dt * 0.10);
+    const n = Math.max(2, Math.floor(f.total * f.reveal));
+    f.geo.setDrawRange(0, n);
+    const flick = 0.8 + 0.2*Math.sin(G.t*10 + i);
+    f.line.material.opacity = f.reveal > 0 ? ramp * flick : 0;
+    f.tube.material.emissiveIntensity = f.reveal > 0.05 ? ramp * 2.4 * flick : 0;
+    f.tube.material.opacity = f.reveal > 0.05 ? Math.min(1, f.reveal*1.4) : 0;
+    f.tube.geometry.setDrawRange(0, Math.floor(f.tubeIdx * f.reveal));
+  }
+
+  // ---- lava lake boils
+  lavaLake.material.emissiveIntensity = 0.15 + ramp * 2.6 + 0.4*Math.sin(G.t*7);
+  lavaLake.scale.setScalar(1 + ramp*0.35 + 0.05*Math.sin(G.t*4));
+
+  // ---- eruption column: smoke, ash, embers
+  const rate = ramp * 60;                          // smoke particles/sec
+  G.nextSmoke -= dt * rate;
+  while (G.nextSmoke <= 0) {
+    G.nextSmoke += 1;
+    const a = rand(0, Math.PI*2), rr = rand(0, 6);
+    const up = rand(13, 26) * (0.7 + 0.3*ramp);
+    smokePool.emit(
+      CRATER.x + Math.cos(a)*rr, CRATER.y + 2, CRATER.z + Math.sin(a)*rr,
+      { vx: Math.cos(a)*rand(1,3) + G.windX*0.3, vy: up, vz: Math.sin(a)*rand(1,3) + G.windZ*0.3,
+        life: rand(6, 11), growth: rand(2.4, 4.2), drag: 0.985, swirl: 2.5,
+        r: 0.32, g: 0.30, b: 0.30, alpha: rand(0.55, 0.85) });
+    // ash fans out higher & wider
+    if (Math.random() < 0.75) {
+      ashPool.emit(
+        CRATER.x + Math.cos(a)*rand(0,4), CRATER.y + 1, CRATER.z + Math.sin(a)*rand(0,4),
+        { vx: Math.cos(a)*rand(3,9) + G.windX*rand(0.8,1.6), vy: rand(18, 32), vz: Math.sin(a)*rand(3,9) + G.windZ*rand(0.8,1.6),
+          life: rand(7, 13), growth: rand(0.2, 0.7), drag: 0.978, grav: -0.4,
+          r: 0.22, g: 0.21, b: 0.20, alpha: rand(0.5, 0.9) });
+    }
+    // fire fountains (additive embers)
+    if (Math.random() < 0.85) {
+      emberPool.emit(
+        CRATER.x + Math.cos(a)*rand(0,5), CRATER.y, CRATER.z + Math.sin(a)*rand(0,5),
+        { vx: Math.cos(a)*rand(2,10), vy: rand(22, 40), vz: Math.sin(a)*rand(2,10),
+          life: rand(1.4, 3), grav: -14, drag: 0.985,
+          r: 1, g: rand(0.55, 0.85), b: 0.15, alpha: rand(0.7, 1) });
+    }
+    // lava blobs splash at flow heads
+    if (Math.random() < 0.3 && e > 3) {
+      const f = lavaFlows[(Math.random()*lavaFlows.length)|0];
+      const n = Math.max(2, Math.floor(f.total * f.reveal)) - 1;
+      const p = f.geo.attributes.position;
+      if (n >= 0) {
+        firePool.emit(p.getX(n), p.getY(n), p.getZ(n),
+          { vx: rand(-2,2), vy: rand(2,6), vz: rand(-2,2), life: rand(0.6,1.4),
+            grav: -8, r: 1, g: 0.6, b: 0.2, alpha: 0.9 });
+      }
+    }
+  }
+}
+
+function update(dt) {
+  G.t += dt;
+
+  // ocean waves
+  for (let i = 0; i < oceanPos.count; i++) {
+    const x = oceanPos.getX(i), z = oceanPos.getZ(i);
+    oceanPos.setY(i, waveHeight(x, z, G.t));
+  }
+  oceanPos.needsUpdate = true;
+  oceanGeo.computeVertexNormals();
+
+  // plants sway (wind gusts)
+  const gust = 1 + 0.4*Math.sin(G.t*0.7) * Math.sin(G.t*0.23);
+  for (const s of swayables) {
+    s.obj.rotation.z = Math.sin(G.t*1.8 + s.phase) * s.amp * gust;
+    s.obj.rotation.x = Math.cos(G.t*1.4 + s.phase*1.3) * s.amp * 0.6 * gust;
+  }
+  // bonfire flicker
+  fireLight.intensity = (1.0 + 0.35*Math.sin(G.t*11) + 0.25*Math.sin(G.t*23)) *
+    (G.phase === 'idle' ? 1 : 0.5);
+
+  // birds circle (flee during eruption)
+  for (const b of birds) {
+    const u = b.userData;
+    if (G.phase === 'erupting') {
+      b.visible = false;
+    } else if (!b.visible && G.phase === 'idle') {
+      b.visible = true;
+    }
+    if (!b.visible) continue;
+    u.a += u.sp * dt;
+    b.position.set(Math.cos(u.a)*u.r, u.h + Math.sin(u.a*3)*2, Math.sin(u.a)*u.r);
+    b.rotation.y = -u.a + (u.sp > 0 ? Math.PI/2 : -Math.PI/2);
+    const flap = Math.sin(G.t*10 + u.ph) * 0.6;
+    u.l.rotation.z = flap; u.r.rotation.z = -flap;
+  }
+
+  // clouds drift
+  for (const c of clouds) {
+    c.position.x += G.windX * c.userData.sp * dt;
+    c.position.z += G.windZ * c.userData.sp * dt;
+    const d = Math.hypot(c.position.x, c.position.z);
+    if (d > 620) { c.position.x *= -0.98; c.position.z *= -0.98; }
+    if (G.phase !== 'idle') c.material = c.material; // keep (ash handled by plume)
+  }
+
+  // boats
+  for (const b of boats) {
+    const u = b.userData;
+    if (u.mode === 'idle') {
+      // bob gently at dock
+      const a = u.home.a + Math.sin(G.t*0.15 + u.ph)*0.05;
+      const x = Math.cos(a)*u.home.d, z = Math.sin(a)*u.home.d;
+      b.position.set(x, waveHeight(x, z, G.t) + 0.15, z);
+      u.heading = a + Math.PI/2;
+    } else if (u.mode === 'flee') {
+      u.fleeT += dt;
+      if (u.fleeT < u.fleeDelay) {
+        // panic bobbing in place
+        const x = Math.cos(u.home.a)*u.home.d, z = Math.sin(u.home.a)*u.home.d;
+        b.position.set(x, waveHeight(x, z, G.t) + 0.15, z);
+        u.heading = u.home.a + Math.sin(G.t*14 + u.ph)*0.5;
+        u.sail.scale.x = 0.25;              // sails dropping
+      } else {
+        // engines on, full speed away from island
+        u.heading += dt * 0.10;            // gentle bearing change
+        const spd = 11 + (u.ph % 3);
+        const radial = V3(Math.cos(u.home.a), 0, Math.sin(u.home.a));
+        const tangent = V3(-radial.z, 0, radial.x).multiplyScalar(u.ph % 2 ? -1 : 1);
+        const dir = radial.clone().add(tangent.clone().multiplyScalar(0.55)).normalize();
+        b.position.addScaledVector(dir, spd*dt);
+        const d = Math.hypot(b.position.x, b.position.z);
+        if (d > 420) b.position.multiplyScalar(420/d);
+        u.heading = Math.atan2(dir.x, dir.z);
+        u.sail.scale.x = THREE.MathUtils.lerp(u.sail.scale.x, 1.15, dt*2);
+        // wake spray
+        if (Math.random() < 0.5) {
+          sprayPool.emit(b.position.x - dir.x*3, 0.3, b.position.z - dir.z*3,
+            { vx: -dir.x*rand(1,3), vy: rand(1.5,4), vz: -dir.z*rand(1,3),
+              life: rand(0.5,1.1), growth: 1.5, grav: -6,
+              r: 0.85, g: 0.95, b: 1, alpha: 0.6 });
+        }
+        if (G.phase === 'idle') u.mode = 'return';
+      }
+    } else if (u.mode === 'return') {
+      // sail home, then settle back to idle
+      const home = V3(Math.cos(u.home.a)*u.home.d, 0, Math.sin(u.home.a)*u.home.d);
+      const to = home.clone().sub(b.position);
+      const dist = to.length();
+      to.normalize();
+      b.position.addScaledVector(to, Math.min(9, dist)*dt);
+      u.heading = Math.atan2(to.x, to.z);
+      u.sail.scale.x = THREE.MathUtils.lerp(u.sail.scale.x, 1.0, dt*1.5);
+      if (dist < 3) u.mode = 'idle';
+      if (Math.random() < 0.25) {
+        sprayPool.emit(b.position.x - to.x*3, 0.3, b.position.z - to.z*3,
+          { vx: -to.x*rand(0.5,2), vy: rand(1,2.5), vz: -to.z*rand(0.5,2),
+            life: rand(0.4,0.9), growth: 1.2, grav: -6,
+            r: 0.85, g: 0.95, b: 1, alpha: 0.45 });
+      }
+    }
+    // sit on the wave surface, rock gently
+    b.position.y = waveHeight(b.position.x, b.position.z, G.t) + 0.15;
+    b.rotation.y = u.heading || 0;
+    b.rotation.z = Math.sin(G.t*2.2 + u.ph) * 0.06;
+    b.rotation.x = Math.cos(G.t*1.7 + u.ph) * 0.05;
+  }
+
+  // eruption phases
+  if (G.phase === 'erupting') {
+    G.eruptT += dt;
+    eruptionStep(dt, smooth(G.eruptT, 0, 2.5));
+    if (G.eruptT > 14) {
+      G.phase = 'calming'; G.calmT = 0;
+      setStatus('calming', 'CALMING');
+    }
+  } else if (G.phase === 'calming') {
+    G.calmT += dt;
+    G.eruptT += dt;
+    const fade = 1 - smooth(G.calmT, 0, 8);
+    eruptionStep(dt, fade * 0.8);
+    G.shake *= fade;
+    // lava cools: emissive fades to dark crust
+    const crust = smooth(G.calmT, 2, 7);
+    for (const f of lavaFlows) {
+      f.tube.material.color.lerpColors(new THREE.Color(0x2a0800), new THREE.Color(0x3a3230), crust);
+      f.line.material.opacity = fade * 0.7 * (1 - crust*0.5);
+      f.tube.material.emissiveIntensity = fade * 2.0 * (1 - crust);
+    }
+    if (G.calmT > 8) {
+      resetScene();
+      // boats finish sailing home on their own; cooled lava crust stays faintly visible
+      for (const b of boats) if (b.userData.mode === 'flee') b.userData.mode = 'return';
+      for (const f of lavaFlows) {
+        f.tube.material.color.setHex(0x3a3230);
+        f.tube.material.emissiveIntensity = 0; f.tube.material.opacity = 1;
+        f.line.material.opacity = 0;
+      }
+    }
+  } else {
+    // idle: gentle wisp of smoke from the crater
+    if (Math.random() < dt * 2.2) {
+      smokePool.emit(CRATER.x + rand(-2,2), CRATER.y + 2, CRATER.z + rand(-2,2),
+        { vx: G.windX*0.4, vy: rand(4, 7), vz: G.windZ*0.4,
+          life: rand(4, 7), growth: rand(2, 3.4), drag: 0.99, swirl: 1.2,
+          r: 0.55, g: 0.54, b: 0.54, alpha: rand(0.12, 0.28) });
+    }
+  }
+
+  smokePool.update(dt); ashPool.update(dt);
+  emberPool.update(dt); sprayPool.update(dt); firePool.update(dt);
+
+  // ---- camera: orbit + zoom + breathing + shake
+  idleTime += dt;
+  if (idleTime > 8) autoSpin = true;
+  if (autoSpin && !dragging) CAM.yaw += dt * 0.045;
+  const breathe = Math.sin(G.t * 0.25) * 2.5;
+  camBase.set(
+    Math.sin(CAM.yaw) * Math.cos(CAM.pitch),
+    Math.sin(CAM.pitch),
+    Math.cos(CAM.yaw) * Math.cos(CAM.pitch)
+  ).multiplyScalar(CAM.dist + breathe);
+  camBase.add(CAM.target);
+  camera.position.copy(camBase);
+  if (G.shake > 0.001) {
+    camera.position.x += (Math.random()-0.5) * G.shake * 1.6;
+    camera.position.y += (Math.random()-0.5) * G.shake * 1.6;
+    camera.position.z += (Math.random()-0.5) * G.shake * 1.6;
+  }
+  camera.lookAt(CAM.target.x, CAM.target.y + breathe*0.3, CAM.target.z);
+
+  renderer.render(scene, camera);
+}
+
+function loop() {
+  requestAnimationFrame(loop);
+  try {
+    const dt = Math.min(clock.getDelta(), 0.05);
+    update(dt);
+  } catch (e) {
+    if (window.__loopErr.length < 6) window.__loopErr.push(String(e && e.stack || e));
+  }
+}
+loop();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// ------------------------------------------------------------- debug bridge
+window.__game = {
+  G, scene, camera, renderer, THREE, boats, lavaFlows,
+  erupt, reset: resetScene,
+  state() {
+    return {
+      phase: G.phase, t: +G.t.toFixed(1), eruptT: +G.eruptT.toFixed(1),
+      lava: +G.lava.toFixed(2), shake: +G.shake.toFixed(2),
+      smoke: smokePool.p.length, ash: ashPool.p.length, embers: emberPool.p.length,
+      boats: boats.map(b => b.userData.mode),
+      craterLight: +craterLight.intensity.toFixed(0),
+      calls: renderer.info.render.calls,
+      err: window.__err.length, loopErr: window.__loopErr.length,
+    };
+  },
+};
+
+
+</script>
+</body>
+</html>
