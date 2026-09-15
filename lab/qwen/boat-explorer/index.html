@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Golden Wake — Ocean Sail</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { width:100%; height:100%; overflow:hidden; background:#1a0f2e;
+    font-family:'Segoe UI', system-ui, -apple-system, sans-serif; touch-action:none;
+    -webkit-user-select:none; user-select:none; }
+  #cv { position:fixed; inset:0; width:100%; height:100%; display:block; }
+
+  /* ---------- title / intro ---------- */
+  #title { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; z-index:30; pointer-events:none;
+    background:radial-gradient(ellipse at 50% 120%, rgba(255,140,60,.28), rgba(20,8,38,.72) 62%, rgba(12,4,26,.88));
+    transition:opacity .9s ease; }
+  #title.hidden { opacity:0; pointer-events:none; }
+  #title h1 { font-size:min(13vw,72px); font-weight:200; letter-spacing:.32em; color:#ffe9c9;
+    text-shadow:0 0 34px rgba(255,150,70,.55), 0 2px 0 rgba(120,40,10,.4); margin-left:.32em; }
+  #title .sub { margin-top:.9em; font-size:min(3.6vw,17px); letter-spacing:.42em; color:#ffc98d;
+    opacity:.85; text-transform:uppercase; margin-left:.42em; }
+  #goBtn { pointer-events:auto; margin-top:2.6em; padding:.95em 3.2em; border-radius:999px;
+    border:1px solid rgba(255,210,150,.6); background:rgba(255,160,80,.14); color:#ffe9c9;
+    font-size:min(4.4vw,19px); letter-spacing:.28em; text-transform:uppercase; cursor:pointer;
+    backdrop-filter:blur(6px); transition:background .25s, transform .15s; margin-left:.28em; }
+  #goBtn:hover { background:rgba(255,180,90,.3); }
+  #goBtn:active { transform:scale(.96); }
+  #title .keys { margin-top:2.4em; font-size:min(3vw,14px); color:#e8b98a; opacity:.75;
+    letter-spacing:.12em; text-align:center; line-height:1.9; }
+
+  /* ---------- HUD ---------- */
+  #hud { position:fixed; inset:0; z-index:10; pointer-events:none; opacity:0; transition:opacity .8s .3s; }
+  #hud.show { opacity:1; }
+  .panel { background:rgba(24,10,34,.42); border:1px solid rgba(255,190,120,.22);
+    border-radius:14px; backdrop-filter:blur(7px); color:#ffe9c9; }
+  #compass { position:absolute; top:calc(12px + env(safe-area-inset-top)); left:50%;
+    transform:translateX(-50%); padding:6px 18px 8px; text-align:center; }
+  #compass .dir { font-size:20px; font-weight:600; letter-spacing:.18em; color:#ffd9a0; }
+  #compass .hdg { font-size:11px; letter-spacing:.2em; opacity:.7; margin-top:1px; }
+  #speedo { position:absolute; top:calc(12px + env(safe-area-inset-top)); left:14px;
+    padding:10px 14px; min-width:104px; }
+  #speedo .kn { font-size:26px; font-weight:300; }
+  #speedo .kn small { font-size:11px; opacity:.65; letter-spacing:.14em; }
+  #speedo .bar { height:3px; margin-top:6px; border-radius:2px; background:rgba(255,220,170,.16); overflow:hidden; }
+  #speedo .bar i { display:block; height:100%; width:0%; border-radius:2px;
+    background:linear-gradient(90deg,#ff9d4d,#ffe08a); transition:width .12s linear; }
+  #islands { position:absolute; top:calc(12px + env(safe-area-inset-top)); right:14px;
+    padding:9px 15px; text-align:center; }
+  #islands .n { font-size:23px; font-weight:600; color:#ffd9a0; }
+  #islands .lbl { font-size:10px; letter-spacing:.26em; opacity:.72; text-transform:uppercase; margin-top:1px; }
+
+  /* ---------- discovery toast ---------- */
+  #toast { position:absolute; top:16%; left:50%; transform:translate(-50%,-14px); padding:14px 30px;
+    text-align:center; opacity:0; transition:opacity .5s, transform .5s; }
+  #toast.show { opacity:1; transform:translate(-50%,0); }
+  #toast .nm { font-size:min(5.6vw,27px); font-weight:600; letter-spacing:.16em; color:#ffe9c9;
+    text-shadow:0 0 22px rgba(255,170,80,.6); }
+  #toast .q { font-size:11px; letter-spacing:.34em; text-transform:uppercase; color:#ff9d4d; margin-bottom:5px; }
+  #toast .bc { font-size:min(3vw,13px); color:#e8b98a; opacity:.85; margin-top:4px; letter-spacing:.06em; }
+
+  /* ---------- minimap ---------- */
+  #minimap { position:absolute; bottom:calc(14px + env(safe-area-inset-bottom)); right:14px;
+    width:128px; height:128px; border-radius:50%; overflow:hidden;
+    border:1px solid rgba(255,190,120,.35); box-shadow:0 4px 22px rgba(0,0,0,.35); }
+  #minimap canvas { width:100%; height:100%; display:block; }
+
+  /* ---------- touch controls ---------- */
+  #stickZone { position:absolute; left:0; bottom:0; width:46%; height:44%; pointer-events:auto; z-index:11; }
+  #stick { position:absolute; width:118px; height:118px; border-radius:50%;
+    border:1.5px solid rgba(255,200,140,.3); background:rgba(30,14,40,.3);
+    backdrop-filter:blur(4px); opacity:0; transition:opacity .25s; pointer-events:none; }
+  #stick.show { opacity:1; }
+  #knob { position:absolute; left:50%; top:50%; width:52px; height:52px; border-radius:50%;
+    transform:translate(-50%,-50%); background:radial-gradient(circle at 38% 32%,rgba(255,220,160,.9),rgba(255,150,70,.55));
+    box-shadow:0 0 18px rgba(255,160,80,.5); }
+  #tbtns { position:absolute; right:16px; bottom:calc(158px + env(safe-area-inset-bottom));
+    display:flex; flex-direction:column; gap:14px; z-index:11; }
+  .tbtn { width:64px; height:64px; border-radius:50%; pointer-events:auto;
+    border:1.5px solid rgba(255,200,140,.35); background:rgba(30,14,40,.34);
+    backdrop-filter:blur(4px); color:#ffe0b0; display:flex; align-items:center; justify-content:center;
+    font-size:22px; font-weight:600; letter-spacing:.05em; }
+  .tbtn:active, .tbtn.held { background:rgba(255,170,80,.42); }
+  .tbtn small { font-size:15px; }
+  #camBtn { width:52px; height:52px; font-size:19px; position:absolute; z-index:11;
+    left:14px; top:calc(100px + env(safe-area-inset-top)); }
+
+  /* desktop hint fades on mobile-ish */
+  #hint { position:absolute; bottom:calc(16px + env(safe-area-inset-bottom)); left:50%;
+    transform:translateX(-50%); padding:7px 18px; font-size:12px; letter-spacing:.14em;
+    color:#ffd9a0; opacity:.66; white-space:nowrap; text-shadow:0 1px 3px rgba(0,0,0,.6); }
+  body.touch #hint { display:none; }
+  body:not(.touch) #stickZone, body:not(.touch) #tbtns { display:none; }
+
+  /* compact HUD on narrow/portrait screens */
+  @media (max-width: 560px) {
+    #speedo { padding:6px 10px; min-width:78px; }
+    #speedo .kn { font-size:19px; }
+    #compass { padding:4px 12px 5px; }
+    #compass .dir { font-size:15px; }
+    #compass .hdg { font-size:9px; }
+    #islands { padding:5px 10px; }
+    #islands .n { font-size:15px; }
+    #islands .lbl { font-size:8px; letter-spacing:.14em; }
+    #minimap { width:96px; height:96px; }
+    #tbtns { bottom:calc(120px + env(safe-area-inset-bottom)); gap:10px; }
+    .tbtn { width:56px; height:56px; }
+    .panel { backdrop-filter:blur(5px); background:rgba(24,10,34,.5); }
+  }
+
+  #err { position:fixed; left:8px; bottom:8px; z-index:99; color:#ffb0a0; font:11px monospace;
+    background:rgba(40,0,0,.7); padding:4px 8px; border-radius:6px; display:none; max-width:90vw; }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+
+<div id="hud">
+  <div id="speedo" class="panel"><span class="kn"><span id="spdVal">0</span><small> KN</span></span>
+    <div class="bar"><i id="spdBar"></i></div></div>
+  <div id="compass" class="panel"><div class="dir" id="cdir">N</div><div class="hdg" id="chdg">000°</div></div>
+  <div id="islands" class="panel"><div class="n"><span id="foundN">0</span></div><div class="lbl">islands charted</div></div>
+  <div id="toast" class="panel"><div class="q">✦ island sighted ✦</div><div class="nm" id="toastName">—</div><div class="bc" id="toastBc"></div></div>
+  <div id="minimap" class="panel"><canvas id="mm" width="256" height="256"></canvas></div>
+  <div id="hint">W A S D / ARROWS to sail &nbsp;·&nbsp; C change camera</div>
+  <div id="stickZone"><div id="stick"><div id="knob"></div></div></div>
+  <div id="tbtns">
+    <div class="tbtn" id="boostBtn">»</div>
+    <div class="tbtn" id="brakeBtn"><small>◄◄</small></div>
+  </div>
+  <div class="tbtn" id="camBtn">◉</div>
+</div>
+
+<div id="title">
+  <h1>GOLDEN WAKE</h1>
+  <div class="sub">an endless ocean at sunset</div>
+  <button id="goBtn">Set Sail</button>
+  <div class="keys">W / S — throttle · A / D — helm · SHIFT — full sail · C — camera<br>
+    touch: drag left side to steer ·»</div>
+</div>
+
+<div id="err"></div>
+
+<script type="importmap">
+{ "imports": { "three": "./assets/three.module.min.js" } }
+</script>
+<script type="module" src="./js/main.js?v=2"></script>
+</body>
+</html>
