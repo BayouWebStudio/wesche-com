@@ -1,0 +1,112 @@
+{
+  "title": "Lighthouse storm: two local, two cloud",
+  "prompt": "Build an interactive Three.js scene of a lighthouse on a rocky island at dusk, as a single HTML file (CDN imports OK). Orbit/zoom camera, touch friendly. A button rolls in a storm: sky darkens, waves grow, rain starts, the lighthouse beam sweeps. Press again and a ship appears, gets guided in by the beam and docks. Reset clears the weather.",
+  "ranking_by_eye": [
+    "Astra",
+    "GLM-5.3 Flash",
+    "Fable 5",
+    "DeepSeek V4.1 Flash"
+  ],
+  "recording": {
+    "file": "comparison.mp4",
+    "sha256": "a35c65a08d3065052960b5526c2645f66c7ae3605ee0c7b40a3d3a4e97fc0223",
+    "probe": {
+      "programs": [],
+      "stream_groups": [],
+      "streams": [
+        {
+          "width": 1280,
+          "height": 800,
+          "avg_frame_rate": "30/1",
+          "nb_frames": "1800"
+        }
+      ],
+      "format": {
+        "duration": "60.000000",
+        "size": "25953843"
+      }
+    },
+    "grid": "top-left DeepSeek, top-right Astra, bottom-left GLM, bottom-right Fable",
+    "method": "Playwright headless Chromium (ANGLE Metal), fixed-step virtual clock 30 fps. Identical timeline: storm button at 6 s, ship button at 22\u201324 s, reset at 40\u201355 s. Camera rotated to the sunlit side before recording. Local clips are 45 s and hold their last frame to fill 60 s.",
+    "caveat": "Ship visibility depends on the scripted camera azimuth; absence in a panel is not proof the scene has no ship."
+  },
+  "arms": [
+    {
+      "label": "DeepSeek V4.1 Flash EXL3",
+      "origin": "local",
+      "deployment": "TP2, 2\u00d7 DGX Spark, 600K ctx",
+      "artifact": "/lab/deepseek4.1local/lighthouse-storm/",
+      "sha256": "7d7b0b876784ccda320a220755cb9ef92bc0354d4616b1119bcdd61e892b157c",
+      "bytes": 47423,
+      "three": "r170",
+      "model": "DeepSeek-v4.1-Flash-EXL3",
+      "output_tokens": 152479,
+      "reasoning_tokens": 111215,
+      "tool_calls": 80,
+      "started": "2026-09-16 11:10:26",
+      "wall_s": 4795,
+      "finding": "Water ShaderMaterial present but renders as a flat, featureless plane in calm state; the agent reviewed 13 of its own screenshots without flagging it."
+    },
+    {
+      "label": "GLM-5.3 Flash EXL3",
+      "origin": "local",
+      "deployment": "TP2, 2\u00d7 DGX Spark, 800K ctx, DFlash2",
+      "artifact": "/lab/glm5.3local/lighthouse-storm/",
+      "sha256": "d97737be3f3df5e8cd6932c81ea47b119a22776af62152b58d927ccd61477e2f",
+      "bytes": 48186,
+      "three": "r180",
+      "model": "GLM-5.3-Flash-EXL3",
+      "output_tokens": 79097,
+      "reasoning_tokens": 0,
+      "tool_calls": 57,
+      "started": "2026-09-16 11:49:47",
+      "wall_s": 3569,
+      "finding": "Gerstner vertex-shader waves with foam, keeper's hut, pier, sweeping beam cones."
+    },
+    {
+      "label": "Astra (GPT-5.4, cloud)",
+      "origin": "cloud",
+      "artifact": "/lab/astra/lighthouse-storm/",
+      "sha256": "b6c5a37c2c63c4a3a1828a45e6d8bd6563cdf699e9fb755e3d934218f0c97377",
+      "bytes": 42285,
+      "three": "r180",
+      "finding": "Full editorial UI (chapters, prose, progress), island with buildings, whitecaps, ship guided in-frame. Loads Google Fonts."
+    },
+    {
+      "label": "Fable 5 (Anthropic, cloud)",
+      "origin": "cloud",
+      "artifact": "/lab/fable/lighthouse-storm/",
+      "sha256": "0c9b58e21487d06976aab88fe463b9cbe921e5ba6e6e2926e0f7a39adfda4bfb",
+      "bytes": 24256,
+      "three": "r170",
+      "finding": "Minimal: small tower, flat dark sea, thin beam, two buttons."
+    }
+  ],
+  "incident": "GLM rank-1 host spark-9f73 hard-wedged during the first attempt (84.6K-token prefill in flight); power-cycled, fresh containers relaunched, requalified, and the prompt was resent from a new session. Wall time above is the successful run only.",
+  "notes": [
+    "Cloud arms were run by the user in their own sessions; token/timing receipts are not available for them.",
+    "DeepSeek is usually served TP4 in this lab; this run was a TP2 pack. Whether that explains the water is untested."
+  ],
+  "solo_recordings": {
+    "deepseek.mp4": {
+      "sha256": "72d9e11a6d2257a947492a654f43354f25edd22d27e95eb30e79ef28465eb242",
+      "encode": "CRF 24 re-encode of the CRF 18 master for page weight; same frames"
+    },
+    "glm.mp4": {
+      "sha256": "d4d2a563a6a7aa26ef1a6d6e88dcf9c08d129f5c6ba87f0e873b5eae0cd0de3c",
+      "encode": "CRF 24 re-encode of the CRF 18 master for page weight; same frames"
+    },
+    "astra.mp4": {
+      "sha256": "8c0119258a8efb79c8ccd342125f8567d0b043992d18acb447900f580d91ecb2",
+      "encode": "CRF 24 re-encode of the CRF 18 master for page weight; same frames"
+    },
+    "fable.mp4": {
+      "sha256": "2f3451ed815ed9f19c7b04a7a65556fbc86c17aa7a442d7344423e9e22ae9495",
+      "encode": "CRF 24 re-encode of the CRF 18 master for page weight; same frames"
+    },
+    "local-only-stacked.mp4": {
+      "sha256": "ee5c90f2fda04c12bafa518a88762a3a8f74f9730dd15ef79b849a8654b55551",
+      "encode": "CRF 24 re-encode of the CRF 18 master for page weight; same frames"
+    }
+  }
+}

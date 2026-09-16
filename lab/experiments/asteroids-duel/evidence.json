@@ -1,0 +1,60 @@
+{
+  "title": "Asteroids: two local models, one memorized game",
+  "prompt": "Build a playable Asteroids game as a single self-contained HTML file (inline CSS/JS, no external libraries, assets or network). Capture the 1979 Atari feel: rotate/thrust, shoot and split asteroids, screen wrap, lives, score, waves, game over and restart. Add any polish you think makes it feel great. Output only the HTML file in one code block.",
+  "reasoning": "ultra (both)",
+  "recording": {
+    "file": "comparison.mp4",
+    "sha256": "d7e3d93e6f773f3fe6e18cd0e6b93b4d90f6316321d5eb32a1e604e0e81441bb",
+    "probe": {
+      "programs": [],
+      "stream_groups": [],
+      "streams": [
+        {
+          "width": 1280,
+          "height": 1552,
+          "avg_frame_rate": "30/1",
+          "nb_frames": "1200"
+        }
+      ],
+      "format": {
+        "duration": "40.000000",
+        "size": "3966977"
+      }
+    },
+    "method": "Playwright headless Chromium, fixed-step virtual clock 30 fps, 1200 frames per game, identical keyboard schedule (rotate/thrust/fire) mapped to each game's own bindings; different worlds mean different trajectories.",
+    "labels_drawn_outside_canvas": true
+  },
+  "arms": [
+    {
+      "label": "DeepSeek V4.1 Flash EXL3",
+      "deployment": "TP2, 2\u00d7 DGX Spark (10.0.0.120/.109), 600K ctx, text-only",
+      "artifact": "/lab/deepseek4.1local/asteroids/",
+      "sha256": "a913e40eba13673ab997f0d82bc4b0a21215845ba2f8cd11ac2b4f88de91136e",
+      "bytes": 35809,
+      "model": "DeepSeek-v4.1-Flash-EXL3",
+      "output_tokens": 98931,
+      "reasoning_tokens": 65413,
+      "tool_calls": 28,
+      "started": "2026-09-16 09:15:48",
+      "wall_s": 3084
+    },
+    {
+      "label": "GLM-5.3 Flash EXL3",
+      "deployment": "TP2, 2\u00d7 DGX Spark (10.0.0.183/.229), 800K ctx, DFlash2 k7, vision on",
+      "artifact": "/lab/glm5.3local/asteroids/",
+      "sha256": "588f41c5ff387b65a247a9c6a8cf9a953bd274373563d2ff7d294966864b50bd",
+      "bytes": 25829,
+      "model": "GLM-5.3-Flash-EXL3",
+      "output_tokens": 97648,
+      "reasoning_tokens": 0,
+      "tool_calls": 55,
+      "started": "2026-09-16 09:15:12",
+      "wall_s": 4222
+    }
+  ],
+  "notes": [
+    "GLM reasoning_tokens=0 is a usage-accounting gap in that endpoint, not evidence of no reasoning.",
+    "Both agents had the same Hermes skill library available; both loaded the same game-dev skill before writing.",
+    "No repairs. Published files are byte-identical to what each agent saved."
+  ]
+}
