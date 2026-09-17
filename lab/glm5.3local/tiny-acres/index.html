@@ -1,0 +1,1557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Tiny Acres — a miniature farm</title>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #a8d8ea; }
+  canvas { display: block; touch-action: none; }
+  #hud { position: fixed; inset: 0; pointer-events: none; z-index: 5;
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #3d2c1e; user-select: none; -webkit-user-select: none; }
+  #title { position: absolute; top: calc(14px + env(safe-area-inset-top)); left: 18px;
+    font-size: 19px; font-weight: 700; letter-spacing: 0.1em; color: #5a3d24;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.6); animation: fadeaway 1.2s ease 6s forwards; }
+  #counter { position: absolute; top: calc(44px + env(safe-area-inset-top)); left: 18px;
+    font-size: 13px; font-weight: 600; color: #4a3a2a;
+    background: rgba(255, 248, 230, 0.72); padding: 4px 10px; border-radius: 12px;
+    box-shadow: 0 1px 4px rgba(90,60,30,0.2); }
+  #toast { position: absolute; left: 0; right: 0; top: calc(16% + env(safe-area-inset-top));
+    text-align: center; font-size: 19px; font-weight: 600; letter-spacing: 0.03em;
+    color: #3d2c1e; text-shadow: 0 1px 6px rgba(255,255,255,0.8);
+    opacity: 0; transition: opacity 0.4s ease; }
+  #hint { position: absolute; left: 0; right: 0; bottom: calc(84px + env(safe-area-inset-bottom));
+    text-align: center; font-size: 12px; letter-spacing: 0.04em; opacity: 0.8;
+    color: #4a3a2a; text-shadow: 0 1px 4px rgba(255,255,255,0.6);
+    animation: fadeaway 1.5s ease 10s forwards; }
+  #btns { position: absolute; left: 0; right: 0; bottom: calc(18px + env(safe-area-inset-bottom));
+    display: flex; justify-content: center; gap: 12px; pointer-events: none; }
+  button { pointer-events: auto; min-height: 48px; padding: 12px 20px; border-radius: 16px;
+    font-size: 15px; font-weight: 700; letter-spacing: 0.02em; cursor: pointer;
+    color: #fff; border: none; box-shadow: 0 3px 0 rgba(90,50,20,0.35), 0 4px 10px rgba(60,40,20,0.25);
+    transition: transform 0.08s ease, opacity 0.2s ease; touch-action: manipulation; }
+  button:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(90,50,20,0.35); }
+  #btnAbduct { background: #8e6bc7; }
+  #btnReturn { background: #5cab6e; }
+  button:disabled { opacity: 0.45; cursor: default; transform: none; }
+  @keyframes fadeaway { to { opacity: 0; } }
+  #fail { position: fixed; inset: 0; z-index: 50; display: none; padding: 24px;
+    background: #140a0a; color: #ff9c9c; font: 13px/1.5 ui-monospace, Menlo, monospace;
+    white-space: pre-wrap; overflow: auto; }
+</style>
+</head>
+<body>
+<div id="hud">
+  <div id="title">Tiny Acres</div>
+  <div id="counter">&#128024; 13 animals</div>
+  <div id="toast"><span id="toastMsg"></span></div>
+  <div id="hint">drag to orbit &middot; pinch / scroll to zoom</div>
+  <div id="btns">
+    <button id="btnAbduct">Abduct an animal &#128125;</button>
+    <button id="btnReturn">Return everyone</button>
+  </div>
+</div>
+<pre id="fail"></pre>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+}}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* ---------------- error collector ---------------- */
+window.__errors = [];
+const _origCE = console.error.bind(console);
+console.error = (...a) => {
+  try { window.__errors.push(a.map(x => (x && x.stack) ? String(x.stack) : String(x)).join(' ')); } catch (e) {}
+  _origCE(...a);
+};
+window.addEventListener('error', e => window.__errors.push(String(e.error && e.error.stack || e.message)));
+window.addEventListener('unhandledrejection', e => window.__errors.push('rejection: ' + String(e.reason && e.reason.stack || e.reason)));
+function fail(e) {
+  const el = document.getElementById('fail');
+  el.style.display = 'block';
+  el.textContent = 'BOOT ERROR\n\n' + ((e && e.stack) ? e.stack : String(e));
+}
+
+/* ---------------- shared uniforms ---------------- */
+const U = {
+  time:     { value: 0 },
+  beam:     { value: 0 },
+  proj:     { value: 800 },
+  skyTop:   { value: new THREE.Color(0x7fb8e8) },
+  skyHor:   { value: new THREE.Color(0xffe3b8) },
+  sunCol:   { value: new THREE.Color(0xfff1d0) },
+};
+
+const GLSL_NOISE = /* glsl */`
+float hash21(vec2 p){ p = fract(p * vec2(123.34, 345.45)); p += dot(p, p + 34.345); return fract(p.x * p.y); }
+float vnoise(vec2 p){
+  vec2 i = floor(p); vec2 f = fract(p); vec2 u = f * f * (3.0 - 2.0 * f);
+  float a = hash21(i); float b = hash21(i + vec2(1.0, 0.0));
+  float c = hash21(i + vec2(0.0, 1.0)); float d = hash21(i + vec2(1.0, 1.0));
+  return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+}
+`;
+const GLSL_OUT = /* glsl */`
+#include <tonemapping_fragment>
+#include <colorspace_fragment>
+`;
+
+/* helpers */
+const damp = (cur, target, tau, dt) => cur + (target - cur) * (1 - Math.exp(-dt / tau));
+const prand = n => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
+const wrapPi = d => { while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return d; };
+const ISLAND_R = 46;
+
+/* ============================================================ sky */
+function buildSky() {
+  const mat = new THREE.ShaderMaterial({
+    side: THREE.BackSide, depthWrite: false,
+    uniforms: { uTop: U.skyTop, uHor: U.skyHor, uSunCol: U.sunCol },
+    vertexShader: /* glsl */`
+      varying vec3 vDir;
+      void main(){
+        vDir = position;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: /* glsl */`
+      uniform vec3 uTop;
+      uniform vec3 uHor;
+      uniform vec3 uSunCol;
+      varying vec3 vDir;
+      void main(){
+        vec3 d = normalize(vDir);
+        float h = d.y;
+        vec3 col = mix(uHor, uTop, smoothstep(0.0, 0.5, h));
+        col = mix(col, uHor * 0.92, smoothstep(0.0, -0.15, h));
+        col += uSunCol * 0.18 * exp(-abs(h - 0.42) * 4.0);
+        gl_FragColor = vec4(col, 1.0);
+        ${GLSL_OUT}
+      }
+    `,
+  });
+  const sky = new THREE.Mesh(new THREE.SphereGeometry(500, 32, 20), mat);
+  sky.frustumCulled = false;
+  sky.name = 'sky';
+  return sky;
+}
+
+/* ============================================================ clouds */
+function buildClouds() {
+  const isCoarse = matchMedia('(pointer: coarse)').matches;
+  const n = isCoarse ? 22 : 34;
+  const pos = new Float32Array(n * 3), size = new Float32Array(n), seed = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const cluster = i % 7;
+    const az = (cluster / 7) * Math.PI * 2 + (prand(cluster * 3.1) - 0.5) * 0.7;
+    const rad = 150 + prand(cluster * 7.7) * 160;
+    pos[i * 3]     = Math.cos(az) * rad + (prand(i * 1.3) - 0.5) * 44;
+    pos[i * 3 + 1] = 60 + prand(cluster * 5.3) * 40 + (prand(i * 2.1) - 0.5) * 14;
+    pos[i * 3 + 2] = Math.sin(az) * rad + (prand(i * 3.7) - 0.5) * 44;
+    size[i] = 22 + prand(i * 5.1) * 26;
+    seed[i] = prand(i * 7.9);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('aSize', new THREE.BufferAttribute(size, 1));
+  geo.setAttribute('aSeed', new THREE.BufferAttribute(seed, 1));
+  const mat = new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false,
+    uniforms: { uProj: U.proj },
+    vertexShader: /* glsl */`
+      attribute float aSize;
+      attribute float aSeed;
+      uniform float uProj;
+      varying float vSeed;
+      void main(){
+        vSeed = aSeed;
+        vec4 mv = viewMatrix * modelMatrix * vec4(position, 1.0);
+        gl_PointSize = clamp(aSize * uProj / max(-mv.z, 0.5), 6.0, 300.0);
+        gl_Position = projectionMatrix * mv;
+      }
+    `,
+    fragmentShader: /* glsl */`
+      varying float vSeed;
+      void main(){
+        vec2 c = gl_PointCoord - 0.5;
+        float d = length(c) * 2.0 + (vSeed - 0.5) * 0.4;
+        float a = smoothstep(1.0, 0.25, d) * (0.5 + 0.4 * vSeed);
+        gl_FragColor = vec4(vec3(1.0, 0.99, 0.97), a);
+        ${GLSL_OUT}
+      }
+    `,
+  });
+  const pts = new THREE.Points(geo, mat);
+  pts.frustumCulled = false;
+  pts.name = 'clouds';
+  return pts;
+}
+
+/* ============================================================ island */
+function buildIsland() {
+  const g = new THREE.Group();
+  const grass = new THREE.Mesh(new THREE.CylinderGeometry(ISLAND_R, ISLAND_R, 0.5, 48),
+    new THREE.MeshStandardMaterial({ color: 0x7ec850, roughness: 1 }));
+  grass.position.y = -0.25;
+  const dirt = new THREE.Mesh(new THREE.CylinderGeometry(ISLAND_R, ISLAND_R - 5, 6.5, 48),
+    new THREE.MeshStandardMaterial({ color: 0x8a5a36, roughness: 1, flatShading: true }));
+  dirt.position.y = -3.75;
+  const under = new THREE.Mesh(new THREE.ConeGeometry(ISLAND_R - 5, 15, 24),
+    new THREE.MeshStandardMaterial({ color: 0x6e4628, roughness: 1, flatShading: true }));
+  under.rotation.x = Math.PI;
+  under.position.y = -14.2;
+  g.add(grass, dirt, under);
+  // hanging rocks
+  for (let i = 0; i < 5; i++) {
+    const rock = new THREE.Mesh(new THREE.IcosahedronGeometry(1.6 + prand(i * 3.3) * 1.8, 1),
+      new THREE.MeshStandardMaterial({ color: 0x6e5a48, roughness: 1, flatShading: true }));
+    const az = (i / 5) * Math.PI * 2 + 0.4;
+    const rad = ISLAND_R - 8 - prand(i * 5.5) * 10;
+    rock.position.set(Math.cos(az) * rad, -6 - prand(i * 7.1) * 5, Math.sin(az) * rad);
+    rock.userData.baseY = rock.position.y;
+    rock.userData.phase = prand(i * 9.7) * 6.28;
+    rock.name = 'floatRock';
+    g.add(rock);
+  }
+  g.name = 'island';
+  return g;
+}
+
+/* ============================================================ props: house, windmill, pond, trees, fences */
+let bladesG, smokePts;
+function buildFarmhouse() {
+  const g = new THREE.Group();
+  const wall = new THREE.MeshStandardMaterial({ color: 0xf2e3c8, roughness: 0.9 });
+  const woodD = new THREE.MeshStandardMaterial({ color: 0x7a4a2e, roughness: 0.8 });
+  const roofM = new THREE.MeshStandardMaterial({ color: 0xc75b45, roughness: 0.85 });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(6.5, 4.2, 5), wall);
+  body.position.y = 2.1;
+  g.add(body);
+  const roof = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 4.6, 3.2, 4), roofM);
+  roof.rotation.y = Math.PI / 4;
+  roof.scale.set(1.06, 1, 0.85);
+  roof.position.y = 5.8;
+  g.add(roof);
+  const chimney = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.7, 0.7), new THREE.MeshStandardMaterial({ color: 0xa0522d, roughness: 0.9 }));
+  chimney.position.set(1.9, 6.1, -1.2);
+  g.add(chimney);
+  const door = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.9, 0.12), woodD);
+  door.position.set(-0.8, 0.95, 2.53);
+  g.add(door);
+  const knob = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), new THREE.MeshStandardMaterial({ color: 0xd9a441, metalness: 0.6, roughness: 0.4 }));
+  knob.position.set(-0.45, 0.95, 2.62);
+  g.add(knob);
+  for (const wx of [1.6, 2.9]) {
+    const win = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.9, 0.1),
+      new THREE.MeshStandardMaterial({ color: 0x8a5a30, emissive: 0xffd98a, emissiveIntensity: 0.7, roughness: 0.4 }));
+    win.position.set(wx - 2.2 + 2.4, 2.3, 2.53);
+    win.position.x = wx;
+    g.add(win);
+    const frame = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.1, 0.08), woodD);
+    frame.position.set(wx, 2.3, 2.5);
+    g.add(frame);
+  }
+  // porch step
+  const step = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.3, 1), wall);
+  step.position.set(-0.8, 0.15, 3);
+  g.add(step);
+  g.position.set(-14, 0, -14);
+  g.rotation.y = 0.5;
+  g.name = 'farmhouse';
+  return g;
+}
+function buildWindmill() {
+  const g = new THREE.Group();
+  const tower = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.9, 8.5, 10),
+    new THREE.MeshStandardMaterial({ color: 0xd8cfc0, roughness: 0.9 }));
+  tower.position.y = 4.25;
+  g.add(tower);
+  const cap = new THREE.Mesh(new THREE.ConeGeometry(1.5, 1.4, 10),
+    new THREE.MeshStandardMaterial({ color: 0xc75b45, roughness: 0.85 }));
+  cap.position.y = 9.1;
+  g.add(cap);
+  const door = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.4, 0.1),
+    new THREE.MeshStandardMaterial({ color: 0x7a4a2e, roughness: 0.8 }));
+  door.position.set(0, 0.7, 1.86);
+  g.add(door);
+  bladesG = new THREE.Group();
+  bladesG.position.set(0, 7.6, 1.7);
+  const armM = new THREE.MeshStandardMaterial({ color: 0xf2e3c8, roughness: 0.85 });
+  for (let i = 0; i < 4; i++) {
+    const arm = new THREE.Group();
+    const spar = new THREE.Mesh(new THREE.BoxGeometry(0.18, 5.4, 0.12), armM);
+    spar.position.y = 2.7;
+    arm.add(spar);
+    const sail = new THREE.Mesh(new THREE.BoxGeometry(0.75, 3.6, 0.06),
+      new THREE.MeshStandardMaterial({ color: 0xfff6e0, roughness: 0.9 }));
+    sail.position.set(0.48, 3, 0);
+    arm.add(sail);
+    arm.rotation.z = (i / 4) * Math.PI * 2;
+    bladesG.add(arm);
+  }
+  g.add(bladesG);
+  g.position.set(17, 0, -19);
+  g.rotation.y = -0.4;
+  g.name = 'windmill';
+  return g;
+}
+function buildPond() {
+  const g = new THREE.Group();
+  const water = new THREE.Mesh(new THREE.CylinderGeometry(6.5, 6.5, 0.24, 28),
+    new THREE.MeshStandardMaterial({ color: 0x5aaed6, roughness: 0.25, metalness: 0.1 }));
+  water.position.y = 0.02;
+  g.add(water);
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(6.5, 0.42, 8, 28),
+    new THREE.MeshStandardMaterial({ color: 0xc9b489, roughness: 0.95 }));
+  rim.rotation.x = Math.PI / 2;
+  rim.position.y = 0.1;
+  g.add(rim);
+  // lily pads
+  for (let i = 0; i < 4; i++) {
+    const pad = new THREE.Mesh(new THREE.CircleGeometry(0.5, 10),
+      new THREE.MeshStandardMaterial({ color: 0x4d9e57, roughness: 0.9, side: THREE.DoubleSide }));
+    pad.rotation.x = -Math.PI / 2;
+    const a = prand(i * 3.3) * Math.PI * 2;
+    pad.position.set(Math.cos(a) * 3.4, 0.16, Math.sin(a) * 3.4);
+    g.add(pad);
+  }
+  g.position.set(21, 0, 18);
+  g.name = 'pond';
+  return g;
+}
+function buildTrees(islandG) {
+  const g = new THREE.Group();
+  const trunkM = new THREE.MeshStandardMaterial({ color: 0x7a4a2e, roughness: 0.9 });
+  const leafA = new THREE.MeshStandardMaterial({ color: 0x4d9e57, roughness: 0.95 });
+  const leafB = new THREE.MeshStandardMaterial({ color: 0x63b45c, roughness: 0.95 });
+  const spots = [];
+  for (let i = 0; i < 9; i++) {
+    const az = (i / 9) * Math.PI * 2 + prand(i * 3.7) * 0.5;
+    const rad = 34 + prand(i * 5.9) * 7;
+    const p = new THREE.Vector2(Math.cos(az) * rad, Math.sin(az) * rad);
+    if (Math.hypot(p.x - 17, p.y + 19) < 7) continue;   // windmill
+    if (Math.hypot(p.x + 14, p.y + 14) < 7) continue;   // house
+    spots.push(p);
+  }
+  spots.forEach((p, i) => {
+    const t = new THREE.Group();
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.42, 2.2, 7), trunkM);
+    trunk.position.y = 1.1;
+    t.add(trunk);
+    const s = 0.85 + prand(i * 7.3) * 0.5;
+    const b1 = new THREE.Mesh(new THREE.IcosahedronGeometry(1.5, 1), i % 2 ? leafA : leafB);
+    b1.position.y = 3.1;
+    const b2 = new THREE.Mesh(new THREE.IcosahedronGeometry(1.05, 1), i % 2 ? leafB : leafA);
+    b2.position.set(0.7, 2.5, 0.3);
+    t.add(b1, b2);
+    t.scale.setScalar(s);
+    t.position.set(p.x, 0, p.y);
+    t.rotation.y = prand(i * 9.1) * 6.28;
+    t.userData.swayPhase = prand(i * 11.7) * 6.28;
+    t.name = 'tree';
+    g.add(t);
+  });
+  // hay bales + crates near the house
+  const hayM = new THREE.MeshStandardMaterial({ color: 0xd9b45c, roughness: 1 });
+  for (let i = 0; i < 3; i++) {
+    const bale = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.75, 1.3, 12), hayM);
+    bale.rotation.z = Math.PI / 2;
+    bale.rotation.y = prand(i * 4.1) * 6.28;
+    bale.position.set(-6 + i * 1.9, 0.75, -7.5 + prand(i * 6.7) * 1.6);
+    g.add(bale);
+  }
+  g.name = 'trees';
+  return g;
+}
+function buildFence(cx, cz, r, islandG) {
+  const g = new THREE.Group();
+  const postM = new THREE.MeshStandardMaterial({ color: 0x9a6a40, roughness: 0.9 });
+  const railM = new THREE.MeshStandardMaterial({ color: 0xb07e4e, roughness: 0.9 });
+  const nPost = Math.max(8, Math.round(r));
+  for (let i = 0; i < nPost; i++) {
+    const a = (i / nPost) * Math.PI * 2;
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.13, 1.15, 6), postM);
+    post.position.set(cx + Math.cos(a) * r, 0.57, cz + Math.sin(a) * r);
+    post.rotation.y = prand(i * 3.1 + r) * 0.4;
+    g.add(post);
+  }
+  for (const h of [0.5, 0.88]) {
+    const rail = new THREE.Mesh(new THREE.TorusGeometry(r, 0.055, 6, 40), railM);
+    rail.rotation.x = Math.PI / 2;
+    rail.position.set(cx, h, cz);
+    g.add(rail);
+  }
+  return g;
+}
+function buildPens() {
+  const g = new THREE.Group();
+  g.add(buildFence(-21, 7, 7.5, g));
+  g.add(buildFence(-3, 17, 6.5, g));
+  g.add(buildFence(6, 4, 5.5, g));
+  g.add(buildFence(-10, -16, 7, g));
+  // feed troughs
+  const troughM = new THREE.MeshStandardMaterial({ color: 0x8a5a36, roughness: 0.9 });
+  const spots = [[-19.5, 4.5], [-1.5, 14.8], [4.8, 2.2], [-8, -13.6]];
+  for (const [x, z] of spots) {
+    const tr = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.4, 0.7), troughM);
+    tr.position.set(x, 0.2, z);
+    tr.rotation.y = prand(x * 3.1 + z) * 3;
+    g.add(tr);
+  }
+  g.name = 'pens';
+  return g;
+}
+
+/* ============================================================ flowers & tufts (instanced) */
+function buildFlora() {
+  const g = new THREE.Group();
+  const avoid = [
+    [-14, -14, 6], [17, -19, 5], [21, 18, 8.5],      // house, mill, pond
+    [-21, 7, 8.8], [-3, 17, 7.8], [6, 4, 6.8], [-10, -16, 8.3],  // pens
+  ];
+  const ok = (x, z) => {
+    if (Math.hypot(x, z) > ISLAND_R - 4) return false;
+    for (const [ax, az, ar] of avoid) if (Math.hypot(x - ax, z - az) < ar) return false;
+    return true;
+  };
+  // flowers
+  const nF = 64;
+  const stemGeo = new THREE.CylinderGeometry(0.03, 0.04, 0.5, 5);
+  stemGeo.translate(0, 0.25, 0);
+  const petals = ['0xff9ec4', '0xffd166', '0xffffff', '0xc4a1e8', '0xff8a5c'];
+  const stemMesh = new THREE.InstancedMesh(stemGeo, new THREE.MeshStandardMaterial({ color: 0x3d7a3a, roughness: 1 }), nF);
+  const headGeo = new THREE.IcosahedronGeometry(0.14, 0);
+  const headMesh = new THREE.InstancedMesh(headGeo, new THREE.MeshStandardMaterial({ roughness: 0.9 }), nF);
+  const m4 = new THREE.Matrix4(), col = new THREE.Color();
+  let placed = 0, guard = 0;
+  while (placed < nF && guard++ < 500) {
+    const a = prand(guard * 1.7) * Math.PI * 2;
+    const r = 8 + prand(guard * 2.9) * 32;
+    const x = Math.cos(a) * r, z = Math.sin(a) * r;
+    if (!ok(x, z)) continue;
+    m4.makeTranslation(x, 0, z);
+    stemMesh.setMatrixAt(placed, m4);
+    m4.makeTranslation(x, 0.56, z);
+    headMesh.setMatrixAt(placed, m4);
+    col.set(petals[Math.floor(prand(guard * 4.3) * petals.length)]);
+    headMesh.setColorAt(placed, col);
+    placed++;
+  }
+  stemMesh.count = headMesh.count = placed;
+  g.add(stemMesh, headMesh);
+  // grass tufts: crossed planes
+  const tuftGeo = new THREE.ConeGeometry(0.16, 0.55, 4);
+  tuftGeo.translate(0, 0.27, 0);
+  const nT = 90;
+  const tuftMesh = new THREE.InstancedMesh(tuftGeo, new THREE.MeshStandardMaterial({ color: 0x58a84e, roughness: 1 }), nT);
+  placed = 0; guard = 0;
+  while (placed < nT && guard++ < 700) {
+    const a = prand(guard * 3.1 + 50) * Math.PI * 2;
+    const r = 6 + prand(guard * 4.7 + 50) * 35;
+    const x = Math.cos(a) * r, z = Math.sin(a) * r;
+    if (!ok(x, z)) continue;
+    m4.makeTranslation(x, 0, z);
+    tuftMesh.setMatrixAt(placed, m4);
+    placed++;
+  }
+  tuftMesh.count = placed;
+  g.name = 'flora';
+  return g;
+}
+
+/* ============================================================ chimney smoke (GPU points) */
+function buildSmoke(house) {
+  const n = 14;
+  const base = new Float32Array(n * 3);
+  const seed = new Float32Array(n);
+  const pos = new Float32Array(n * 3);
+  const origin = new THREE.Vector3(1.9, 7.1, -1.2);
+  house.updateMatrixWorld(true);
+  origin.applyMatrix4(house.matrixWorld);
+  for (let i = 0; i < n; i++) {
+    base[i * 3] = origin.x + (prand(i * 1.7) - 0.5) * 0.3;
+    base[i * 3 + 1] = origin.y;
+    base[i * 3 + 2] = origin.z + (prand(i * 2.9) - 0.5) * 0.3;
+    seed[i] = prand(i * 4.1);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('aBase', new THREE.BufferAttribute(base, 3));
+  geo.setAttribute('aSeed', new THREE.BufferAttribute(seed, 1));
+  const mat = new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false,
+    uniforms: { uTime: U.time, uProj: U.proj },
+    vertexShader: /* glsl */`
+      attribute vec3 aBase;
+      attribute float aSeed;
+      uniform float uTime;
+      uniform float uProj;
+      varying float vAge;
+      void main(){
+        float H = 9.0;
+        float age = fract(aSeed + uTime * (0.09 + aSeed * 0.05));
+        vAge = age;
+        vec3 p = aBase;
+        p.y += age * H;
+        p.x += sin(age * 9.0 + aSeed * 40.0) * age * 1.3;
+        p.z += cos(age * 7.0 + aSeed * 30.0) * age * 1.1;
+        vec4 mv = viewMatrix * modelMatrix * vec4(p, 1.0);
+        gl_PointSize = clamp((1.4 + age * 3.6) * uProj / max(-mv.z, 0.5), 2.0, 90.0);
+        gl_Position = projectionMatrix * mv;
+      }
+    `,
+    fragmentShader: /* glsl */`
+      varying float vAge;
+      void main(){
+        vec2 c = gl_PointCoord - 0.5;
+        float d = length(c) * 2.0;
+        float a = smoothstep(1.0, 0.2, d) * 0.4 * (1.0 - vAge) * smoothstep(0.0, 0.15, vAge);
+        gl_FragColor = vec4(vec3(0.96, 0.95, 0.93), a);
+        ${GLSL_OUT}
+      }
+    `,
+  });
+  smokePts = new THREE.Points(geo, mat);
+  smokePts.frustumCulled = false;
+  smokePts.name = 'smoke';
+  return smokePts;
+}
+
+/* ============================================================ animals */
+const NAMES = {
+  cow: ['MooDeng', 'Buttercup', 'Clarabelle', 'Angus'],
+  pig: ['Truffle', 'Hamlet', 'Pickle', 'Snorii'],
+  sheep: ['Wooliam', 'Cloudia', 'Shearlock', 'Bahbara'],
+  chicken: ['Clucky', 'Nugget', 'Henrietta', 'Pebbles', 'Egbert'],
+  duck: ['Quackers', 'Waddles', 'Puddles'],
+};
+const nameSeq = {};
+function nextName(sp) {
+  const pool = NAMES[sp];
+  nameSeq[sp] = (nameSeq[sp] || 0) + 1;
+  return pool[(nameSeq[sp] - 1) % pool.length] + (nameSeq[sp] > pool.length ? ' ' + (Math.floor((nameSeq[sp] - 1) / pool.length) + 1) : '');
+}
+const animals = [];
+let animalRoot;
+function legPair(g, x, z, len, r, mat) {
+  const legs = [];
+  for (const sx of [-1, 1]) {
+    const leg = new THREE.Group();
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 0.85, len, 6), mat);
+    m.position.y = -len / 2;
+    leg.add(m);
+    leg.position.set(x * sx, len, z);
+    g.add(leg);
+    legs.push(leg);
+  }
+  return legs;
+}
+function buildCow() {
+  const g = new THREE.Group();
+  const white = new THREE.MeshStandardMaterial({ color: 0xf5f0e8, roughness: 0.85 });
+  const black = new THREE.MeshStandardMaterial({ color: 0x2e2a28, roughness: 0.85 });
+  const pink = new THREE.MeshStandardMaterial({ color: 0xe8a8a0, roughness: 0.8 });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.85, 1.6), white);
+  body.position.y = 0.95;
+  g.add(body);
+  for (let i = 0; i < 3; i++) {
+    const patch = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.55), black);
+    patch.position.set((prand(i * 3.1) - 0.5) * 0.5, 0.95 + (prand(i * 5.3) - 0.5) * 0.4, -0.5 + i * 0.5);
+    patch.rotation.set(prand(i) , prand(i * 1.7), 0);
+    g.add(patch);
+  }
+  const headG = new THREE.Group();
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.55, 0.55), white);
+  headG.add(head);
+  const muzzle = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.28, 0.2), pink);
+  muzzle.position.set(0, -0.12, 0.34);
+  headG.add(muzzle);
+  for (const sx of [-1, 1]) {
+    const horn = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.22, 6), new THREE.MeshStandardMaterial({ color: 0xe8dcc0, roughness: 0.6 }));
+    horn.position.set(0.22 * sx, 0.32, 0.05);
+    headG.add(horn);
+    const ear = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.1, 0.22), black);
+    ear.position.set(0.36 * sx, 0.12, 0);
+    headG.add(ear);
+  }
+  headG.position.set(0, 1.45, 0.95);
+  g.add(headG);
+  const legs = legPair(g, 0.36, 0.55, 0.55, 0.11, white).concat(legPair(g, 0.36, -0.55, 0.55, 0.11, white));
+  const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.03, 0.7, 5), black);
+  tail.position.set(0, 1.05, -0.85);
+  tail.rotation.x = 0.7;
+  g.add(tail);
+  const udder = new THREE.Mesh(new THREE.SphereGeometry(0.28, 8, 6), pink);
+  udder.scale.set(1, 0.6, 1);
+  udder.position.set(0, 0.5, -0.25);
+  g.add(udder);
+  return { g, headG, legs, body };
+}
+function buildPig() {
+  const g = new THREE.Group();
+  const pink = new THREE.MeshStandardMaterial({ color: 0xf0b8b0, roughness: 0.85 });
+  const pinkD = new THREE.MeshStandardMaterial({ color: 0xd88a88, roughness: 0.85 });
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.62, 12, 10), pink);
+  body.scale.set(0.85, 0.75, 1.3);
+  body.position.y = 0.62;
+  g.add(body);
+  const headG = new THREE.Group();
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.38, 12, 10), pink);
+  head.scale.set(0.9, 0.85, 0.9);
+  headG.add(head);
+  const snout = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.16, 0.16, 10), pinkD);
+  snout.rotation.x = Math.PI / 2;
+  snout.position.set(0, -0.04, 0.36);
+  headG.add(snout);
+  for (const sx of [-1, 1]) {
+    const ear = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.26, 6), pinkD);
+    ear.position.set(0.18 * sx, 0.3, -0.05);
+    ear.rotation.z = -0.3 * sx;
+    headG.add(ear);
+  }
+  headG.position.set(0, 0.78, 0.72);
+  g.add(headG);
+  const legs = legPair(g, 0.24, 0.42, 0.34, 0.09, pinkD).concat(legPair(g, 0.24, -0.42, 0.34, 0.09, pinkD));
+  const tail = new THREE.Mesh(new THREE.TorusGeometry(0.11, 0.03, 6, 10, 4.5), pinkD);
+  tail.position.set(0, 0.75, -0.75);
+  tail.rotation.y = Math.PI / 2;
+  g.add(tail);
+  return { g, headG, legs, body };
+}
+function buildSheep() {
+  const g = new THREE.Group();
+  const wool = new THREE.MeshStandardMaterial({ color: 0xf2ead8, roughness: 1 });
+  const woolGeo = new THREE.IcosahedronGeometry(0.72, 1);
+  const p = woolGeo.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const n = prand(p.getX(i) * 12.9 + p.getY(i) * 78.2 + p.getZ(i) * 37.7);
+    const k = 1 + (n - 0.5) * 0.3;
+    p.setXYZ(i, p.getX(i) * k, p.getY(i) * k, p.getZ(i) * k * 1.25);
+  }
+  woolGeo.computeVertexNormals();
+  const body = new THREE.Mesh(woolGeo, wool);
+  body.position.y = 0.85;
+  g.add(body);
+  const dark = new THREE.MeshStandardMaterial({ color: 0x4a4038, roughness: 0.9 });
+  const headG = new THREE.Group();
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.45, 0.45), dark);
+  headG.add(head);
+  for (const sx of [-1, 1]) {
+    const ear = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.09, 0.14), dark);
+    ear.position.set(0.26 * sx, 0.08, 0);
+    ear.rotation.z = 0.5 * sx;
+    headG.add(ear);
+  }
+  headG.position.set(0, 1.05, 0.78);
+  g.add(headG);
+  const legs = legPair(g, 0.24, 0.4, 0.5, 0.09, dark).concat(legPair(g, 0.24, -0.4, 0.5, 0.09, dark));
+  return { g, headG, legs, body };
+}
+function buildChicken() {
+  const g = new THREE.Group();
+  const feather = new THREE.MeshStandardMaterial({ color: 0xf5efe0, roughness: 0.9 });
+  const featherB = new THREE.MeshStandardMaterial({ color: 0xd99a5c, roughness: 0.9 });
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.32, 10, 8), prand(animals.length) > 0.5 ? feather : featherB);
+  body.scale.set(0.9, 1, 1.25);
+  body.position.y = 0.42;
+  g.add(body);
+  const tailG = new THREE.Group();
+  for (let i = 0; i < 3; i++) {
+    const tf = new THREE.Mesh(new THREE.SphereGeometry(0.13, 8, 6), prand(i) > 0.5 ? feather : featherB);
+    tf.scale.set(0.5, 1, 0.8);
+    tf.position.set((i - 1) * 0.1, 0.1 + i * 0.05, -0.28 - i * 0.04);
+    tailG.add(tf);
+  }
+  tailG.position.y = 0.5;
+  tailG.rotation.x = -0.5;
+  g.add(tailG);
+  const headG = new THREE.Group();
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.17, 10, 8), body.material);
+  headG.add(head);
+  const beak = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.14, 6), new THREE.MeshStandardMaterial({ color: 0xe8a13c, roughness: 0.7 }));
+  beak.rotation.x = Math.PI / 2;
+  beak.position.set(0, -0.02, 0.2);
+  headG.add(beak);
+  const comb = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.12, 0.16), new THREE.MeshStandardMaterial({ color: 0xd4453a, roughness: 0.8 }));
+  comb.position.set(0, 0.18, 0.06);
+  headG.add(comb);
+  const wattle = new THREE.Mesh(new THREE.SphereGeometry(0.045, 6, 5), comb.material);
+  wattle.position.set(0, -0.11, 0.13);
+  headG.add(wattle);
+  headG.position.set(0, 0.72, 0.22);
+  g.add(headG);
+  const legs = legPair(g, 0.1, 0.02, 0.24, 0.028, new THREE.MeshStandardMaterial({ color: 0xe8a13c, roughness: 0.7 }));
+  return { g, headG, legs, body };
+}
+function buildDuck() {
+  const g = new THREE.Group();
+  const grey = new THREE.MeshStandardMaterial({ color: 0xd8d4c8, roughness: 0.9 });
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.3, 10, 8), grey);
+  body.scale.set(0.85, 0.8, 1.3);
+  body.position.y = 0.3;
+  g.add(body);
+  const headG = new THREE.Group();
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 8), new THREE.MeshStandardMaterial({ color: 0x2e7d4f, roughness: 0.7 }));
+  headG.add(head);
+  const beak = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.16, 6), new THREE.MeshStandardMaterial({ color: 0xe8a13c, roughness: 0.7 }));
+  beak.rotation.x = Math.PI / 2;
+  beak.scale.set(1.4, 1, 0.7);
+  beak.position.set(0, -0.03, 0.2);
+  headG.add(beak);
+  headG.position.set(0, 0.56, 0.24);
+  g.add(headG);
+  return { g, headG, legs: [], body };
+}
+const SPECIES = {
+  cow:    { build: buildCow,    pen: [-21, 7],   r: 5.6, speed: 0.85, y: 0 },
+  pig:    { build: buildPig,    pen: [-3, 17],   r: 4.8, speed: 1.0,  y: 0 },
+  sheep:  { build: buildSheep,  pen: [-10, -16], r: 5.2, speed: 0.9,  y: 0 },
+  chicken:{ build: buildChicken,pen: [6, 4],     r: 4.2, speed: 1.5,  y: 0 },
+  duck:   { build: buildDuck,   pen: [21, 18],   r: 4.6, speed: 0.6,  y: 0.1, pond: true },
+};
+const COUNTS = { cow: 2, pig: 2, sheep: 3, chicken: 4, duck: 2 };
+function spawnAnimals() {
+  for (const [sp, count] of Object.entries(COUNTS)) {
+    const cfg = SPECIES[sp];
+    for (let i = 0; i < count; i++) {
+      const parts = cfg.build();
+      const a = {
+        species: sp, name: nextName(sp),
+        g: parts.g, headG: parts.headG, legs: parts.legs, body: parts.body,
+        x: cfg.pen[0] + (prand(i * 3.1 + cfg.pen[0]) - 0.5) * cfg.r * 1.4,
+        z: cfg.pen[1] + (prand(i * 5.7 + cfg.pen[1]) - 0.5) * cfg.r * 1.4,
+        heading: prand(i * 7.9) * 6.28,
+        state: 'idle', stateT: 0.5 + prand(i * 9.3) * 2,
+        tx: 0, tz: 0, walkPhase: prand(i * 11.1) * 6.28,
+        pen: cfg.pen, penR: cfg.r, speed: cfg.speed, pond: !!cfg.pond,
+        yBase: 0, bounce: 0,
+        panicT: 0, panicTarget: null, panicTimer: 0,
+        markT: 0,
+      };
+      if (a.pond) { a.x = cfg.pen[0] + Math.cos(a.heading) * 3.4; a.z = cfg.pen[1] + Math.sin(a.heading) * 3.4; }
+      a.g.position.set(a.x, 0, a.z);
+      a.g.rotation.y = a.heading;
+      a.g.visible = true;
+      animalRoot.add(a.g);
+      animals.push(a);
+    }
+  }
+}
+
+/* ============================================================ panic marks ("!") */
+function markTexture() {
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = 64;
+  const ctx = cv.getContext('2d');
+  ctx.fillStyle = '#d4453a';
+  ctx.font = 'bold 52px -apple-system, Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 6;
+  ctx.strokeText('!', 32, 34);
+  ctx.fillText('!', 32, 34);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+let markMat;
+function buildMarkPool() {
+  markMat = new THREE.SpriteMaterial({ map: markTexture(), transparent: true, depthWrite: false });
+  const pool = [];
+  for (let i = 0; i < 14; i++) {
+    const s = new THREE.Sprite(markMat.clone());
+    s.scale.set(0.55, 0.55, 1);
+    s.visible = false;
+    animalRoot.add(s);
+    pool.push({ sprite: s, owner: null });
+  }
+  return pool;
+}
+
+/* ============================================================ UFO + beam */
+let ufoG, ufoLights = [], beamMesh, beamMat, glowDisc, shadowDisc;
+const ufo = { present: false, x: 0, y: 120, z: -160, tx: 0, ty: 0, tz: 0, wobbleT: 0, tiltX: 0, tiltZ: 0 };
+function buildUFO() {
+  ufoG = new THREE.Group();
+  const hull = new THREE.Mesh(new THREE.SphereGeometry(2.6, 24, 16),
+    new THREE.MeshStandardMaterial({ color: 0xb8c4cc, roughness: 0.25, metalness: 0.85 }));
+  hull.scale.set(1, 0.32, 1);
+  ufoG.add(hull);
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(2.35, 0.28, 10, 32),
+    new THREE.MeshStandardMaterial({ color: 0x8a96a0, roughness: 0.35, metalness: 0.8 }));
+  rim.rotation.x = Math.PI / 2;
+  ufoG.add(rim);
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(1.15, 20, 14, 0, Math.PI * 2, 0, Math.PI / 2),
+    new THREE.MeshStandardMaterial({ color: 0xa8e8f0, roughness: 0.1, metalness: 0.2, transparent: true, opacity: 0.75 }));
+  dome.position.y = 0.32;
+  ufoG.add(dome);
+  const pilot = new THREE.Mesh(new THREE.SphereGeometry(0.42, 10, 8),
+    new THREE.MeshStandardMaterial({ color: 0x7fce8a, roughness: 0.5 }));
+  pilot.position.y = 0.62;
+  ufoG.add(pilot);
+  const eye = new THREE.Mesh(new THREE.SphereGeometry(0.13, 8, 6),
+    new THREE.MeshStandardMaterial({ color: 0x1a2a1a, roughness: 0.3 }));
+  eye.position.set(0.13, 0.68, 0.38);
+  ufoG.add(eye);
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    const lt = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 6),
+      new THREE.MeshStandardMaterial({ color: 0xffe9a0, emissive: 0xffd76a, emissiveIntensity: 0.3, roughness: 0.4 }));
+    lt.position.set(Math.cos(a) * 2.15, -0.28, Math.sin(a) * 2.15);
+    lt.userData.phase = i / 8;
+    ufoG.add(lt);
+    ufoLights.push(lt);
+  }
+  ufoG.visible = false;
+  ufoG.name = 'ufo';
+  return ufoG;
+}
+function buildBeam() {
+  beamMat = new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending,
+    uniforms: { uBeam: U.beam, uTime: U.time, uLen: { value: 1 } },
+    vertexShader: /* glsl */`
+      uniform float uLen;
+      varying float vT;
+      varying vec3 vNv;
+      varying vec3 vVv;
+      void main(){
+        vT = clamp(position.y / -uLen, 0.0, 1.0);
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        vNv = normalize(normalMatrix * normal);
+        vVv = normalize(-mv.xyz);
+        gl_Position = projectionMatrix * mv;
+      }
+    `,
+    fragmentShader: /* glsl */`
+      uniform float uBeam;
+      uniform float uTime;
+      varying float vT;
+      varying vec3 vNv;
+      varying vec3 vVv;
+      ${GLSL_NOISE}
+      void main(){
+        float facing = abs(dot(normalize(vNv), normalize(vVv)));
+        float rings = 0.72 + 0.28 * sin(vT * 34.0 - uTime * 7.0);
+        float shimmer = 0.8 + 0.2 * vnoise(vec2(vT * 18.0, uTime * 1.7));
+        float a = (1.0 - vT) * pow(facing, 1.1) * uBeam * 0.34 * rings * shimmer;
+        gl_FragColor = vec4(vec3(0.62, 0.85, 1.0) * (0.85 + 0.5 * (1.0 - vT)), a);
+        ${GLSL_OUT}
+      }
+    `,
+  });
+  const geo = new THREE.CylinderGeometry(0.5, 3.4, 1, 22, 1, true);
+  geo.translate(0, -0.5, 0); // apex at origin, extends downward
+  beamMesh = new THREE.Mesh(geo, beamMat);
+  beamMesh.frustumCulled = false;
+  beamMesh.visible = false;
+  beamMesh.name = 'beam';
+  glowDisc = new THREE.Mesh(new THREE.CircleGeometry(3.6, 26),
+    new THREE.MeshBasicMaterial({ color: 0x9fd8f0, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
+  glowDisc.rotation.x = -Math.PI / 2;
+  glowDisc.visible = false;
+  glowDisc.name = 'glowDisc';
+  shadowDisc = new THREE.Mesh(new THREE.CircleGeometry(3.2, 26),
+    new THREE.MeshBasicMaterial({ color: 0x2a3a20, transparent: true, opacity: 0, depthWrite: false }));
+  shadowDisc.rotation.x = -Math.PI / 2;
+  shadowDisc.visible = false;
+  shadowDisc.name = 'ufoShadow';
+  const g = new THREE.Group();
+  g.add(beamMesh, glowDisc, shadowDisc);
+  g.name = 'beamGroup';
+  return g;
+}
+function setBeam(v) {
+  U.beam.value = Math.max(0, v);
+  beamMesh.visible = U.beam.value > 0.02;
+  glowDisc.visible = beamMesh.visible;
+  if (beamMesh.visible) {
+    glowDisc.material.opacity = 0.5 * U.beam.value;
+  }
+}
+
+/* ============================================================ butterflies */
+const butterflies = [];
+function buildButterflies() {
+  const g = new THREE.Group();
+  const cols = [0xff9ec4, 0xffd166, 0x9ecbff];
+  for (let i = 0; i < 4; i++) {
+    const b = new THREE.Group();
+    const wingGeo = new THREE.PlaneGeometry(0.22, 0.3);
+    const wm = new THREE.MeshStandardMaterial({ color: cols[i % 3], roughness: 0.8, side: THREE.DoubleSide, transparent: true, opacity: 0.95 });
+    const wl = new THREE.Mesh(wingGeo, wm);
+    wl.position.x = -0.11;
+    const wr = new THREE.Mesh(wingGeo, wm);
+    wr.position.x = 0.11;
+    const wlG = new THREE.Group(); wlG.add(wl);
+    const wrG = new THREE.Group(); wrG.add(wr);
+    b.add(wlG, wrG);
+    b.position.set(6 + i * 4, 2.2, 8 - i * 3);
+    g.add(b);
+    butterflies.push({ g: b, wl: wlG, wr: wrG, a: prand(i * 3.3) * 6.28, r: 6 + prand(i * 5.1) * 10, h: 1.8 + prand(i * 7.7) * 1.6, cx: -4 + i * 4, cz: 2 + i * 3, phase: prand(i * 9.9) * 6.28 });
+  }
+  g.name = 'butterflies';
+  return g;
+}
+
+/* ============================================================ game state & phases */
+let phase = 'idle';
+let phaseT = 0;
+let pendingAbduct = 0;
+let target = null;          // animal being abducted
+let dropQueue = [];         // animals to beam down
+let panicUntil = 0;
+let toastTimer = 0;
+let beamFailsafe = 0;
+let simT = 0, frozen = false, timeScale = 1;
+let dtG = 0.016;
+let quality = 2, downgraded = false, emaMs = 16, fps = 0, _fc = 0, _ft = 0, _slowFrames = 0;
+const partsMap = {};
+let clock, scene, camera, renderer, controls;
+
+const STATUS = {
+  idle: 'a peaceful day on the farm',
+  ufoIncoming: 'something hums overhead\u2026',
+  beamWarmup: 'the beam powers up!',
+  lift: 'abduction in progress!',
+  ufoDepart: 'it speeds away with its catch',
+  ufoReturn: 'the UFO returns\u2026',
+  beamDown: 'returning everyone home',
+};
+function setPhase(p) { phase = p; phaseT = 0; }
+
+const btnAbduct = document.getElementById('btnAbduct');
+const btnReturn = document.getElementById('btnReturn');
+const elCounter = document.getElementById('counter');
+const elToast = document.getElementById('toast');
+const elToastMsg = document.getElementById('toastMsg');
+function toast(msg, dur = 3.2) {
+  elToastMsg.textContent = msg;
+  elToast.style.opacity = 1;
+  toastTimer = dur;
+}
+function onFarm() { return animals.filter(a => a.state !== 'abducted'); }
+
+function press(which) {
+  if (which === 'abduct') {
+    const free = onFarm();
+    if (free.length === 0) {
+      toast('The farm is empty\u2026 👽\u2014 only crumbs remain', 3.4);
+      return;
+    }
+    if (phase !== 'idle') { pendingAbduct++; return; }
+    startAbduction();
+  } else if (which === 'return') {
+    const gone = animals.filter(a => a.state === 'abducted');
+    if (gone.length === 0) { toast('Everyone is already here! \uD83D\uDC3E'); return; }
+    if (phase !== 'idle' && phase !== 'ufoDepart') { pendingReturn = true; return; }
+    startReturn();
+  }
+}
+let pendingReturn = false;
+
+function startAbduction() {
+  const free = onFarm().filter(a => a.state !== 'lifted' && a.state !== 'panic');
+  const pick = free.length ? free : onFarm();
+  target = pick[Math.floor(Math.random() * pick.length)];
+  setPhase('ufoIncoming');
+  ufo.present = true;
+  ufoG.visible = true;
+  ufo.x = 90; ufo.y = 110; ufo.z = -150;
+  ufo.tx = target.x; ufo.tz = target.z; ufo.ty = 15.5;
+  panicUntil = simT + 7.5;
+  for (const a of animals) {
+    if (a !== target && a.state !== 'abducted' && !a.pond) {
+      a.state = 'panic';
+      a.panicT = panicUntil - simT;
+      a.panicTimer = 0;
+      a.markT = 0;
+    }
+  }
+  beamFailsafe = simT + 16;
+}
+function startReturn() {
+  setPhase('ufoReturn');
+  ufo.present = true;
+  ufoG.visible = true;
+  ufo.x = -80; ufo.y = 110; ufo.z = 150;
+  ufo.tx = 0; ufo.ty = 20; ufo.tz = 0;
+  dropQueue = animals.filter(a => a.state === 'abducted').slice();
+  beamFailsafe = simT + 8 + dropQueue.length * 2.2;
+}
+function clearBeam() {
+  setBeam(0);
+  beamMesh.visible = false;
+  glowDisc.visible = false;
+  shadowDisc.visible = false;
+  shadowDisc.material.opacity = 0;
+}
+
+/* ============================================================ animal update */
+function updateAnimals(dt) {
+  for (const a of animals) {
+    if (a.state === 'abducted') continue;
+    a.stateT -= dt;
+    const cfg = a.pond ? { r: 3.4 } : { r: a.penR * 0.72 };
+
+    if (a.state === 'idle') {
+      if (a.stateT <= 0) {
+        if (!a.pond && Math.random() < 0.45) {
+          a.state = 'graze';
+          a.stateT = 2 + Math.random() * 3;
+        } else {
+          a.state = 'wander';
+          const ang = Math.random() * Math.PI * 2;
+          const rr = a.pond ? null : cfg.r * Math.sqrt(Math.random());
+          if (a.pond) {
+            a.pondAng = (a.pondAng === undefined ? a.heading : a.pondAng) + (Math.random() - 0.5) * 2.2;
+            a.tx = a.pen[0] + Math.cos(a.pondAng) * cfg.r;
+            a.tz = a.pen[1] + Math.sin(a.pondAng) * cfg.r;
+          } else {
+            a.tx = a.pen[0] + Math.cos(ang) * rr;
+            a.tz = a.pen[1] + Math.sin(ang) * rr;
+          }
+          a.stateT = 12;
+        }
+      }
+      a.g.position.y = a.yBase + Math.sin(simT * 2.2 + a.walkPhase) * 0.02;
+    } else if (a.state === 'graze') {
+      a.headG.rotation.x = damp(a.headG.rotation.x, 1.15, 0.4, dt);
+      a.headG.rotation.z = Math.sin(simT * 6 + a.walkPhase) * 0.06;
+      if (a.stateT <= 0) { a.state = 'idle'; a.stateT = 0.6 + Math.random() * 2; }
+    } else if (a.state === 'wander') {
+      a.headG.rotation.x = damp(a.headG.rotation.x, 0, 0.4, dt);
+      const dx = a.tx - a.x, dz = a.tz - a.z;
+      const d = Math.hypot(dx, dz);
+      if (d < 0.25 || a.stateT <= 0) {
+        a.state = 'idle';
+        a.stateT = 0.8 + Math.random() * 2.5;
+      } else {
+        const want = Math.atan2(dx, dz);
+        a.heading += wrapPi(want - a.heading) * (1 - Math.exp(-dt / 0.25));
+        const sp = a.speed;
+        a.x += Math.sin(a.heading) * sp * dt;
+        a.z += Math.cos(a.heading) * sp * dt;
+        a.walkPhase += dt * sp * 5.2;
+        if (a.pond) a.g.position.y = 0.1 + Math.sin(simT * 3 + a.walkPhase) * 0.05;
+      }
+    } else if (a.state === 'panic') {
+      a.panicT -= dt;
+      a.panicTimer -= dt;
+      a.markT -= dt;
+      if (a.markT <= 0) {
+        a.markT = 0.8 + Math.random() * 0.7;
+        const slot = markPool.find(s => !s.owner || s.owner === a);
+        if (slot) { slot.owner = a; slot.sprite.visible = true; slot.sprite.userData.popT = 0.55; }
+      }
+      if (a.panicTimer <= 0) {
+        a.panicTimer = 0.7 + Math.random() * 0.6;
+        const ang = Math.random() * Math.PI * 2;
+        const rr = Math.random() * 34;
+        a.tx = Math.cos(ang) * rr;
+        a.tz = Math.sin(ang) * rr;
+      }
+      const dx = a.tx - a.x, dz = a.tz - a.z;
+      const d = Math.hypot(dx, dz);
+      if (d > 0.4) {
+        const want = Math.atan2(dx, dz);
+        a.heading += wrapPi(want - a.heading) * (1 - Math.exp(-dt / 0.16));
+        const sp = 5.2 + a.speed;
+        a.x += Math.sin(a.heading) * sp * dt;
+        a.z += Math.cos(a.heading) * sp * dt;
+        a.walkPhase += dt * 20;
+        a.g.position.y = Math.abs(Math.sin(a.walkPhase * 0.8)) * 0.14;
+      }
+      const rr2 = Math.hypot(a.x, a.z);
+      if (rr2 > 38) { a.x *= 38 / rr2; a.z *= 38 / rr2; }
+      if (a.panicT <= 0) { a.state = 'homing'; a.stateT = 12; }
+    } else if (a.state === 'homing') {
+      const dx = a.pen[0] - a.x, dz = a.pen[1] - a.z;
+      const d = Math.hypot(dx, dz);
+      if (d < 0.5 || a.stateT <= 0) {
+        a.state = 'idle';
+        a.stateT = 0.5 + Math.random();
+        a.headG.rotation.x = 0;
+      } else {
+        const want = Math.atan2(dx, dz);
+        a.heading += wrapPi(want - a.heading) * (1 - Math.exp(-dt / 0.3));
+        a.x += Math.sin(a.heading) * a.speed * 1.3 * dt;
+        a.z += Math.cos(a.heading) * a.speed * 1.3 * dt;
+        a.walkPhase += dt * a.speed * 6.5;
+      }
+    } else if (a.state === 'lifted') {
+      // handled by the phase sequencer (position driven there); legs flail here
+      a.walkPhase += dt * 26;
+      a.g.rotation.z = Math.sin(simT * 9 + a.walkPhase) * 0.25;
+    }
+
+    // leg swing
+    if (a.legs.length) {
+      const moving = (a.state === 'wander' || a.state === 'panic' || a.state === 'homing' || a.state === 'lifted');
+      const amp = a.state === 'panic' ? 0.85 : a.state === 'lifted' ? 0.7 : 0.5;
+      for (let i = 0; i < a.legs.length; i++) {
+        a.legs[i].rotation.x = moving ? Math.sin(a.walkPhase + (i % 2) * Math.PI) * amp : damp(a.legs[i].rotation.x, 0, 0.3, dt);
+      }
+    }
+    if (a.state !== 'graze' && a.state !== 'lifted') {
+      a.headG.rotation.x = damp(a.headG.rotation.x, 0, 0.5, dt);
+      a.headG.rotation.z = damp(a.headG.rotation.z, 0, 0.5, dt);
+    }
+
+    if (a.state !== 'lifted') {
+      a.g.position.x = a.x;
+      a.g.position.z = a.z;
+      if (!a.pond && a.state !== 'panic') a.g.position.y = a.yBase + a.bounce;
+      if (a.bounce > 0) {
+        a.bounce = damp(a.bounce, 0, 0.12, dt);
+        a.g.scale.y = 1 + a.bounce * 1.6;
+        a.g.scale.x = a.g.scale.z = 1 - a.bounce * 0.5;
+        if (a.bounce < 0.01) { a.g.scale.setScalar(1); a.bounce = 0; }
+      }
+      a.g.rotation.y = a.heading;
+      if (a.state !== 'panic' && a.state !== 'homing') a.g.rotation.z = damp(a.g.rotation.z, 0, 0.3, dt);
+    }
+  }
+  // marks expire
+  for (const slot of markPool) {
+    if (!slot.sprite.visible) continue;
+    slot.sprite.userData.popT -= dt;
+    if (slot.sprite.userData.popT <= 0 || !slot.owner || slot.owner.state !== 'panic') {
+      slot.sprite.visible = false;
+      slot.owner = null;
+    } else if (slot.owner) {
+      slot.sprite.position.set(slot.owner.g.position.x, slot.owner.g.position.y + 1.9, slot.owner.g.position.z);
+      const t = slot.sprite.userData.popT / 0.55;
+      slot.sprite.scale.setScalar(0.55 * (0.6 + 0.4 * Math.min(1, (1 - t) * 3)));
+    }
+  }
+}
+let markPool = [];
+
+/* ============================================================ UFO sequence */
+function updateUFO(dt) {
+  if (!ufo.present) return;
+  phaseT += dt;
+  const k = 1 - Math.exp(-dt / 0.5);
+  const hoverBob = Math.sin(simT * 1.7) * 0.5;
+
+  if (phase === 'ufoIncoming') {
+    ufo.x += (ufo.tx - ufo.x) * k * 0.9;
+    ufo.y += (ufo.ty - ufo.y) * k * 0.75;
+    ufo.z += (ufo.tz - ufo.z) * k * 0.9;
+    if (Math.abs(ufo.x - ufo.tx) < 0.6 && Math.abs(ufo.y - ufo.ty) < 1.2 && Math.abs(ufo.z - ufo.tz) < 0.6) {
+      setPhase('beamWarmup');
+      shadowDisc.visible = true;
+    }
+  } else if (phase === 'beamWarmup') {
+    ufo.y = ufo.ty + hoverBob;
+    setBeam(damp(U.beam.value, 1, 0.28, dt));
+    shadowDisc.material.opacity = 0.28 * U.beam.value;
+    if (U.beam.value > 0.85) {
+      setPhase('lift');
+      phaseT = 0;
+      target.state = 'lifted';
+      target.liftT = 0;
+      toast(`${target.name} has been chosen\u2026 \uD83D\uDC7D`, 2.6);
+    }
+  } else if (phase === 'lift') {
+    ufo.y = ufo.ty + hoverBob;
+    target.liftT += dt;
+    const rise = Math.min(1, target.liftT / 2.0);
+    const ease = rise * rise * (3 - 2 * rise);
+    const gx = target.g.position.x, gz = target.g.position.z;
+    const shrink = rise > 0.75 ? (1 - (rise - 0.75) / 0.25) : 1;
+    target.g.position.y = ease * (ufo.y - 2.2);
+    target.g.rotation.y += dt * (2.5 + rise * 6);
+    target.g.scale.setScalar(Math.max(0.05, shrink));
+    shadowDisc.material.opacity = 0.28 * (1 - rise * 0.5);
+    if (rise >= 1) {
+      target.state = 'abducted';
+      target.g.visible = false;
+      target.g.scale.setScalar(1);
+      toast(`${target.name} was beamed up! \u2728`, 2.4);
+      setPhase('ufoDepart');
+      phaseT = 0;
+      ufo.wobbleT = 1.2;
+    }
+  } else if (phase === 'ufoDepart') {
+    setBeam(damp(U.beam.value, 0, 0.22, dt));
+    shadowDisc.material.opacity = 0.28 * U.beam.value;
+    if (U.beam.value < 0.03) clearBeam();
+    if (ufo.wobbleT > 0) {
+      ufo.wobbleT -= dt;
+      ufo.tiltX = Math.sin(simT * 14) * 0.14 * ufo.wobbleT;
+      ufo.tiltZ = Math.cos(simT * 11) * 0.14 * ufo.wobbleT;
+      ufo.y += dt * 3;
+    } else {
+      ufo.tiltX = damp(ufo.tiltX, 0, 0.3, dt);
+      ufo.tiltZ = damp(ufo.tiltZ, 0, 0.3, dt);
+      ufo.y += dt * 26;
+      ufo.z -= dt * 34;
+    }
+    if (ufo.y > 120) {
+      ufo.present = false;
+      ufoG.visible = false;
+      clearBeam();
+      setPhase('idle');
+      panicUntil = simT + 1.6;
+      for (const a of animals) if (a.state === 'panic') a.panicT = Math.min(a.panicT, 1.6);
+    }
+  } else if (phase === 'ufoReturn') {
+    ufo.x += (ufo.tx - ufo.x) * k * 0.9;
+    ufo.y += (ufo.ty - ufo.y) * k * 0.75;
+    ufo.z += (ufo.tz - ufo.z) * k * 0.9;
+    if (Math.abs(ufo.x) < 1 && Math.abs(ufo.y - 20) < 1.5 && Math.abs(ufo.z) < 1) {
+      setPhase('beamDown');
+      phaseT = 0;
+      nextDropT = 0.4;
+    }
+  } else if (phase === 'beamDown') {
+    ufo.y = 20 + hoverBob;
+    nextDropT -= dt;
+    if (droppingAnimal) {
+      droppingAnimal.liftT += dt;
+      const fall = Math.min(1, droppingAnimal.liftT / 1.15);
+      const ease = fall * fall;
+      droppingAnimal.g.visible = true;
+      droppingAnimal.g.position.set(
+        droppingAnimal.pen[0] + Math.sin(droppingAnimal.dropAng) * 1.2,
+        (1 - ease) * (ufo.y - 3),
+        droppingAnimal.pen[1] + Math.cos(droppingAnimal.dropAng) * 1.2);
+      droppingAnimal.g.rotation.y += dt * 5 * (1 - fall);
+      if (fall >= 1) {
+        droppingAnimal.state = 'idle';
+        droppingAnimal.stateT = 0.4;
+        droppingAnimal.x = droppingAnimal.g.position.x;
+        droppingAnimal.z = droppingAnimal.g.position.z;
+        droppingAnimal.heading = droppingAnimal.dropAng + Math.PI;
+        droppingAnimal.bounce = 0.35;
+        droppingAnimal.g.position.y = 0;
+        droppingAnimal = null;
+        nextDropT = 0.55;
+      }
+    } else if (nextDropT <= 0 && dropQueue.length) {
+      droppingAnimal = dropQueue.shift();
+      droppingAnimal.state = 'dropping';
+      droppingAnimal.liftT = 0;
+      droppingAnimal.dropAng = Math.random() * Math.PI * 2;
+      setBeam(damp(U.beam.value, 1, 0.3, dt));
+    }
+    if (!dropQueue.length && !droppingAnimal) {
+      setBeam(damp(U.beam.value, 0, 0.25, dt));
+      if (U.beam.value < 0.03) {
+        clearBeam();
+        setPhase('ufoDepart2');
+        ufo.wobbleT = 0.8;
+        toast('Everyone is back on the farm! \uD83D\uDC04\uD83D\uDC16', 3.2);
+      }
+    }
+  } else if (phase === 'ufoDepart2') {
+    setBeam(0);
+    if (ufo.wobbleT > 0) {
+      ufo.wobbleT -= dt;
+      ufo.tiltX = Math.sin(simT * 13) * 0.12 * ufo.wobbleT;
+    } else {
+      ufo.tiltX = damp(ufo.tiltX, 0, 0.3, dt);
+      ufo.y += dt * 26;
+      ufo.x += dt * 30;
+    }
+    if (ufo.y > 120) {
+      ufo.present = false;
+      ufoG.visible = false;
+      clearBeam();
+      setPhase('idle');
+    }
+  }
+
+  // failsafe: never leave the beam on
+  if (U.beam.value > 0.02 && simT > beamFailsafe) {
+    clearBeam();
+    if (target && target.state === 'lifted') { target.state = 'abducted'; target.g.visible = false; target.g.scale.setScalar(1); }
+    if (droppingAnimal) {
+      droppingAnimal.state = 'idle';
+      droppingAnimal.g.visible = true;
+      droppingAnimal.g.position.y = 0;
+      droppingAnimal.x = droppingAnimal.g.position.x;
+      droppingAnimal.z = droppingAnimal.g.position.z;
+      droppingAnimal = null;
+    }
+    dropQueue.forEach(a => { if (a.state === 'dropping') { a.state = 'idle'; a.g.position.y = 0; a.g.visible = true; } });
+    if (phase !== 'idle' && phase !== 'ufoDepart' && phase !== 'ufoDepart2') setPhase('idle');
+  }
+
+  ufoG.position.set(ufo.x, ufo.y, ufo.z);
+  ufoG.rotation.x = ufo.tiltX;
+  ufoG.rotation.z = ufo.tiltZ;
+  ufoG.rotation.y = simT * 0.4;
+  // rim lights chase
+  for (const lt of ufoLights) {
+    lt.material.emissiveIntensity = 0.25 + Math.max(0, Math.sin(simT * 6 - lt.userData.phase * Math.PI * 2)) * (ufo.present ? 2.2 : 0);
+  }
+}
+let nextDropT = 0;
+let droppingAnimal = null;
+
+/* ============================================================ boot */
+let hemi, sunL;
+function boot() {
+  const isCoarse = matchMedia('(pointer: coarse)').matches;
+  renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, isCoarse ? 1.7 : 2));
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.08;
+  const el = renderer.domElement;
+  for (const fn of ['setPointerCapture', 'releasePointerCapture']) {
+    const orig = el[fn].bind(el);
+    el[fn] = (id) => { try { orig(id); } catch (e) {} };
+  }
+  document.body.insertBefore(el, document.body.firstChild);
+
+  scene = new THREE.Scene();
+  scene.fog = new THREE.Fog(0xa8d8ea, 120, 460);
+  window.__scene = scene;
+  clock = new THREE.Clock();
+
+  camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 1200);
+  camera.position.set(38, 27, 46);
+  window.__cam = camera;
+
+  controls = new OrbitControls(camera, renderer.domElement);
+  controls.target.set(0, 2, 0);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.minDistance = 16;
+  controls.maxDistance = 95;
+  controls.maxPolarAngle = 1.42;
+  controls.minPolarAngle = 0.35;
+
+  hemi = new THREE.HemisphereLight(0xbfe3ff, 0x8a9a5a, 0.75);
+  scene.add(hemi);
+  sunL = new THREE.DirectionalLight(0xfff1d0, 1.35);
+  sunL.position.set(50, 70, 30);
+  scene.add(sunL);
+
+  const islandG = buildIsland();
+  const house = buildFarmhouse();
+  scene.add(buildSky(), buildClouds(), islandG, house, buildWindmill(), buildPond(), buildTrees(islandG), buildPens(), buildFlora());
+  scene.add(buildSmoke(house));
+
+  animalRoot = new THREE.Group();
+  animalRoot.name = 'animals';
+  scene.add(animalRoot);
+  spawnAnimals();
+  markPool = buildMarkPool();
+
+  scene.add(buildBeam(), buildUFO(), buildButterflies());
+
+  btnAbduct.addEventListener('click', () => press('abduct'));
+  btnReturn.addEventListener('click', () => press('return'));
+
+  addEventListener('resize', onResize);
+  onResize();
+
+  window.__app = {
+    ready: true,
+    version: '1.0.0',
+    press,
+    params,
+    parts,
+    debug: {
+      freeze(v) { frozen = !!v; },
+      timeScale(s) { timeScale = s; },
+      hold(key, val, sec) { holds[key] = { v: val, until: simT + sec }; },
+      orbit(theta, phi, radius) {
+        const s = new THREE.Spherical(radius, phi, theta);
+        camera.position.setFromSpherical(s);
+        controls.target.set(0, 2, 0);
+        controls.update();
+      },
+      beamNow(v, sec) { setBeam(v); holds.beam = { v, until: simT + sec }; },
+      errors() { return window.__errors.slice(0, 10); },
+      pixelStats(x, y, w, h) { return pixelStats(x, y, w, h); },
+      animals() {
+        return animals.map(a => ({ name: a.name, species: a.species, state: a.state,
+          x: +a.g.position.x.toFixed(1), z: +a.g.position.z.toFixed(1), visible: a.g.visible }));
+      },
+    },
+  };
+  renderer.setAnimationLoop(tick);
+}
+let holds = {};
+
+/* pixel stats probe */
+function pixelStats(x, y, w, h) {
+  const src = renderer.domElement;
+  const cols = 48, rows = 27;
+  const cv = document.createElement('canvas');
+  cv.width = cols; cv.height = rows;
+  const ctx = cv.getContext('2d', { willReadFrequently: true });
+  const sx = x / innerWidth * src.width, sy = y / innerHeight * src.height;
+  const sw = w / innerWidth * src.width, sh = h / innerHeight * src.height;
+  ctx.drawImage(src, sx, sy, sw, sh, 0, 0, cols, rows);
+  const data = ctx.getImageData(0, 0, cols, rows).data;
+  const ramp = ' .:-=+*#%@';
+  let sum = 0, bright = 0;
+  const grid = [];
+  for (let r = 0; r < rows; r++) {
+    let line = '';
+    for (let c = 0; c < cols; c++) {
+      const i = (r * cols + c) * 4;
+      const lum = (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114);
+      sum += lum;
+      if (lum > 150) bright++;
+      line += ramp[Math.min(ramp.length - 1, Math.floor(lum / 255 * ramp.length))];
+    }
+    grid.push(line);
+  }
+  return { mean: +(sum / (cols * rows) / 255).toFixed(4), brightFrac: +(bright / (cols * rows)).toFixed(4), grid };
+}
+
+/* ============================================================ tick */
+let hudAcc = 0;
+function tick() {
+  const dtRaw = Math.min(clock.getDelta(), 0.1);
+  dtG = dtRaw * timeScale;
+  if (!frozen) simT += dtG;
+
+  _fc++; _ft += dtRaw;
+  if (_ft >= 0.5) { fps = Math.round(_fc / _ft); _fc = 0; _ft = 0; }
+  emaMs = emaMs * 0.95 + dtRaw * 1000 * 0.05;
+  if (emaMs > 34 && ++_slowFrames > 200) {
+    if (quality > 1) {
+      quality = 1;
+      renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.15));
+    }
+    _slowFrames = 100;
+  } else if (emaMs < 22 && quality === 1 && !downgraded) {
+    downgraded = true;
+    quality = 2;
+    renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+  }
+
+  // held debug values
+  for (const key of Object.keys(holds)) {
+    if (simT >= holds[key].until) {
+      if (key === 'beam') setBeam(0);
+      delete holds[key];
+    } else if (key === 'beam') setBeam(holds[key].v);
+  }
+
+  if (!frozen) {
+    updateAnimals(dtG);
+    updateUFO(dtG);
+    // pending queued abductions
+    if (phase === 'idle' && pendingAbduct > 0) {
+      pendingAbduct--;
+      startAbduction();
+    }
+    if (phase === 'idle' && pendingReturn) {
+      pendingReturn = false;
+      startReturn();
+    }
+    // idle failsafe beam clear
+    if (phase === 'idle' && U.beam.value > 0.02) clearBeam();
+  }
+
+  // ambient motion
+  bladesG.rotation.z += dtG * 1.1;
+  scene.traverse(o => {
+    if (o.name === 'tree' && o.userData.swayPhase !== undefined) o.rotation.z = Math.sin(simT * 0.9 + o.userData.swayPhase) * 0.02;
+    if (o.name === 'floatRock') o.position.y = o.userData.baseY + Math.sin(simT * 0.7 + o.userData.phase) * 0.5;
+  });
+  for (const b of butterflies) {
+    b.a += dtG * 0.5;
+    b.g.position.set(b.cx + Math.cos(b.a) * b.r, b.h + Math.sin(simT * 2.1 + b.phase) * 0.5, b.cz + Math.sin(b.a) * b.r);
+    b.g.rotation.y = -b.a;
+    const flap = Math.sin(simT * 14 + b.phase) * 0.9;
+    b.wl.rotation.y = flap;
+    b.wr.rotation.y = -flap;
+  }
+
+  U.time.value = simT;
+  updateHud(dtRaw);
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+function updateHud(dt) {
+  if (toastTimer > 0) {
+    toastTimer -= dt;
+    if (toastTimer <= 0) elToast.style.opacity = 0;
+  }
+  hudAcc += dt;
+  if (hudAcc < 0.2) return;
+  hudAcc = 0;
+  const n = onFarm().length;
+  elCounter.innerHTML = '&#128024; ' + n + ' animal' + (n === 1 ? '' : 's') + ' on the farm';
+  btnAbduct.textContent = phase === 'idle' ? 'Abduct an animal \uD83D\uDC7D' : 'Abducting\u2026 (' + (pendingAbduct + 1) + ')';
+  btnReturn.textContent = animals.some(a => a.state === 'abducted') ? 'Return everyone' : 'Everyone is here';
+  btnReturn.disabled = !animals.some(a => a.state === 'abducted') && phase === 'idle';
+}
+
+function params() {
+  return {
+    phase, phaseT: +phaseT.toFixed(2),
+    onFarm: onFarm().length,
+    abducted: animals.filter(a => a.state === 'abducted').length,
+    panicking: animals.filter(a => a.state === 'panic').length,
+    marks: markPool.filter(s => s.sprite.visible).length,
+    pendingAbduct, pendingReturn,
+    beam: +U.beam.value.toFixed(3),
+    ufo: ufo.present ? { x: +ufo.x.toFixed(1), y: +ufo.y.toFixed(1), z: +ufo.z.toFixed(1) } : null,
+    toast: elToast.style.opacity === '1',
+    fps, frameMs: +emaMs.toFixed(1), quality,
+    simT: +simT.toFixed(2),
+  };
+}
+function parts(name, vis) {
+  const map = {
+    sky: scene.children.find(o => o.name === 'sky'),
+    clouds: scene.children.find(o => o.name === 'clouds'),
+    island: scene.children.find(o => o.name === 'island'),
+    farmhouse: scene.children.find(o => o.name === 'farmhouse'),
+    windmill: scene.children.find(o => o.name === 'windmill'),
+    pond: scene.children.find(o => o.name === 'pond'),
+    trees: scene.children.find(o => o.name === 'trees'),
+    pens: scene.children.find(o => o.name === 'pens'),
+    flora: scene.children.find(o => o.name === 'flora'),
+    animals: animalRoot,
+    ufo: scene.children.find(o => o.name === 'ufo'),
+    beamGroup: scene.children.find(o => o.name === 'beamGroup'),
+    smoke: scene.children.find(o => o.name === 'smoke'),
+    butterflies: scene.children.find(o => o.name === 'butterflies'),
+  };
+  if (name === undefined) return Object.keys(map);
+  const o = map[name];
+  if (!o) return null;
+  o.visible = !!vis;
+  return { name, visible: o.visible };
+}
+
+function onResize() {
+  camera.aspect = innerWidth / innerHeight;
+  camera.fov = innerWidth / innerHeight < 0.75 ? 58 : 50;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+  U.proj.value = renderer.domElement.height / (2 * Math.tan(camera.fov * Math.PI / 360));
+}
+
+try {
+  boot();
+} catch (e) {
+  fail(e);
+  console.error(e);
+}
+</script>
+</body>
+</html>
