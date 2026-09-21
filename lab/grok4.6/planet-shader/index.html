@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no"/>
+<title>Orbit</title>
+<style>
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: #000;
+    overflow: hidden;
+    font-family: "Segoe UI", system-ui, sans-serif;
+    user-select: none;
+    touch-action: none;
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    cursor: grab;
+  }
+  canvas:active { cursor: grabbing; }
+  #season {
+    position: fixed;
+    left: 50%;
+    bottom: 28px;
+    transform: translateX(-50%);
+    padding: 10px 28px;
+    border: 1px solid rgba(180, 210, 255, 0.35);
+    border-radius: 999px;
+    background: rgba(8, 16, 32, 0.55);
+    color: #dce8ff;
+    font-size: 14px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    backdrop-filter: blur(10px);
+    cursor: pointer;
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.04), 0 8px 28px rgba(0,0,0,0.35);
+  }
+  #season:hover {
+    background: rgba(20, 40, 70, 0.7);
+    border-color: rgba(200, 225, 255, 0.55);
+  }
+  #hint {
+    position: fixed;
+    top: 22px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(210, 225, 255, 0.45);
+    font-size: 12px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hint">drag to tilt</div>
+<button id="season" type="button">Season</button>
+<script>
+const canvas = document.getElementById("c");
+const gl = canvas.getContext("webgl", { antialias: false, alpha: false });
+if (!gl) {
+  document.body.textContent = "WebGL is required.";
+  throw new Error("WebGL");
+}
+
+const VERT = `
+attribute vec2 aPos;
+void main(){
+  gl_Position = vec4(aPos, 0.0, 1.0);
+}
+`;
+
+const FRAG = `
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+precision highp float;
+#else
+precision mediump float;
+#endif
+
+uniform vec2 uRes;
+uniform float uTime;
+uniform vec2 uRot;
+uniform float uSeason;
+
+vec3 hash3(vec3 p){
+  p = vec3(
+    dot(p, vec3(127.1, 311.7, 74.7)),
+    dot(p, vec3(269.5, 183.3, 246.1)),
+    dot(p, vec3(113.5, 271.9, 124.6))
+  );
+  return -1.0 + 2.0 * fract(sin(p) * 43758.5453123);
+}
+
+float hash(vec3 p){
+  return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453123);
+}
+
+float noise(vec3 p){
+  vec3 i = floor(p);
+  vec3 f = fract(p);
+  vec3 u = f * f * (3.0 - 2.0 * f);
+  return mix(
+    mix(mix(dot(hash3(i + vec3(0.0,0.0,0.0)), f - vec3(0.0,0.0,0.0)),
+            dot(hash3(i + vec3(1.0,0.0,0.0)), f - vec3(1.0,0.0,0.0)), u.x),
+        mix(dot(hash3(i + vec3(0.0,1.0,0.0)), f - vec3(0.0,1.0,0.0)),
+            dot(hash3(i + vec3(1.0,1.0,0.0)), f - vec3(1.0,1.0,0.0)), u.x), u.y),
+    mix(mix(dot(hash3(i + vec3(0.0,0.0,1.0)), f - vec3(0.0,0.0,1.0)),
+            dot(hash3(i + vec3(1.0,0.0,1.0)), f - vec3(1.0,0.0,1.0)), u.x),
+        mix(dot(hash3(i + vec3(0.0,1.0,1.0)), f - vec3(0.0,1.0,1.0)),
+            dot(hash3(i + vec3(1.0,1.0,1.0)), f - vec3(1.0,1.0,1.0)), u.x), u.y), u.z);
+}
+
+float fbm(vec3 p){
+  float f = 0.0;
+  float a = 0.5;
+  for(int i = 0; i < 5; i++){
+    f += a * noise(p);
+    p *= 2.07;
+    a *= 0.5;
+  }
+  return f;
+}
+
+float fbm4(vec3 p){
+  float f = 0.0;
+  float a = 0.5;
+  for(int i = 0; i < 4; i++){
+    f += a * noise(p);
+    p *= 2.11;
+    a *= 0.5;
+  }
+  return f;
+}
+
+vec3 rotateY(vec3 p, float a){
+  float c = cos(a), s = sin(a);
+  return vec3(c * p.x + s * p.z, p.y, -s * p.x + c * p.z);
+}
+
+float sphNear(vec3 ro, vec3 rd, float r){
+  float b = dot(ro, rd);
+  float c = dot(ro, ro) - r * r;
+  float h = b * b - c;
+  if(h < 0.0) return -1.0;
+  h = sqrt(h);
+  float t = -b - h;
+  return t > 0.0 ? t : -1.0;
+}
+
+float terrain(vec3 p){
+  float w = noise(p * 2.15);
+  return fbm(p * 2.55 + w * 0.45) * 0.5 + 0.5;
+}
+
+float cloudF(vec3 p){
+  vec3 q = rotateY(p, uTime * 0.12);
+  float n = fbm4(q * 3.4) * 0.5 + 0.5;
+  float d = fbm4(q * 7.5 + 4.2) * 0.5 + 0.5;
+  float c = smoothstep(0.52, 0.78, n * 0.85 + d * 0.15);
+  c *= smoothstep(1.02, 0.55, abs(q.y));
+  return c;
+}
+
+vec3 shadePlanet(vec3 p, vec3 rd, vec3 sun){
+  vec3 n = normalize(p);
+  vec3 sp = rotateY(p, uTime * 0.08);
+  float h = terrain(sp);
+  float land = smoothstep(0.455, 0.505, h);
+
+  float lat = sp.y;
+  float clim = abs(lat - uSeason * 0.55);
+
+  vec3 deep = vec3(0.01, 0.05, 0.145);
+  vec3 shelf = vec3(0.04, 0.30, 0.34);
+  vec3 beach = vec3(0.72, 0.64, 0.42);
+  vec3 desert = vec3(0.62, 0.48, 0.24);
+  vec3 grass = vec3(0.16, 0.34, 0.11);
+  vec3 forest = vec3(0.06, 0.18, 0.055);
+  vec3 rock = vec3(0.30, 0.24, 0.20);
+  vec3 tundra = vec3(0.42, 0.40, 0.34);
+  vec3 iceCol = vec3(0.86, 0.91, 0.96);
+
+  vec3 ocean = mix(deep, shelf, smoothstep(0.32, 0.47, h));
+  float fres = pow(1.0 - max(dot(n, -rd), 0.0), 4.5);
+  ocean = mix(ocean, vec3(0.18, 0.42, 0.62), fres * 0.35);
+
+  vec3 soil = mix(desert, grass, smoothstep(0.10, 0.38, clim));
+  soil = mix(soil, forest, smoothstep(0.50, 0.64, h) * smoothstep(0.12, 0.40, clim));
+  soil = mix(soil, tundra, smoothstep(0.48, 0.72, clim));
+  soil = mix(beach, soil, smoothstep(0.48, 0.56, h));
+  soil = mix(soil, rock, smoothstep(0.68, 0.84, h));
+  soil *= 0.88 + 0.22 * noise(sp * 7.0);
+
+  vec3 alb = mix(ocean, soil, land);
+
+  float nEdge = 0.52 + uSeason * 0.40;
+  float sEdge = 0.52 - uSeason * 0.40;
+  float iceLand = max(
+    smoothstep(nEdge, nEdge + 0.15, lat),
+    smoothstep(sEdge, sEdge + 0.15, -lat)
+  );
+  float iceSea = max(
+    smoothstep(0.70 + uSeason * 0.22, 0.88, lat),
+    smoothstep(0.70 - uSeason * 0.22, 0.88, -lat)
+  );
+  float mtnSnow = land * smoothstep(0.74, 0.90, h) * smoothstep(0.22, 0.55, abs(lat));
+  float ice = mix(iceSea, max(iceLand, iceSea), land);
+  ice = max(ice, mtnSnow);
+  alb = mix(alb, iceCol, clamp(ice, 0.0, 1.0));
+
+  vec3 bump = vec3(
+    noise(sp * 9.0),
+    noise(sp * 9.0 + 5.1),
+    noise(sp * 9.0 + 11.7)
+  );
+  n = normalize(n + bump * (0.14 * land + 0.015));
+
+  float ndl = dot(n, sun);
+  float diff = max(ndl, 0.0);
+  float wrap = smoothstep(-0.14, 0.22, ndl);
+
+  vec3 hv = normalize(sun - rd);
+  float spec = pow(max(dot(n, hv), 0.0), 64.0);
+  spec *= (1.0 - land) * (1.0 - ice) * 0.85;
+  spec += pow(max(dot(n, hv), 0.0), 90.0) * ice * 0.35;
+
+  float csh = 1.0 - cloudF(normalize(p + sun * 0.03)) * 0.5 * max(ndl, 0.0);
+
+  vec3 light = vec3(1.02, 0.96, 0.88) * diff * csh;
+  float twi = exp(-ndl * ndl * 18.0);
+  light += vec3(1.0, 0.38, 0.12) * twi * 0.35;
+  light += vec3(0.025, 0.035, 0.07);
+
+  vec3 col = alb * light + vec3(1.0, 0.97, 0.9) * spec * csh;
+  col += vec3(0.12, 0.28, 0.55) * fres * (1.0 - land) * wrap * 0.22;
+
+  float night = smoothstep(0.06, -0.14, ndl);
+  float c1 = noise(sp * 48.0);
+  float c2 = noise(sp * 130.0 + 3.7);
+  float mega = smoothstep(0.80, 0.93, noise(sp * 22.0));
+  float city = smoothstep(0.60, 0.82, c1) * smoothstep(0.42, 0.72, c2);
+  city = max(city, mega * smoothstep(0.50, 0.78, c2));
+  city *= land * (1.0 - ice) * night;
+  city *= smoothstep(0.72, 0.35, abs(lat));
+  col += vec3(1.0, 0.74, 0.38) * city * 1.55;
+
+  float rim = pow(1.0 - max(dot(n, -rd), 0.0), 3.2);
+  vec3 rimCol = mix(vec3(0.20, 0.48, 1.0), vec3(1.0, 0.36, 0.08), twi);
+  col += rimCol * rim * (0.22 + 0.78 * wrap) * 1.15;
+
+  return col;
+}
+
+vec3 atmosphere(vec3 ro, vec3 rd, vec3 sun, float tPlanet){
+  float ra = 1.16;
+  float b = dot(ro, rd);
+  float c = dot(ro, ro) - ra * ra;
+  float disc = b * b - c;
+  if(disc < 0.0) return vec3(0.0);
+  float sd = sqrt(disc);
+  float t0 = max(-b - sd, 0.0);
+  float t1 = -b + sd;
+  if(tPlanet > 0.0) t1 = min(t1, tPlanet);
+  if(t1 <= t0) return vec3(0.0);
+
+  vec3 acc = vec3(0.0);
+  float dt = (t1 - t0) * 0.25;
+  for(int i = 0; i < 4; i++){
+    float t = t0 + dt * (float(i) + 0.5);
+    vec3 pos = ro + rd * t;
+    float hgt = length(pos) - 1.0;
+    float dens = exp(-max(hgt, 0.0) * 11.0);
+    vec3 an = normalize(pos);
+    float ndl = dot(an, sun);
+    float day = smoothstep(-0.28, 0.32, ndl);
+    vec3 sc = mix(vec3(0.85, 0.22, 0.05), vec3(0.28, 0.52, 1.0), day);
+    acc += dens * sc * dt * 3.2 * (0.18 + 0.82 * day);
+  }
+  float ph = 0.75 + 0.25 * dot(rd, sun) * dot(rd, sun);
+  return acc * ph;
+}
+
+vec3 stars(vec3 rd){
+  float s = hash(floor(rd * 220.0));
+  float star = step(0.985, s) * pow(s, 8.0);
+  float s2 = hash(floor(rd * 90.0 + 17.0));
+  star += step(0.993, s2) * 0.6;
+  vec3 col = vec3(0.75, 0.82, 1.0) * star * 0.9;
+  float band = pow(1.0 - abs(dot(rd, normalize(vec3(0.15, 0.42, 0.88)))), 6.0);
+  col += vec3(0.12, 0.10, 0.18) * band * (0.35 + 0.65 * (noise(rd * 18.0) * 0.5 + 0.5));
+  return col;
+}
+
+void main(){
+  vec2 uv = (gl_FragCoord.xy - 0.5 * uRes) / uRes.y;
+
+  float cy = cos(uRot.x), sy = sin(uRot.x);
+  float cx = cos(uRot.y), sx = sin(uRot.y);
+  vec3 ro = vec3(sx * cy, sy, cx * cy) * 2.55;
+  vec3 ww = normalize(-ro);
+  vec3 uu = normalize(cross(ww, vec3(0.0, 1.0, 0.0)));
+  vec3 vv = cross(uu, ww);
+  vec3 rd = normalize(uv.x * uu + uv.y * vv + 2.25 * ww);
+
+  vec3 sun = normalize(vec3(0.92, 0.18, 0.28));
+
+  vec3 col = stars(rd);
+  float sunDot = max(dot(rd, sun), 0.0);
+  col += vec3(1.0, 0.92, 0.75) * pow(sunDot, 420.0) * 10.0;
+  col += vec3(1.0, 0.72, 0.32) * pow(sunDot, 28.0) * 0.45;
+  col += vec3(0.45, 0.55, 1.0) * pow(sunDot, 3.5) * 0.07;
+
+  float tP = sphNear(ro, rd, 1.0);
+  float tC = sphNear(ro, rd, 1.02);
+
+  if(tP > 0.0){
+    col = shadePlanet(ro + rd * tP, rd, sun);
+  }
+
+  if(tC > 0.0 && (tP < 0.0 || tC < tP)){
+    vec3 cp = ro + rd * tC;
+    float cd = cloudF(cp);
+    if(cd > 0.01){
+      vec3 cn = normalize(cp);
+      float cl = max(dot(cn, sun), 0.0);
+      vec3 ccol = vec3(0.93, 0.96, 1.0) * (0.18 + 0.82 * cl);
+      ccol += vec3(1.0, 0.45, 0.16) * exp(-3.2 * cl * cl) * 0.4;
+      float alpha = cd * 0.8;
+      if(tP < 0.0) alpha *= 0.7;
+      col = mix(col, ccol, alpha);
+    }
+  }
+
+  col += atmosphere(ro, rd, sun, tP);
+  col = 1.0 - exp(-max(col, 0.0) * 1.15);
+  col = pow(col, vec3(0.92));
+
+  gl_FragColor = vec4(col, 1.0);
+}
+`;
+
+function compile(type, src){
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src);
+  gl.compileShader(s);
+  if(!gl.getShaderParameter(s, gl.COMPILE_STATUS)){
+    console.error(gl.getShaderInfoLog(s));
+    throw new Error("shader");
+  }
+  return s;
+}
+
+const prog = gl.createProgram();
+gl.attachShader(prog, compile(gl.VERTEX_SHADER, VERT));
+gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FRAG));
+gl.bindAttribLocation(prog, 0, "aPos");
+gl.linkProgram(prog);
+if(!gl.getProgramParameter(prog, gl.LINK_STATUS)){
+  console.error(gl.getProgramInfoLog(prog));
+  throw new Error("link");
+}
+gl.useProgram(prog);
+
+const buf = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
+gl.enableVertexAttribArray(0);
+gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+
+const uRes = gl.getUniformLocation(prog, "uRes");
+const uTime = gl.getUniformLocation(prog, "uTime");
+const uRot = gl.getUniformLocation(prog, "uRot");
+const uSeason = gl.getUniformLocation(prog, "uSeason");
+
+let rotX = 0.22, rotY = 0.18;
+let dragging = false, lastX = 0, lastY = 0;
+const seasonVals = [0.0, 0.36, 0.0, -0.36];
+let seasonIdx = 0;
+let season = 0.0;
+
+function resize(){
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = Math.max(1, Math.floor(window.innerWidth * dpr));
+  const h = Math.max(1, Math.floor(window.innerHeight * dpr));
+  if(canvas.width !== w || canvas.height !== h){
+    canvas.width = w;
+    canvas.height = h;
+    gl.viewport(0, 0, w, h);
+  }
+}
+
+canvas.addEventListener("pointerdown", (e) => {
+  dragging = true;
+  lastX = e.clientX;
+  lastY = e.clientY;
+  canvas.setPointerCapture(e.pointerId);
+});
+window.addEventListener("pointerup", () => { dragging = false; });
+window.addEventListener("pointercancel", () => { dragging = false; });
+window.addEventListener("pointermove", (e) => {
+  if(!dragging) return;
+  rotY += (e.clientX - lastX) * 0.005;
+  rotX += (e.clientY - lastY) * 0.005;
+  rotX = Math.max(-1.15, Math.min(1.15, rotX));
+  lastX = e.clientX;
+  lastY = e.clientY;
+});
+
+document.getElementById("season").addEventListener("click", () => {
+  seasonIdx = (seasonIdx + 1) % 4;
+});
+
+const t0 = performance.now();
+function frame(now){
+  resize();
+  season += (seasonVals[seasonIdx] - season) * 0.07;
+  gl.uniform2f(uRes, canvas.width, canvas.height);
+  gl.uniform1f(uTime, (now - t0) * 0.001);
+  gl.uniform2f(uRot, rotX, rotY);
+  gl.uniform1f(uSeason, season);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

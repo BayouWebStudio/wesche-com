@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Planet from Orbit</title>
+<style>
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: #000;
+    overflow: hidden;
+    user-select: none;
+  }
+  canvas {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    touch-action: none;
+    cursor: grab;
+  }
+  canvas.dragging { cursor: grabbing; }
+  #hint {
+    position: fixed;
+    top: 16px;
+    left: 18px;
+    z-index: 2;
+    pointer-events: none;
+    color: rgba(214, 226, 255, 0.55);
+    font: 12px/1.4 system-ui, sans-serif;
+    letter-spacing: 0.04em;
+  }
+  #ui {
+    position: fixed;
+    left: 50%;
+    bottom: 22px;
+    transform: translateX(-50%);
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    pointer-events: none;
+  }
+  #label {
+    color: rgba(214, 228, 255, 0.7);
+    font: 12px/1 system-ui, sans-serif;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  #season {
+    pointer-events: auto;
+    font: 600 14px/1 system-ui, sans-serif;
+    letter-spacing: 0.06em;
+    color: #eaf2ff;
+    background: rgba(8, 16, 32, 0.55);
+    border: 1px solid rgba(186, 214, 255, 0.38);
+    border-radius: 999px;
+    padding: 11px 18px;
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+  }
+  #season:hover { background: rgba(22, 42, 74, 0.72); }
+  #season:active { transform: translateY(1px); }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hint">Drag to tilt the view</div>
+<div id="ui">
+  <span id="label">Equinox</span>
+  <button id="season" type="button">Season</button>
+</div>
+<script>
+const vs = `
+precision mediump float;
+attribute vec2 aPos;
+void main() {
+  gl_Position = vec4(aPos, 0.0, 1.0);
+}
+`;
+
+const fs = `
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+precision highp float;
+#else
+precision mediump float;
+#endif
+
+uniform vec2 u_res;
+uniform float u_time;
+uniform vec2 u_ang;
+uniform float u_season;
+
+const float OBL = 0.40;
+const float SEA = 0.47;
+
+float hash13(vec3 p) {
+  p = fract(p * vec3(0.1031, 0.1030, 0.0973));
+  p += dot(p, p.yxz + 33.33);
+  return fract((p.x + p.y) * p.z);
+}
+
+float noise(vec3 x) {
+  vec3 i = floor(x);
+  vec3 f = fract(x);
+  f = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
+  float n000 = hash13(i);
+  float n100 = hash13(i + vec3(1.0, 0.0, 0.0));
+  float n010 = hash13(i + vec3(0.0, 1.0, 0.0));
+  float n110 = hash13(i + vec3(1.0, 1.0, 0.0));
+  float n001 = hash13(i + vec3(0.0, 0.0, 1.0));
+  float n101 = hash13(i + vec3(1.0, 0.0, 1.0));
+  float n011 = hash13(i + vec3(0.0, 1.0, 1.0));
+  float n111 = hash13(i + vec3(1.0, 1.0, 1.0));
+  return mix(
+    mix(mix(n000, n100, f.x), mix(n010, n110, f.x), f.y),
+    mix(mix(n001, n101, f.x), mix(n011, n111, f.x), f.y),
+    f.z);
+}
+
+float fbm(vec3 p) {
+  float v = 0.0;
+  float a = 0.5;
+  for (int i = 0; i < 4; i++) {
+    v += a * noise(p);
+    p = p * 2.03 + vec3(0.71, 1.33, 2.17);
+    a *= 0.5;
+  }
+  return v;
+}
+
+vec3 rotX(vec3 p, float a) {
+  float c = cos(a);
+  float s = sin(a);
+  return vec3(p.x, c * p.y - s * p.z, s * p.y + c * p.z);
+}
+
+vec3 rotY(vec3 p, float a) {
+  float c = cos(a);
+  float s = sin(a);
+  return vec3(c * p.x + s * p.z, p.y, -s * p.x + c * p.z);
+}
+
+vec2 sph(vec3 ro, vec3 rd, float r) {
+  float b = dot(ro, rd);
+  float c = dot(ro, ro) - r * r;
+  float h = b * b - c;
+  if (h < 0.0) return vec2(-1.0, -1.0);
+  h = sqrt(h);
+  return vec2(-b - h, -b + h);
+}
+
+float spinAngle() {
+  return u_time * 0.06;
+}
+
+vec3 toLocal(vec3 w) {
+  return rotY(rotX(w, -OBL), spinAngle());
+}
+
+vec3 toWorld(vec3 l) {
+  return rotX(rotY(l, -spinAngle()), OBL);
+}
+
+float terrain(vec3 p) {
+  vec3 q = p * 1.85;
+  q += vec3(
+    noise(q + vec3(0.0, 2.2, 4.4)),
+    noise(q + vec3(5.1, 1.3, 2.7)),
+    0.0
+  ) * 0.55;
+  return smoothstep(0.16, 0.78, fbm(q));
+}
+
+vec3 bumpNormal(vec3 p) {
+  vec3 up = abs(p.y) < 0.96 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
+  vec3 t = normalize(cross(up, p));
+  vec3 b = cross(p, t);
+  float e = 0.012;
+  float h0 = terrain(p);
+  float hx = terrain(normalize(p + t * e));
+  float hy = terrain(normalize(p + b * e));
+  float sc = 0.20;
+  vec3 p0 = p * (1.0 + (h0 - SEA) * sc);
+  vec3 px = normalize(p + t * e) * (1.0 + (hx - SEA) * sc);
+  vec3 py = normalize(p + b * e) * (1.0 + (hy - SEA) * sc);
+  vec3 n = normalize(cross(px - p0, py - p0));
+  if (dot(n, p) < 0.0) n = -n;
+  return n;
+}
+
+void main() {
+  vec2 uv = (gl_FragCoord.xy - 0.5 * u_res) / u_res.y;
+  vec3 rd = normalize(vec3(uv, -1.55));
+  vec3 ro = vec3(0.0, 0.0, 2.55);
+  ro = rotY(rotX(ro, u_ang.y), u_ang.x);
+  rd = rotY(rotX(rd, u_ang.y), u_ang.x);
+
+  float s = clamp(u_season, -1.0, 1.0);
+  vec3 sun = normalize(vec3(-1.0, 0.30 * s, 0.24));
+
+  vec3 col = vec3(0.004, 0.005, 0.012);
+  float sunDot = max(dot(rd, sun), 0.0);
+
+  float st = hash13(floor(rd * 780.0 + 20.0));
+  float stars = pow(st, 80.0);
+  vec3 starCol = mix(
+    vec3(0.65, 0.72, 1.0),
+    vec3(1.0, 0.92, 0.8),
+    hash13(floor(rd * 780.0 + 90.0))
+  );
+  col += starCol * stars * (1.0 - smoothstep(0.92, 1.0, sunDot)) * 0.85;
+
+  float band = dot(rd, normalize(vec3(0.35, 0.90, 0.12)));
+  float mw = pow(max(0.0, 1.0 - abs(band) * 1.35), 10.0);
+  col += vec3(0.07, 0.06, 0.11) * mw + vec3(0.10, 0.08, 0.05) * mw * mw;
+
+  col += vec3(1.0, 0.86, 0.62) * pow(sunDot, 7.0) * 0.18;
+  col += vec3(1.0, 0.97, 0.90) * pow(sunDot, 480.0);
+
+  float tca = -dot(ro, rd);
+  if (tca > 0.0) {
+    float rayDist = length(cross(rd, ro));
+    float ring = smoothstep(1.055, 1.008, rayDist) * smoothstep(0.994, 1.012, rayDist);
+    if (ring > 0.001) {
+      vec3 cp = normalize(ro + rd * tca);
+      float limbSun = dot(cp, sun);
+      vec3 limbCol = mix(
+        vec3(0.22, 0.48, 1.0),
+        vec3(1.0, 0.42, 0.16),
+        smoothstep(0.15, -0.40, limbSun)
+      );
+      float illum = 0.14 + 0.86 * smoothstep(-0.35, 0.45, limbSun);
+      col += limbCol * ring * illum * 1.45;
+    }
+  }
+
+  vec2 tp = sph(ro, rd, 1.0);
+  if (tp.x > 0.0) {
+    vec3 pW = normalize(ro + rd * tp.x);
+    vec3 pl = toLocal(pW);
+    float h = terrain(pl);
+    float land = smoothstep(SEA - 0.008, SEA + 0.012, h);
+
+    vec3 nL = normalize(mix(pl, bumpNormal(pl), smoothstep(SEA - 0.02, SEA + 0.03, h)));
+    vec3 nW = normalize(toWorld(nL));
+
+    vec3 deep = vec3(0.010, 0.040, 0.100);
+    vec3 shallow = vec3(0.060, 0.300, 0.380);
+    vec3 sand = vec3(0.640, 0.540, 0.360);
+    vec3 dirt = vec3(0.400, 0.270, 0.160);
+    vec3 rock = vec3(0.400, 0.340, 0.300);
+    vec3 highl = vec3(0.580, 0.520, 0.470);
+    vec3 veg = vec3(0.200, 0.300, 0.130);
+
+    float depth = smoothstep(0.0, 0.14, SEA - h);
+    vec3 albedo = mix(shallow, deep, depth);
+    vec3 ground = mix(dirt, rock, smoothstep(SEA + 0.02, 0.66, h));
+    ground = mix(ground, highl, smoothstep(0.62, 0.82, h));
+    ground = mix(sand, ground, smoothstep(SEA, SEA + 0.035, h));
+    float vegM = smoothstep(0.40, 0.70, noise(pl * 3.8 + 1.4));
+    vegM *= smoothstep(SEA + 0.01, SEA + 0.045, h) * (1.0 - smoothstep(0.60, 0.74, h));
+    ground = mix(ground, veg, vegM * 0.70);
+    float slope = 1.0 - clamp(dot(nL, pl), 0.0, 1.0);
+    ground = mix(ground, vec3(0.33, 0.29, 0.27), smoothstep(0.035, 0.20, slope));
+    albedo = mix(albedo, ground, land);
+
+    vec3 nAxis = normalize(vec3(0.20 * s, 1.0, 0.10 * s));
+    float nEdge = 0.70 + 0.14 * s;
+    float sEdge = 0.70 - 0.14 * s;
+    float iceN = smoothstep(nEdge, nEdge + 0.12, dot(pl, nAxis));
+    float iceS = smoothstep(sEdge, sEdge + 0.12, -dot(pl, nAxis));
+    float elevSnow = smoothstep(0.74, 0.88, h) * land;
+    float ice = max(max(iceN, iceS), elevSnow);
+    albedo = mix(albedo, vec3(0.91, 0.94, 0.97), ice);
+    albedo *= mix(0.90 + 0.18 * noise(pl * 9.0), 1.0, ice);
+
+    float ndl = dot(nW, sun);
+    float diff = max(ndl, 0.0);
+    float tw = pow(clamp(1.0 - abs(ndl), 0.0, 1.0), 2.4) * smoothstep(-0.55, 0.08, ndl);
+    vec3 sunCol = vec3(1.00, 0.96, 0.88);
+    vec3 twCol = vec3(0.90, 0.38, 0.14);
+    vec3 lit = albedo * (vec3(0.010, 0.012, 0.022) + sunCol * diff * 1.30 + twCol * tw * 0.42);
+    lit *= mix(1.0, smoothstep(0.35, 1.0, dot(nL, pl)), land);
+
+    vec3 cq = rotY(pl, u_time * 0.07);
+    float cf = fbm(cq * 3.35 + vec3(6.0, 1.5, 2.5));
+    float cloud = smoothstep(0.545, 0.72, cf);
+    cloud *= 0.65 + 0.35 * smoothstep(0.28, 0.62, noise(cq * 6.5 + 3.0));
+
+    float night = smoothstep(0.08, -0.38, ndl);
+    float cluster = smoothstep(0.46, 0.74, noise(pl * 2.6 + 2.0));
+    float dots = smoothstep(0.60, 0.84, noise(pl * 36.0));
+    float dots2 = smoothstep(0.48, 0.78, noise(pl * 13.0));
+    float city = cluster * dots * (0.30 + 0.70 * dots2);
+    city *= land * (1.0 - ice) * night * (1.0 - cloud);
+    float twinkle = 0.82 + 0.18 * sin(u_time * 1.6 + hash13(floor(pl * 40.0)) * 60.0);
+    vec3 lamp = mix(
+      vec3(1.00, 0.78, 0.42),
+      vec3(0.65, 0.82, 1.00),
+      smoothstep(0.35, 0.85, noise(pl * 8.0))
+    );
+    lit += lamp * city * twinkle * 1.25;
+
+    vec3 H = normalize(sun - rd);
+    float spec = pow(max(dot(nW, H), 0.0), 110.0);
+    float broad = pow(max(dot(nW, H), 0.0), 14.0);
+    lit += vec3(0.75, 0.86, 0.95) * (spec * 0.85 + broad * 0.07) * (1.0 - land) * diff * (1.0 - cloud);
+
+    lit *= mix(1.0, 0.52, cloud * smoothstep(0.0, 0.18, diff));
+    vec3 cloudCol = vec3(0.96, 0.97, 0.99) * (0.055 + 1.08 * diff) + twCol * tw * 0.18;
+    lit = mix(lit, cloudCol, clamp(cloud, 0.0, 0.94));
+
+    float fres = pow(1.0 - clamp(dot(pW, -rd), 0.0, 1.0), 5.0);
+    float limbSunS = dot(pW, sun);
+    vec3 limbColS = mix(
+      vec3(0.25, 0.50, 1.0),
+      vec3(1.00, 0.45, 0.18),
+      smoothstep(0.25, -0.45, limbSunS)
+    );
+    float illumS = 0.16 + 0.84 * smoothstep(-0.30, 0.50, limbSunS);
+    lit += limbColS * fres * illumS * 1.05;
+
+    col = lit;
+  }
+
+  col *= 1.12;
+  col = pow(max(col, 0.0), vec3(0.454545));
+  vec2 q = gl_FragCoord.xy / u_res;
+  float vig = pow(max(q.x * q.y * (1.0 - q.x) * (1.0 - q.y) * 16.0, 0.0), 0.10);
+  col *= mix(0.86, 1.0, vig);
+  col += (hash13(vec3(gl_FragCoord.xy, 1.0)) - 0.5) * 0.008;
+  gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
+}
+`;
+
+function fail(msg) {
+  const pre = document.createElement("pre");
+  pre.textContent = msg;
+  pre.style.cssText = "position:fixed;left:16px;right:16px;top:16px;color:#ffb4b4;font:12px/1.45 ui-monospace,monospace;white-space:pre-wrap;z-index:9";
+  document.body.appendChild(pre);
+}
+
+function compile(gl, type, src) {
+  const sh = gl.createShader(type);
+  gl.shaderSource(sh, src);
+  gl.compileShader(sh);
+  if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
+    const log = gl.getShaderInfoLog(sh) || "shader compile failed";
+    gl.deleteShader(sh);
+    throw new Error(log);
+  }
+  return sh;
+}
+
+function boot() {
+  const canvas = document.getElementById("c");
+  const label = document.getElementById("label");
+  const btn = document.getElementById("season");
+  const gl = canvas.getContext("webgl", {
+    alpha: false,
+    antialias: false,
+    depth: false,
+    stencil: false,
+    powerPreference: "high-performance"
+  });
+  if (!gl) {
+    fail("WebGL is not available in this browser.");
+    return;
+  }
+
+  let prog;
+  try {
+    const vsh = compile(gl, gl.VERTEX_SHADER, vs);
+    const fsh = compile(gl, gl.FRAGMENT_SHADER, fs);
+    prog = gl.createProgram();
+    gl.attachShader(prog, vsh);
+    gl.attachShader(prog, fsh);
+    gl.bindAttribLocation(prog, 0, "aPos");
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+      throw new Error(gl.getProgramInfoLog(prog) || "program link failed");
+    }
+  } catch (err) {
+    fail(String(err && err.message ? err.message : err));
+    return;
+  }
+
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+    -1, -1, 1, -1, -1, 1, 1, 1
+  ]), gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(0);
+  gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+  gl.useProgram(prog);
+
+  const U = {
+    time: gl.getUniformLocation(prog, "u_time"),
+    res: gl.getUniformLocation(prog, "u_res"),
+    ang: gl.getUniformLocation(prog, "u_ang"),
+    season: gl.getUniformLocation(prog, "u_season")
+  };
+
+  let yaw = 0.18;
+  let pitch = 0.34;
+  let dragging = false;
+  let lastX = 0;
+  let lastY = 0;
+
+  canvas.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0) return;
+    dragging = true;
+    lastX = e.clientX;
+    lastY = e.clientY;
+    canvas.setPointerCapture(e.pointerId);
+    canvas.classList.add("dragging");
+  });
+  canvas.addEventListener("pointermove", (e) => {
+    if (!dragging) return;
+    const dx = e.clientX - lastX;
+    const dy = e.clientY - lastY;
+    lastX = e.clientX;
+    lastY = e.clientY;
+    yaw -= dx * 0.005;
+    pitch -= dy * 0.005;
+    pitch = Math.max(-1.25, Math.min(1.25, pitch));
+  });
+  const endDrag = () => {
+    dragging = false;
+    canvas.classList.remove("dragging");
+  };
+  canvas.addEventListener("pointerup", endDrag);
+  canvas.addEventListener("pointercancel", endDrag);
+
+  const seasons = [
+    { v: 0, name: "Equinox" },
+    { v: -1, name: "North ice" },
+    { v: 1, name: "South ice" }
+  ];
+  let si = 0;
+  let season = 0;
+  let target = 0;
+  btn.addEventListener("click", () => {
+    si = (si + 1) % seasons.length;
+    target = seasons[si].v;
+    label.textContent = seasons[si].name;
+  });
+
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    season += (target - season) * (1 - Math.exp(-3.4 * dt));
+
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    const w = Math.max(1, Math.floor(canvas.clientWidth * dpr));
+    const h = Math.max(1, Math.floor(canvas.clientHeight * dpr));
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
+    }
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.uniform1f(U.time, now * 0.001);
+    gl.uniform2f(U.res, canvas.width, canvas.height);
+    gl.uniform2f(U.ang, yaw, pitch);
+    gl.uniform1f(U.season, season);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
+boot();
+</script>
+</body>
+</html>
