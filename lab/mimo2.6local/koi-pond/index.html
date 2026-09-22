@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Koi Pond</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{overflow:hidden;background:#0a1628;font-family:Georgia,'Times New Roman',serif}
+canvas{display:block}
+#feedBtn{position:absolute;bottom:30px;left:50%;transform:translateX(-50%);padding:14px 40px;font-size:18px;font-weight:bold;background:linear-gradient(135deg,#ff6b35,#ff8c42);color:#fff;border:3px solid rgba(255,255,255,.3);border-radius:40px;cursor:pointer;box-shadow:0 4px 20px rgba(255,107,53,.5);transition:all .3s;letter-spacing:1px;z-index:10}
+#feedBtn:hover{transform:translateX(-50%) scale(1.08);box-shadow:0 6px 30px rgba(255,107,53,.7)}
+#feedBtn:active{transform:translateX(-50%) scale(.95)}
+#hint{position:absolute;top:20px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,.5);font-size:15px;z-index:10;text-align:center;pointer-events:none}
+</style>
+</head>
+<body>
+<button id="feedBtn">🐟 Feed Koi</button>
+<div id="hint">Watch the koi swim — click to feed them</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+'use strict';
+
+/* ===== CONSTANTS ===== */
+const PW=18, PD=14, PDp=2.5;
+
+/* ===== SCENE / CAMERA / RENDERER ===== */
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x0a1628);
+scene.fog=new THREE.FogExp2(0x0a1628,.012);
+
+const camera=new THREE.PerspectiveCamera(50,innerWidth/innerHeight,.1,200);
+camera.position.set(0,14,16);
+camera.lookAt(0,-1,-2);
+
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth,innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.3;
+document.body.appendChild(renderer.domElement);
+
+/* ===== LIGHTS ===== */
+scene.add(new THREE.AmbientLight(0x4466aa,.5));
+const sun=new THREE.DirectionalLight(0xffeedd,1.2);
+sun.position.set(8,20,6);
+sun.castShadow=true;
+sun.shadow.mapSize.set(2048,2048);
+sun.shadow.camera.left=-15;sun.shadow.camera.right=15;
+sun.shadow.camera.top=15;sun.shadow.camera.bottom=-15;
+sun.shadow.camera.near=1;sun.shadow.camera.far=50;
+sun.shadow.camera.updateProjectionMatrix();
+scene.add(sun);
+const fill=new THREE.DirectionalLight(0x88aacc,.3);
+fill.position.set(-5,8,-5);
+scene.add(fill);
+
+/* ===== POND BOTTOM ===== */
+const botGeo=new THREE.PlaneGeometry(PW,PD,40,40);
+{const p=botGeo.attributes.position;for(let i=0;i<p.count;i++)p.setZ(i,Math.random()*.15);botGeo.computeVertexNormals();}
+const bottom=new THREE.Mesh(botGeo,new THREE.MeshStandardMaterial({color:0x1a3a2a,roughness:.95,metalness:.05}));
+bottom.rotation.x=-Math.PI/2;bottom.position.y=-PDp;bottom.receiveShadow=true;scene.add(bottom);
+
+/* ===== POND WALLS ===== */
+const wMat=new THREE.MeshStandardMaterial({color:0x5a5a5a,roughness:.9,metalness:.1});
+function mkWall(w,h,d){const g=new THREE.BoxGeometry(w,h,d,4,4,4),p=g.attributes.position;
+for(let i=0;i<p.count;i++){p.setX(i,p.getX(i)+(Math.random()-.5)*.1);p.setY(i,p.getY(i)+(Math.random()-.5)*.1);p.setZ(i,p.getZ(i)+(Math.random()-.5)*.1);}
+g.computeVertexNormals();return new THREE.Mesh(g,wMat);}
+const wH=PDp+1.5,wY=wH/2-PDp;
+[[PW+2,wH,1.5,0,wY,-PD/2-.5],[PW+2,wH,1.5,0,wY,PD/2+.5],[1.5,wH,PD+2,-PW/2-.5,wY,0],[1.5,wH,PD+2,PW/2+.5,wY,0]].forEach(a=>{
+const m=mkWall(a[0],a[1],a[2]);m.position.set(a[3],a[4],a[5]);m.castShadow=m.receiveShadow=true;scene.add(m);});
+
+/* ===== WATER SURFACE ===== */
+const wGeo=new THREE.PlaneGeometry(PW,PD,80,80);
+const wUni={time:{value:0},cD:{value:new THREE.Color(0x0d4a3a)},cS:{value:new THREE.Color(0x1a7a6a)},op:{value:.4}};
+const wMat2=new THREE.ShaderMaterial({
+uniforms:wUni,
+vertexShader:`uniform float time;varying vec2 vUv;varying float vW;
+void main(){vUv=uv;vec3 p=position;
+float w=sin(p.x*2.5+time*1.2)*.06+sin(p.y*3.5+time*.9)*.05+sin((p.x*1.5+p.y*1.5)+time*.7)*.04+sin(p.x*6.-time*1.8)*.015+sin(p.y*7.+time*1.5)*.015;
+p.z+=w;vW=w;gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.);}`,
+fragmentShader:`uniform float time;uniform vec3 cD,cS;uniform float op;varying vec2 vUv;varying float vW;
+float h(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+float n(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);
+return mix(mix(h(i),h(i+vec2(1,0)),f.x),mix(h(i+vec2(0,1)),h(i+vec2(1,1)),f.x),f.y);}
+void main(){vec3 c=mix(cD,cS,vUv.y*.5+.3+vW*3.);
+float a1=n(vUv*8.+time*.4),a2=n(vUv*12.-time*.3),cau=pow(a1*a2*2.,3.);
+c+=vec3(.1,.25,.2)*cau;
+float sp=pow(n(vUv*40.+time*1.5),10.)*4.;
+c+=vec3(sp*.4,sp*.5,sp*.3);
+float e=smoothstep(0.,.05,vUv.x)*smoothstep(1.,.95,vUv.x)*smoothstep(0.,.05,vUv.y)*smoothstep(1.,.95,vUv.y);
+gl_FragColor=vec4(c,clamp(op+cau*.1+(1.-e)*.3,0.,.9));}`,
+transparent:true,side:THREE.DoubleSide,depthWrite:false});
+const water=new THREE.Mesh(wGeo,wMat2);
+water.rotation.x=-Math.PI/2;water.renderOrder=1;scene.add(water);
+
+/* ===== WATERFALL ===== */
+const rockMat=new THREE.MeshStandardMaterial({color:0x4a4a4a,roughness:.95,metalness:.05});
+function mkRock(s){const g=new THREE.IcosahedronGeometry(s,3),p=g.attributes.position,v=new THREE.Vector3();
+for(let i=0;i<p.count;i++){v.fromBufferAttribute(p,i);const nn=Math.sin(v.x*3)*Math.cos(v.y*3)*Math.sin(v.z*3);v.multiplyScalar(1+nn*.3);p.setXYZ(i,v.x,v.y,v.z);}
+g.computeVertexNormals();return new THREE.Mesh(g,rockMat);}
+
+const wfZ=-PD/2+.5;
+const wfGroup=new THREE.Group();
+for(let i=0;i<8;i++){const r=mkRock(.5+Math.random()*.8);r.position.set((Math.random()-.5)*4,Math.random()*3+.5,wfZ+Math.random()*.5);r.castShadow=r.receiveShadow=true;wfGroup.add(r);}
+const bigR=mkRock(2.5);bigR.position.set(0,2,PD/-2-1);bigR.castShadow=true;wfGroup.add(bigR);
+
+/* waterfall sheet */
+const wsGeo=new THREE.PlaneGeometry(3,3,1,30);
+const wsMat=new THREE.ShaderMaterial({uniforms:{time:{value:0}},
+vertexShader:`uniform float time;varying vec2 vUv;void main(){vUv=uv;vec3 p=position;
+p.x+=sin(uv.y*10.+time*3.)*.05;p.z+=sin(uv.y*8.+time*2.5)*.03;
+gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.);}`,
+fragmentShader:`uniform float time;varying vec2 vUv;
+void main(){float fl=fract(vUv.y-time*2.);float st=sin(vUv.x*30.+time*5.)*.5+.5;
+vec3 c=mix(vec3(.6,.8,1.),vec3(1.),st*fl);
+float a=.35+fl*.25;a*=smoothstep(0.,.1,vUv.x)*smoothstep(1.,.9,vUv.x);
+gl_FragColor=vec4(c,a);}`,
+transparent:true,side:THREE.DoubleSide,depthWrite:false});
+const ws=new THREE.Mesh(wsGeo,wsMat);ws.position.set(0,1.25,wfZ);wfGroup.add(ws);
+
+/* waterfall particles */
+const wfN=200,wfP=new Float32Array(wfN*3),wfS=new Float32Array(wfN);
+const wfG=new THREE.BufferGeometry();
+for(let i=0;i<wfN;i++){wfP[i*3]=(Math.random()-.5)*3;wfP[i*3+1]=2+Math.random()*3;wfP[i*3+2]=wfZ+(Math.random()-.5)*.3;wfS[i]=2+Math.random()*3;}
+wfG.setAttribute('position',new THREE.BufferAttribute(wfP,3));
+wfGroup.add(new THREE.Points(wfG,new THREE.PointsMaterial({color:0xaaddff,size:.08,transparent:true,opacity:.5,blending:THREE.AdditiveBlending,depthWrite:false})));
+
+/* splash particles */
+const spN=100,spP=new Float32Array(spN*3),spV=new Float32Array(spN*3),spL=new Float32Array(spN);
+const spG=new THREE.BufferGeometry();
+for(let i=0;i<spN;i++){spP[i*3+1]=-100;spL[i]=0;}
+spG.setAttribute('position',new THREE.BufferAttribute(spP,3));
+wfGroup.add(new THREE.Points(spG,new THREE.PointsMaterial({color:0xccddff,size:.07,transparent:true,opacity:.7,blending:THREE.AdditiveBlending,depthWrite:false})));
+
+/* mist */
+const miN=50,miP=new Float32Array(miN*3);
+for(let i=0;i<miN;i++){miP[i*3]=(Math.random()-.5)*4;miP[i*3+1]=Math.random()*2;miP[i*3+2]=wfZ+Math.random()*2;}
+const miG=new THREE.BufferGeometry();miG.setAttribute('position',new THREE.BufferAttribute(miP,3));
+wfGroup.add(new THREE.Points(miG,new THREE.PointsMaterial({color:0xffffff,size:.3,transparent:true,opacity:.1,blending:THREE.AdditiveBlending,depthWrite:false})));
+scene.add(wfGroup);
+
+let spIdx=0;
+function triggerSplash(x,z){const i=spIdx;spIdx=(spIdx+1)%spN;
+spP[i*3]=x;spP[i*3+1]=.05;spP[i*3+2]=z;
+spV[i*3]=(Math.random()-.5)*2;spV[i*3+1]=2+Math.random()*3;spV[i*3+2]=(Math.random()-.5)*2;
+spL[i]=.5+Math.random()*.5;}
+
+/* ===== PLANTS ===== */
+const lilyPads=[];
+for(let i=0;i<15;i++){
+const rad=.3+Math.random()*.5,sh=new THREE.Shape(),na=Math.random()*Math.PI*2,sg=32;
+for(let j=0;j<=sg;j++){const a=j/sg*Math.PI*2;let r=rad;
+const d=Math.abs(a-na),w=Math.min(d,Math.PI*2-d);
+if(w<.3)r*=w/.3*.3+.05;
+const x=Math.cos(a)*r,y=Math.sin(a)*r;
+if(j===0)sh.moveTo(x,y);else sh.lineTo(x,y);}
+const g=new THREE.ShapeGeometry(sh);
+const m=new THREE.MeshStandardMaterial({color:new THREE.Color().setHSL(.25+Math.random()*.15,.6,.3+Math.random()*.15),roughness:.7,metalness:0,side:THREE.DoubleSide,transparent:true,opacity:1});
+const pad=new THREE.Mesh(g,m);pad.rotation.x=-Math.PI/2;pad.rotation.z=Math.random()*Math.PI*2;
+pad.position.set((Math.random()-.5)*(PW-3),.03,(Math.random()-.5)*(PD-3));
+pad.receiveShadow=true;pad.renderOrder=2;scene.add(pad);
+lilyPads.push({mesh:pad,by:.03,ph:Math.random()*Math.PI*2,sp:.5+Math.random()*.5});}
+
+const uPlants=[];
+for(let i=0;i<8;i++){
+const g=new THREE.Group(),h=1+Math.random()*1.5;
+for(let s=0;s<3;s++){
+const sg2=new THREE.CylinderGeometry(.02,.04,h,4,8);
+const sm=new THREE.Mesh(sg2,new THREE.MeshStandardMaterial({color:new THREE.Color().setHSL(.3+Math.random()*.1,.7,.25+Math.random()*.15),roughness:.8}));
+sm.position.set((Math.random()-.5)*.3,h/2,(Math.random()-.5)*.3);
+sm.rotation.x=(Math.random()-.5)*.3;sm.rotation.z=(Math.random()-.5)*.3;g.add(sm);
+for(let l=0;l<4;l++){
+const lg=new THREE.PlaneGeometry(.15,.4,1,4);
+const lm=new THREE.MeshStandardMaterial({color:new THREE.Color().setHSL(.3+Math.random()*.1,.7,.3),roughness:.7,side:THREE.DoubleSide});
+const lf=new THREE.Mesh(lg,lm);
+lf.position.set((Math.random()-.5)*.2,h*(.3+l*.2),(Math.random()-.5)*.2);
+lf.rotation.y=Math.random()*Math.PI;lf.rotation.x=Math.random()*.5;g.add(lf);}}
+const e=Math.random();let px,pz;
+if(e<.5){px=(Math.random()-.5)*(PW-4);pz=-PD/2+1+Math.random()*2;}
+else if(e<.75){px=-PW/2+1+Math.random()*2;pz=(Math.random()-.5)*(PD-4);}
+else{px=PW/2-1-Math.random()*2;pz=(Math.random()-.5)*(PD-4);}
+g.position.set(px,-PDp+.1,pz);scene.add(g);
+uPlants.push({g,ph:Math.random()*Math.PI*2,sp:.3+Math.random()*.4,am:.05+Math.random()*.1});}
+
+const reeds=[];
+for(let i=0;i<20;i++){
+const g=new THREE.Group(),h=1.5+Math.random()*2;
+const sg2=new THREE.CylinderGeometry(.015,.03,h,4,6);
+const sm=new THREE.Mesh(sg2,new THREE.MeshStandardMaterial({color:0x4a7a30,roughness:.8}));
+sm.position.y=h/2;sm.castShadow=true;g.add(sm);
+const hg=new THREE.CylinderGeometry(.04,.04,.3,6);
+const hm=new THREE.Mesh(hg,new THREE.MeshStandardMaterial({color:0x6a4a20,roughness:.9}));
+hm.position.y=h+.15;g.add(hm);
+const sd=Math.floor(Math.random()*4);let rx,rz;
+if(sd===0){rx=(Math.random()-.5)*PW;rz=-PD/2-.5;}
+else if(sd===1){rx=(Math.random()-.5)*PW;rz=PD/2+.5;}
+else if(sd===2){rx=-PW/2-.5;rz=(Math.random()-.5)*PD;}
+else{rx=PW/2+.5;rz=(Math.random()-.5)*PD;}
+g.position.set(rx,-PDp+.1,rz);scene.add(g);
+reeds.push({g,ph:Math.random()*Math.PI*2,sp:.4+Math.random()*.3,am:.03+Math.random()*.05});}
+
+/* ===== EDGE ROCKS ===== */
+for(let i=0;i<30;i++){
+const r=mkRock(.2+Math.random()*.5),sd=Math.floor(Math.random()*4);let rx,rz;
+if(sd===0){rx=(Math.random()-.5)*(PW+2);rz=-PD/2-1-Math.random();}
+else if(sd===1){rx=(Math.random()-.5)*(PW+2);rz=PD/2+1+Math.random();}
+else if(sd===2){rx=-PW/2-1-Math.random();rz=(Math.random()-.5)*(PD+2);}
+else{rx=PW/2+1+Math.random();rz=(Math.random()-.5)*(PD+2);}
+r.position.set(rx,-.1+Math.random()*.3,rz);
+r.rotation.set(Math.random()*Math.PI,Math.random()*Math.PI,Math.random()*Math.PI);
+r.castShadow=r.receiveShadow=true;scene.add(r);}
+
+/* ===== GROUND ===== */
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(60,60),new THREE.MeshStandardMaterial({color:0x2a4a2a,roughness:1,metalness:0}));
+ground.rotation.x=-Math.PI/2;ground.position.y=-.3;ground.receiveShadow=true;scene.add(ground);
+
+/* ===== FLOATING DUST ===== */
+const dN=150,dP=new Float32Array(dN*3);
+for(let i=0;i<dN;i++){dP[i*3]=(Math.random()-.5)*30;dP[i*3+1]=Math.random()*10;dP[i*3+2]=(Math.random()-.5)*30;}
+const dG=new THREE.BufferGeometry();dG.setAttribute('position',new THREE.BufferAttribute(dP,3));
+const dust=new THREE.Points(dG,new THREE.PointsMaterial({color:0xffffff,size:.05,transparent:true,opacity:.3,depthWrite:false}));
+scene.add(dust);
+
+/* ===== KOI FISH ===== */
+function mkBody(){const g=new THREE.SphereGeometry(1,24,16);g.rotateX(Math.PI/2);g.scale(.35,.25,.9);
+const p=g.attributes.position;
+for(let i=0;i<p.count;i++){const z=p.getZ(i);
+if(z<-.3){const t=(-z-.3)/.6,f=Math.max(1-t*.6,.1);p.setX(i,p.getX(i)*f);p.setY(i,p.getY(i)*f);}
+if(z>.5){const t=(z-.5)/.4,f=Math.max(1-t*.5,.2);p.setX(i,p.getX(i)*f);p.setY(i,p.getY(i)*f);}}
+g.computeVertexNormals();return g;}
+
+function mkFin(type){let v,idx;
+switch(type){
+case'tail':v=new Float32Array([0,0,0,.2,.35,-.35,-.2,.35,-.35,0,0,0,.2,-.35,-.35,-.2,-.35,-.35]);idx=[0,1,2,3,4,5];break;
+case'dorsal':v=new Float32Array([0,0,0,0,.2,-.15,0,.15,-.35,0,0,-.4]);idx=[0,1,2,0,2,3];break;
+case'pectoral':v=new Float32Array([0,0,0,.15,-.1,-.1,.1,-.15,-.2,0,0,0,.1,-.15,-.2,.05,-.1,-.05]);idx=[0,1,2,3,4,5];break;
+default:v=new Float32Array([0,0,0,1,0,0,0,1,0]);idx=[0,1,2];}
+const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(v,3));g.setIndex(idx);g.computeVertexNormals();return g;}
+
+function koiCol(t,a,pat,y){
+switch(pat){
+case'kohaku':{const n=Math.sin(t*6+Math.sin(a*3)*2+.5);return n>.3?[1,.15,.1]:[1,1,1];}
+case'hi':return[1,.35,.05];
+case'shiro':return[1,1,1];
+case'kigoi':return[1,.8,.15];
+case'sanke':{const n1=Math.sin(t*5+Math.sin(a*3)*2),n2=Math.sin(t*8+3+Math.cos(a*4)*1.5);
+if(n2>.7)return[.05,.05,.05];if(n1>.2)return[1,.15,.1];return[1,1,1];}
+case'showa':{const n1=Math.sin(t*4+Math.sin(a*2)*2),n2=Math.sin(t*7+1+Math.cos(a*3)*2);
+if(n1>.1)return[.05,.05,.05];if(n2>.4)return[1,.15,.1];return[1,1,1];}
+case'yamabuki':return[1,.85,.2];
+case'asagi':return y<-.03?[1,.5,.3]:[.3,.45,.65];
+case'chagoi':return[.55,.38,.2];
+default:return[1,.5,0];}}
+
+const patterns=['kohaku','hi','shiro','kigoi','sanke','showa','yamabuki','asagi','chagoi','kohaku'];
+const fishList=[];
+
+function mkKoi(pat,sc){
+const grp=new THREE.Group();
+const bg=mkBody();
+const pc=bg.attributes.position.count,pa=bg.attributes.position,ua=bg.attributes.uv;
+const cols=new Float32Array(pc*3);
+for(let i=0;i<pc;i++){
+const x=pa.getX(i),y=pa.getY(i),z=pa.getZ(i);
+const t=(.9-z)/1.8,ang=ua.getX(i)*Math.PI*2;
+const c=koiCol(t,ang,pat,y);cols[i*3]=c[0];cols[i*3+1]=c[1];cols[i*3+2]=c[2];}
+bg.setAttribute('color',new THREE.BufferAttribute(cols,3));
+const body=new THREE.Mesh(bg,new THREE.MeshStandardMaterial({vertexColors:true,roughness:.3,metalness:.15,side:THREE.DoubleSide}));
+body.castShadow=true;grp.add(body);
+const orig=bg.attributes.position.array.slice();
+
+const fc=koiCol(1,0,pat,0);
+const fm=new THREE.MeshStandardMaterial({color:new THREE.Color(fc[0],fc[1],fc[2]),roughness:.4,metalness:0,side:THREE.DoubleSide,transparent:true,opacity:.85});
+const tail=new THREE.Mesh(mkFin('tail'),fm);tail.position.set(0,0,-.85);grp.add(tail);
+const dorsal=new THREE.Mesh(mkFin('dorsal'),fm);dorsal.position.set(0,.2,-.1);grp.add(dorsal);
+const pectL=new THREE.Mesh(mkFin('pectoral'),fm);pectL.position.set(-.3,-.05,.2);pectL.rotation.y=.5;grp.add(pectL);
+const pectR=new THREE.Mesh(mkFin('pectoral'),fm);pectR.position.set(.3,-.05,.2);pectR.rotation.y=-.5;pectR.scale.x=-1;grp.add(pectR);
+
+const eg=new THREE.SphereGeometry(.04,8,8),em=new THREE.MeshStandardMaterial({color:0x111111,roughness:.2,metalness:.5});
+const eL=new THREE.Mesh(eg,em);eL.position.set(-.12,.05,.7);grp.add(eL);
+const eR=new THREE.Mesh(eg,em);eR.position.set(.12,.05,.7);grp.add(eR);
+
+grp.scale.setScalar(sc);
+return{grp,body,bg,orig,tail,pectL,pectR,dorsal,
+x:(Math.random()-.5)*(PW-4),z:(Math.random()-.5)*(PD-4),y:-.3-Math.random()*.5,
+heading:Math.random()*Math.PI*2,speed:.3+Math.random()*.3,baseSpeed:.3+Math.random()*.3,
+maxSpeed:1.5,wanderAngle:0,state:'wander',targetFood:null,
+phase:Math.random()*Math.PI*2,pat,sc,len:1.8*sc};}
+
+for(let i=0;i<10;i++){const f=mkKoi(patterns[i],.6+Math.random()*.5);scene.add(f.grp);fishList.push(f);}
+
+/* ===== FOOD ===== */
+const foodItems=[];
+const fGeo=new THREE.SphereGeometry(.06,6,6);
+const fMat=new THREE.MeshStandardMaterial({color:0xffaa00,roughness:.5,metalness:.1,emissive:0xff6600,emissiveIntensity:.3});
+
+function spawnFood(){for(let i=0;i<5;i++){
+const mesh=new THREE.Mesh(fGeo,fMat);
+const fx=(Math.random()-.5)*4,fz=(Math.random()-.5)*4;
+mesh.position.set(fx,.05,fz);mesh.castShadow=true;
+scene.add(mesh);
+foodItems.push({mesh,x:fx,z:fz,y:.05,alive:true,age:0});}}
+
+function rmFood(food){scene.remove(food.mesh);food.alive=false;}
+
+/* ===== FISH AI ===== */
+function angDiff(a,b){let d=a-b;while(d>Math.PI)d-=Math.PI*2;while(d<-Math.PI)d+=Math.PI*2;return d;}
+
+function updateAI(f,dt){
+if(f.state==='wander'){
+let cl=null,cd=Infinity;
+for(const fo of foodItems){if(!fo.alive)continue;
+const dx=fo.x-f.x,dz=fo.z-f.z,d=Math.sqrt(dx*dx+dz*dz);
+if(d<cd&&d<8){cd=d;cl=fo;}}
+if(cl){f.state='seekFood';f.targetFood=cl;}}
+
+if(f.state==='seekFood'&&f.targetFood&&f.targetFood.alive){
+const fo=f.targetFood,dx=fo.x-f.x,dz=fo.z-f.z,d=Math.sqrt(dx*dx+dz*dz);
+if(d<.4){rmFood(fo);f.state='wander';f.targetFood=null;f.speed=f.baseSpeed;}
+else{const ta=Math.atan2(dx,dz);f.heading+=angDiff(ta,f.heading)*Math.min(dt*3,1);
+f.speed=Math.min(f.speed+dt*.5,f.maxSpeed);}}
+else{
+if(f.state==='seekFood'){f.state='wander';f.targetFood=null;f.speed=f.baseSpeed;}
+f.wanderAngle+=(Math.random()-.5)*dt*2;f.wanderAngle*=.95;
+f.heading+=f.wanderAngle*dt;
+f.speed+=(f.baseSpeed-f.speed)*dt*.5;}
+
+const mg=1.5,hw=PW/2-mg,hd=PD/2-mg;
+if(f.x>hw)f.heading+=angDiff(Math.PI,f.heading)*dt*2;
+if(f.x<-hw)f.heading+=angDiff(0,f.heading)*dt*2;
+if(f.z>hd)f.heading+=angDiff(-Math.PI/2,f.heading)*dt*2;
+if(f.z<-hd)f.heading+=angDiff(Math.PI/2,f.heading)*dt*2;
+
+f.x+=Math.sin(f.heading)*f.speed*dt;
+f.z+=Math.cos(f.heading)*f.speed*dt;
+f.x=Math.max(-hw,Math.min(hw,f.x));
+f.z=Math.max(-hd,Math.min(hd,f.z));
+f.grp.position.set(f.x,f.y,f.z);
+f.grp.rotation.y=f.heading;}
+
+/* ===== ANIMATION ===== */
+let time=0;
+const clock=new THREE.Clock();
+
+function animBody(f,t){
+const pos=f.bg.attributes.position,orig=f.orig,n=pos.count;
+for(let i=0;i<n;i++){
+const ox=orig[i*3],oy=orig[i*3+1],oz=orig[i*3+2];
+const bt=Math.max(0,Math.min(1,(.9-oz)/1.8));
+const amp=Math.pow(bt,1.5)*.25;
+const wave=Math.sin(bt*5.-t*6.+f.phase)*amp;
+pos.setXYZ(i,ox+wave,oy,oz);}
+pos.needsUpdate=true;f.bg.computeVertexNormals();}
+
+function animFins(f,t){
+f.tail.rotation.y=Math.sin(-t*6.+f.phase)*.3;
+const pw=Math.sin(t*4.+f.phase)*.15;
+f.pectL.rotation.x=pw;f.pectR.rotation.x=-pw;
+f.dorsal.rotation.z=Math.sin(t*3.+f.phase)*.05;}
+
+function updWF(dt,t){
+const wp=wfG.attributes.position;
+for(let i=0;i<wfN;i++){let y=wp.getY(i);y-=wfS[i]*dt;
+if(y<0){triggerSplash(wp.getX(i),wp.getZ(i));y=2+Math.random()*3;
+wp.setX(i,(Math.random()-.5)*3);wp.setZ(i,wfZ+(Math.random()-.5)*.3);}
+wp.setY(i,y);}
+wp.needsUpdate=true;
+wsMat.uniforms.time.value=t;
+
+const sp=spG.attributes.position;
+for(let i=0;i<spN;i++){if(spL[i]>0){spL[i]-=dt;
+spP[i*3]+=spV[i*3]*dt;spP[i*3+1]+=spV[i*3+1]*dt;spP[i*3+2]+=spV[i*3+2]*dt;
+spV[i*3+1]-=9.8*dt;
+if(spL[i]<=0)spP[i*3+1]=-100;}}
+sp.needsUpdate=true;
+
+const mp=miG.attributes.position;
+for(let i=0;i<miN;i++){let y=mp.getY(i);y+=dt*.3;if(y>3)y=0;
+mp.setY(i,y);mp.setX(i,mp.getX(i)+Math.sin(t+i)*dt*.2);}
+mp.needsUpdate=true;}
+
+function updPlants(t){
+for(const p of uPlants){p.g.rotation.x=Math.sin(t*p.sp+p.ph)*p.am;p.g.rotation.z=Math.cos(t*p.sp*.7+p.ph)*p.am;}
+for(const r of reeds){r.g.rotation.x=Math.sin(t*r.sp+r.ph)*r.am;r.g.rotation.z=Math.cos(t*r.sp*.8+r.ph)*r.am;}
+for(const p of lilyPads){p.mesh.position.y=p.by+Math.sin(t*p.sp+p.ph)*.02;}}
+
+function updFood(dt,t){
+for(const f of foodItems){if(!f.alive)continue;f.age+=dt;
+f.mesh.scale.setScalar(Math.min(f.age/.3,1));
+f.mesh.position.y=.05+Math.sin(t*2+f.age*3)*.03;
+f.mesh.position.x=f.x+Math.sin(t+f.age)*.05;
+f.mesh.position.z=f.z+Math.cos(t*.7+f.age)*.05;
+if(f.age>30){f.mesh.position.y-=dt*.1;if(f.mesh.position.y<-PDp+.5)rmFood(f);}}
+for(let i=foodItems.length-1;i>=0;i--)if(!foodItems[i].alive)foodItems.splice(i,1);}
+
+function updDust(t){
+const dp=dG.attributes.position;
+for(let i=0;i<dN;i++){dP[i*3]+=Math.sin(t*.3+i)*.005;dP[i*3+1]+=Math.cos(t*.2+i*.5)*.003;
+if(dP[i*3+1]>10)dP[i*3+1]=0;if(dP[i*3+1]<0)dP[i*3+1]=10;}
+dp.needsUpdate=true;}
+
+/* ===== MAIN LOOP ===== */
+function animate(){
+requestAnimationFrame(animate);
+const dt=Math.min(clock.getDelta(),.05);
+time+=dt;
+wUni.time.value=time;
+
+for(const f of fishList){
+updateAI(f,dt);animBody(f,time);animFins(f,time);
+f.grp.position.y=f.y+Math.sin(time*.5+f.phase)*.05;}
+
+updFood(dt,time);updWF(dt,time);updPlants(time);updDust(time);
+
+camera.position.x=Math.sin(time*.1)*1;
+camera.position.y=14+Math.sin(time*.15)*.3;
+camera.lookAt(0,-1,-2);
+renderer.render(scene,camera);}
+
+/* ===== EVENTS ===== */
+document.getElementById('feedBtn').addEventListener('click',spawnFood);
+window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+
+animate();
+})();
+</script>
+</body>
+</html>

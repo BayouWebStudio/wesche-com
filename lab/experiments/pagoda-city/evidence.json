@@ -1,0 +1,172 @@
+{
+ "title": "Pagoda City: GLM vs MiMo on two Sparks",
+ "prompt": "Create a single self-contained HTML file using Three.js (load it from a CDN via an import map) that renders an interactive voxel world: a tall multi-tiered pagoda standing on a mountainside, with a voxel city spread around and below it \u2014 houses with sloped roofs, narrow streets, stairways climbing the slope, a river or waterfall coming down the mountain, bridges, trees, and lanterns. Everything is built from cubes (voxels); no imported models or textures.\n\nRequirements:\n- Terrain: procedurally generated voxel mountains with the pagoda on a prominent ridge and the city terraced down the slope toward a valley. Use at least 3 distinct height bands (snow / rock / grass) with color variation so it doesn't look flat.\n- The pagoda must have at least 5 tiers with upturned eaves, a spire, and lit windows.\n- Rendering must be efficient: use InstancedMesh (or merged geometry) so tens of thousands of voxels render at 60 fps on a laptop GPU. Add shadows from a directional sun and a soft sky/ambient light.\n- On load, the camera performs a slow cinematic orbit around the pagoda and city for the first 10 seconds, then hands off to the user.\n- Interactivity (all must work):\n  1. Orbit / zoom / pan camera with mouse (OrbitControls), starting from a cinematic view of the pagoda.\n  2. A day/night slider or button that moves the sun, shifts the sky color, and turns on the pagoda and city lanterns at night (emissive voxels, and a few point lights near the pagoda). Lanterns should switch on in a visible sequence, not all at once.\n  3. Clicking on any voxel of the city or pagoda highlights it and shows a small tooltip with what it is (e.g. \"Pagoda tier 3\", \"House roof\", \"Bridge\") \u2014 use raycasting against the instanced meshes.\n  4. A \"regenerate\" button that rebuilds the terrain and city from a new random seed without reloading the page.\n- Add subtle ambient animation: drifting clouds (voxel clouds), flickering lantern light at night, and a slow water animation on the river.\n- Include a small on-screen legend/help panel describing the controls, and an FPS counter.\n- The page must load with no console errors, must not rely on any files other than Three.js from the CDN, and must not use any deprecated Three.js APIs (r160+).\n\nReturn only the complete HTML file in a single code block.",
+ "arms": {
+  "glm": {
+   "dir": "glm-pagoda-city",
+   "wall_s": 5984.9,
+   "ttft_s": 1.0,
+   "completion_tokens": 134598,
+   "prompt_tokens": 545,
+   "tok_s": 22.5,
+   "html_bytes": 46775,
+   "finish_reason": "stop",
+   "errors": [],
+   "served": "GLM-5.3 Flash EXL3 \u2014 Mia TP2 (spark-366f+9f73) 10.0.0.183:8892, thinking ON (server default)",
+   "thinking": "on",
+   "max_tokens": null,
+   "temperature": 0.7,
+   "artifact_sha256": "b3e505e30c3dff5d3857a54ba1a43890d81e7d676d33013dd8465208f7feba7e"
+  },
+  "mimo": {
+   "dir": "mimo-pagoda-city",
+   "wall_s": 4785.1,
+   "ttft_s": 0.5,
+   "completion_tokens": 131373,
+   "prompt_tokens": 544,
+   "tok_s": 27.5,
+   "html_bytes": 37813,
+   "finish_reason": "stop",
+   "errors": [],
+   "served": "MiMo-V2.6-Flash-RL MXFP4 \u2014 vLLM TP2 (spark-b610+78f1) 10.0.0.120:8888, tonyd2wild recipe, DFlash 7, fp8 KV, thinking ON (template default)",
+   "thinking": "on",
+   "max_tokens": null,
+   "temperature": 0.7,
+   "artifact_sha256": "147a0956e2dd7ad9b1a7b44a7a5befe29cbfcc4bd91f6aa1ac27ff5de1cf44bc"
+  }
+ },
+ "serving": {
+  "glm": "GLM-5.3-Flash EXL3 \u00b7 TP2 on 2\u00d7 DGX Spark (Mia)",
+  "mimo": "MiMo-V2.6-Flash-RL MXFP4 \u00b7 vLLM TP2 on 2\u00d7 DGX Spark (tonyd2wild recipe: RoCE, fp8 KV, DFlash 7)"
+ },
+ "recording": {
+  "file": "comparison.mp4",
+  "sha256": "8b1c660df75e6f224c48e3cccd69d451405f5c9708acf264f86d1a7782370045",
+  "probe": {
+   "index": 0,
+   "codec_name": "h264",
+   "codec_long_name": "H.264 / AVC / MPEG-4 AVC / MPEG-4 part 10",
+   "profile": "High",
+   "codec_type": "video",
+   "codec_tag_string": "avc1",
+   "codec_tag": "0x31637661",
+   "mime_codec_string": "avc1.640028",
+   "width": 1280,
+   "height": 1440,
+   "coded_width": 1280,
+   "coded_height": 1440,
+   "has_b_frames": 2,
+   "pix_fmt": "yuv420p",
+   "level": 40,
+   "chroma_location": "left",
+   "field_order": "progressive",
+   "is_avc": "true",
+   "nal_length_size": "4",
+   "id": "0x1",
+   "r_frame_rate": "24/1",
+   "avg_frame_rate": "24/1",
+   "time_base": "1/12288",
+   "start_pts": 0,
+   "start_time": "0.000000",
+   "duration_ts": 368640,
+   "duration": "30.000000",
+   "bit_rate": "1344072",
+   "bits_per_raw_sample": "8",
+   "nb_frames": "720",
+   "extradata_size": 46,
+   "disposition": {
+    "default": 1,
+    "dub": 0,
+    "original": 0,
+    "comment": 0,
+    "lyrics": 0,
+    "karaoke": 0,
+    "forced": 0,
+    "hearing_impaired": 0,
+    "visual_impaired": 0,
+    "clean_effects": 0,
+    "attached_pic": 0,
+    "timed_thumbnails": 0,
+    "non_diegetic": 0,
+    "captions": 0,
+    "descriptions": 0,
+    "metadata": 0,
+    "dependent": 0,
+    "still_image": 0,
+    "multilayer": 0
+   },
+   "tags": {
+    "language": "und",
+    "handler_name": "VideoHandler",
+    "encoder": "Lavc63.1.101 libx264"
+   }
+  }
+ },
+ "capture": {
+  "method": "30 s fixed-step capture with a scripted, identical timeline: model's own auto-orbit for 12 s, time-of-day control set to night at 12 s, a click on the centre of the scene at 20 s (tooltip), regenerate at 24 s. Controls were located by id/label regex; the script log in evidence.json shows what was hit on each arm.",
+  "glm_events": [
+   {
+    "frame": 288,
+    "action": "night",
+    "target": {
+     "tag": "INPUT",
+     "id": "time",
+     "text": "",
+     "x": 523,
+     "y": 680.5,
+     "w": 200,
+     "type": "range"
+    }
+   },
+   {
+    "frame": 480,
+    "action": "clickvoxel"
+   },
+   {
+    "frame": 576,
+    "action": "regenerate",
+    "target": {
+     "tag": "BUTTON",
+     "id": "regen",
+     "text": "\n    \n    regenerate\n  ",
+     "x": 827.5,
+     "y": 680.5,
+     "w": 109,
+     "type": "submit"
+    }
+   }
+  ],
+  "mimo_events": [
+   {
+    "frame": 288,
+    "action": "night",
+    "target": {
+     "tag": "INPUT",
+     "id": "tod",
+     "text": "",
+     "x": 174.5,
+     "y": 57.5,
+     "w": 129,
+     "type": "range"
+    }
+   },
+   {
+    "frame": 480,
+    "action": "clickvoxel"
+   },
+   {
+    "frame": 576,
+    "action": "regenerate",
+    "target": {
+     "tag": "BUTTON",
+     "id": "regen",
+     "text": "Regenerate World",
+     "x": 151,
+     "y": 90.5,
+     "w": 252,
+     "type": "button"
+    }
+   }
+  ]
+ }
+}
