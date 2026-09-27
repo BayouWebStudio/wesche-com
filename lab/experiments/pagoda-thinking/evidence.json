@@ -1,0 +1,66 @@
+{
+ "title": "Pagoda City: MiMo-V2.6-Flash-RL, thinking on vs thinking off",
+ "date": "2026-09-27",
+ "prompt": "Create a single self-contained HTML file using Three.js (load it from a CDN via an import map) that renders an interactive voxel world: a tall multi-tiered pagoda standing on a mountainside, with a voxel city spread around and below it — houses with sloped roofs, narrow streets, stairways climbing the slope, a river or waterfall coming down the mountain, bridges, trees, and lanterns. Everything is built from cubes (voxels); no imported models or textures.\n\nRequirements:\n- Terrain: procedurally generated voxel mountains with the pagoda on a prominent ridge and the city terraced down the slope toward a valley. Use at least 3 distinct height bands (snow / rock / grass) with color variation so it doesn't look flat.\n- The pagoda must have at least 5 tiers with upturned eaves, a spire, and lit windows.\n- Rendering must be efficient: use InstancedMesh (or merged geometry) so tens of thousands of voxels render at 60 fps on a laptop GPU. Add shadows from a directional sun and a soft sky/ambient light.\n- On load, the camera performs a slow cinematic orbit around the pagoda and city for the first 10 seconds, then hands off to the user.\n- Interactivity (all must work):\n  1. Orbit / zoom / pan camera with mouse (OrbitControls), starting from a cinematic view of the pagoda.\n  2. A day/night slider or button that moves the sun, shifts the sky color, and turns on the pagoda and city lanterns at night (emissive voxels, and a few point lights near the pagoda). Lanterns should switch on in a visible sequence, not all at once.\n  3. Clicking on any voxel of the city or pagoda highlights it and shows a small tooltip with what it is (e.g. \"Pagoda tier 3\", \"House roof\", \"Bridge\") — use raycasting against the instanced meshes.\n  4. A \"regenerate\" button that rebuilds the terrain and city from a new random seed without reloading the page.\n- Add subtle ambient animation: drifting clouds (voxel clouds), flickering lantern light at night, and a slow water animation on the river.\n- Include a small on-screen legend/help panel describing the controls, and an FPS counter.\n- The page must load with no console errors, must not rely on any files other than Three.js from the CDN, and must not use any deprecated Three.js APIs (r160+).\n\nReturn only the complete HTML file in a single code block.\n",
+ "sampling": {
+  "temperature": 0.7,
+  "top_k": 20,
+  "top_p": 0.95,
+  "seed": 42,
+  "max_tokens": 299000,
+  "note": "max_tokens is the full 300K serving window, not a budget cap"
+ },
+ "serving": "MiMo-V2.6-Flash-RL (XiaomiMiMo, FP8/MXFP4 store) — vLLM TP2 on spark-b610 + spark-78f1, tonyd2wild image sm121-v11-dflash2, DFlash drafter k=7 (dflash/config.json JSON fix applied, byte-identical to HF commit b2674c72), fp8 KV, max-model-len 300000. Checkpoint files verified SHA-256 identical to HF main as of 2026-09-27.",
+ "arms": {
+  "thinking_on": {
+   "dir": "mimo-pagoda-think-on",
+   "enable_thinking": true,
+   "wall_s": 5282.75,
+   "ttft_s": 27.92,
+   "completion_tokens": 144622,
+   "reasoning_chars": 383681,
+   "tok_s": 27.52,
+   "finish_reason": "stop",
+   "html_bytes": 34729,
+   "original_sha256": "c42af2d8d037ce9f22a5a3fb30d262730a73e1447cc1c0b6532a722ecdd68b33",
+   "repaired_sha256": "8e293f2a98aee75dc3bbf8df5b66c37c46aef51e9b0b632230828026c56ac2ed",
+   "repairs": 2,
+   "repairs_doc": "/lab/mimo2.6local/pagoda-thinking/thinking-on/REPAIRS.md",
+   "render": "as shipped: ReferenceError PAG_W in addPagoda, empty world; after repair 1: renders, throws on first pointer move; after repair 2: clean. 7-tier pagoda, lanterns, pines, cliff, water, clouds, ~27K voxels, day/night, seed regen."
+  },
+  "thinking_off": {
+   "dir": "mimo-pagoda-think-off",
+   "enable_thinking": false,
+   "wall_s": 163.53,
+   "ttft_s": 0.326,
+   "completion_tokens": 8597,
+   "reasoning_chars": 0,
+   "tok_s": 52.68,
+   "finish_reason": "stop",
+   "html_bytes": 29211,
+   "original_sha256": "95b6b6cc1a8a154978692a161e228471907b5cec0ce6af8f087876fe420ca3fa",
+   "repairs": 0,
+   "render": "clean as shipped, zero console errors. Plain white pagoda on a lumpy mountain, ~10.8K voxels, day/night slider. World is re-seeded from Math.random() on every load."
+  }
+ },
+ "recording": {
+  "method": "Headless Chromium (ANGLE/Metal), 1280x720, deterministic 24 fps clock shim, 12 s per arm. Scripted wheel zoom then a slow left-drag orbit so the pagoda is framed; the thinking-on capture also uses a right-drag pan. Thinking-on clip shows the repaired build. Thinking-off clip: Math.random was pinned to a fixed sequence on the capture side only (the published file is untouched) so the shot is repeatable; the bottom panel is a 2x centre crop of the 1280x720 capture.",
+  "file": "comparison.mp4",
+  "ffprobe": {
+   "programs": [],
+   "stream_groups": [],
+   "streams": [
+    {
+     "width": 1280,
+     "height": 1480,
+     "r_frame_rate": "24/1"
+    }
+   ],
+   "format": {
+    "duration": "12.000000"
+   }
+  },
+  "labels": "top: thinking on · bottom: thinking off"
+ },
+ "context": "Same prompt, seed and sampling as the published four-way Pagoda City study (/lab/experiments/pagoda-city/), where MiMo thinking-on was recorded at 131,373 tokens / 79m45s. This is an independent second generation, not a reuse."
+}
