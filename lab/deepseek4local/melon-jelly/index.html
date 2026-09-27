@@ -1,0 +1,2201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Melon Jelly · Material Studies</title>
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        :root {
+            --bg: #f5f3ef;
+            --text: #1a1a1a;
+            --muted: #8a8682;
+            --border: #d6d2cc;
+            --accent: #d44a5a;
+            --accent2: #4a8a6a;
+            --font: 'Georgia', 'Times New Roman', serif;
+            --sans: 'Helvetica Neue', 'Arial', sans-serif;
+            --radius: 0;
+            --shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+        }
+        html,
+        body {
+            height: 100%;
+            overflow: hidden;
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--sans);
+            font-weight: 400;
+            font-size: 14px;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+        }
+        #app {
+            display: grid;
+            grid-template-columns: 1fr 280px;
+            grid-template-rows: 1fr auto;
+            height: 100vh;
+            width: 100vw;
+            gap: 0;
+            background: var(--bg);
+        }
+        #viewport-wrap {
+            grid-row: 1 / 3;
+            grid-column: 1 / 2;
+            position: relative;
+            overflow: hidden;
+            background: #eae7e2;
+            min-height: 0;
+        }
+        #viewport-wrap canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+        }
+        #status {
+            position: absolute;
+            top: 20px;
+            right: 24px;
+            font-size: 11px;
+            letter-spacing: 0.6px;
+            text-transform: uppercase;
+            color: var(--muted);
+            font-family: var(--sans);
+            font-weight: 500;
+            background: rgba(245, 243, 239, 0.7);
+            padding: 4px 12px;
+            border: 1px solid var(--border);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            pointer-events: none;
+        }
+        #status .dot {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #6aaa7a;
+            margin-right: 6px;
+            vertical-align: middle;
+            animation: pulse-dot 2s ease-in-out infinite;
+        }
+        @keyframes pulse-dot {
+            0%,
+            100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.3;
+            }
+        }
+        #title-wrap {
+            position: absolute;
+            top: 20px;
+            left: 24px;
+            pointer-events: none;
+            z-index: 2;
+        }
+        #title-wrap .label {
+            font-family: var(--sans);
+            font-size: 10px;
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
+        #title-wrap h1 {
+            font-family: var(--font);
+            font-size: 42px;
+            font-weight: 400;
+            font-style: italic;
+            line-height: 1.0;
+            letter-spacing: -0.5px;
+            color: var(--text);
+        }
+        #title-wrap h1 .line2 {
+            display: block;
+            font-size: 38px;
+            margin-top: -2px;
+        }
+        #title-wrap .caption {
+            font-family: var(--font);
+            font-size: 13px;
+            font-style: italic;
+            color: var(--muted);
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        #title-wrap .caption span {
+            display: block;
+        }
+        #hint {
+            position: absolute;
+            bottom: 24px;
+            left: 24px;
+            font-size: 12px;
+            color: var(--muted);
+            font-family: var(--sans);
+            font-weight: 400;
+            letter-spacing: 0.2px;
+            background: rgba(245, 243, 239, 0.6);
+            padding: 6px 14px;
+            border: 1px solid var(--border);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            pointer-events: none;
+        }
+        #stats {
+            position: absolute;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 11px;
+            color: var(--muted);
+            font-family: var(--sans);
+            font-weight: 400;
+            background: rgba(245, 243, 239, 0.6);
+            padding: 6px 18px;
+            border: 1px solid var(--border);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            display: flex;
+            gap: 24px;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+        #stats .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        #stats .stat-value {
+            font-weight: 500;
+            color: var(--text);
+            min-width: 48px;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+        #panel {
+            grid-row: 1 / 2;
+            grid-column: 2 / 3;
+            background: var(--bg);
+            border-left: 1px solid var(--border);
+            padding: 24px 20px 16px;
+            overflow-y: auto;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        #panel .section-label {
+            font-family: var(--sans);
+            font-size: 10px;
+            letter-spacing: 1.4px;
+            text-transform: uppercase;
+            color: var(--muted);
+            font-weight: 500;
+            margin-bottom: 2px;
+        }
+        #panel .preset-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        #panel .preset-btn {
+            flex: 1;
+            min-width: 56px;
+            padding: 8px 6px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text);
+            font-family: var(--sans);
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s;
+            text-align: center;
+            letter-spacing: 0.3px;
+            border-radius: var(--radius);
+        }
+        #panel .preset-btn:hover {
+            background: rgba(0, 0, 0, 0.04);
+        }
+        #panel .preset-btn.active {
+            border-color: var(--text);
+            background: var(--text);
+            color: var(--bg);
+        }
+        #panel .preset-btn .swatch {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 4px;
+            vertical-align: middle;
+            border: 1px solid rgba(0, 0, 0, 0.06);
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .control-group label {
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--text);
+            display: flex;
+            justify-content: space-between;
+            letter-spacing: 0.2px;
+        }
+        .control-group label .val {
+            color: var(--muted);
+            font-weight: 400;
+            font-variant-numeric: tabular-nums;
+        }
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 3px;
+            background: var(--border);
+            border-radius: 2px;
+            outline: none;
+            margin: 4px 0;
+            cursor: pointer;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--text);
+            border: none;
+            cursor: pointer;
+            transition: 0.1s;
+        }
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--text);
+            border: none;
+            cursor: pointer;
+        }
+        .btn-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .btn-row button {
+            flex: 1;
+            min-width: 60px;
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text);
+            font-family: var(--sans);
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s;
+            text-align: center;
+            letter-spacing: 0.3px;
+            border-radius: var(--radius);
+        }
+        .btn-row button:hover {
+            background: rgba(0, 0, 0, 0.04);
+        }
+        .btn-row button:active {
+            background: rgba(0, 0, 0, 0.08);
+        }
+        .btn-row button.primary {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+        .btn-row button.primary:hover {
+            background: var(--accent);
+            color: #fff;
+        }
+        .checkbox-row {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--text);
+        }
+        .checkbox-row label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            user-select: none;
+        }
+        .checkbox-row input[type="checkbox"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            border: 1.5px solid var(--border);
+            border-radius: 2px;
+            background: transparent;
+            cursor: pointer;
+            transition: 0.1s;
+            flex-shrink: 0;
+            margin: 0;
+        }
+        .checkbox-row input[type="checkbox"]:checked {
+            background: var(--text);
+            border-color: var(--text);
+        }
+        #footer {
+            grid-row: 2 / 3;
+            grid-column: 2 / 3;
+            border-left: 1px solid var(--border);
+            border-top: 1px solid var(--border);
+            padding: 12px 20px 16px;
+            background: var(--bg);
+            font-size: 11px;
+            color: var(--muted);
+            overflow-y: auto;
+            max-height: 180px;
+        }
+        #footer details {
+            cursor: pointer;
+        }
+        #footer summary {
+            font-weight: 500;
+            font-size: 10px;
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
+            color: var(--text);
+            margin-bottom: 4px;
+            list-style: none;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        #footer summary::-webkit-details-marker {
+            display: none;
+        }
+        #footer summary::before {
+            content: '▸';
+            display: inline-block;
+            transition: transform 0.2s;
+            font-size: 12px;
+        }
+        #footer details[open] summary::before {
+            transform: rotate(90deg);
+        }
+        #footer .details-content {
+            padding-top: 6px;
+            line-height: 1.7;
+            color: var(--muted);
+            font-size: 11px;
+        }
+        #footer .details-content p {
+            margin-bottom: 4px;
+        }
+        #error-overlay {
+            position: fixed;
+            inset: 0;
+            background: var(--bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            padding: 40px;
+            text-align: center;
+            font-family: var(--font);
+        }
+        #error-overlay h2 {
+            font-size: 28px;
+            font-weight: 400;
+            font-style: italic;
+            margin-bottom: 12px;
+            color: var(--text);
+        }
+        #error-overlay p {
+            font-size: 15px;
+            color: var(--muted);
+            max-width: 420px;
+            line-height: 1.7;
+        }
+        #error-overlay .fallback-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+        @media (max-width: 820px) {
+            #app {
+                grid-template-columns: 1fr;
+                grid-template-rows: 55vh auto auto;
+            }
+            #viewport-wrap {
+                grid-row: 1 / 2;
+                grid-column: 1 / 2;
+            }
+            #panel {
+                grid-row: 2 / 3;
+                grid-column: 1 / 2;
+                border-left: none;
+                border-top: 1px solid var(--border);
+                padding: 16px 16px 12px;
+                max-height: 38vh;
+                overflow-y: auto;
+                gap: 10px;
+            }
+            #footer {
+                grid-row: 3 / 4;
+                grid-column: 1 / 2;
+                border-left: none;
+                padding: 10px 16px 14px;
+                max-height: none;
+            }
+            #title-wrap h1 {
+                font-size: 28px;
+            }
+            #title-wrap h1 .line2 {
+                font-size: 24px;
+            }
+            #title-wrap .caption {
+                font-size: 11px;
+            }
+            #stats {
+                font-size: 10px;
+                padding: 4px 12px;
+                gap: 12px;
+                bottom: 12px;
+                left: 50%;
+                transform: translateX(-50%);
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            #hint {
+                display: none;
+            }
+            #status {
+                top: 12px;
+                right: 12px;
+                font-size: 10px;
+                padding: 2px 10px;
+            }
+            #title-wrap {
+                top: 12px;
+                left: 12px;
+            }
+            #title-wrap .label {
+                font-size: 8px;
+            }
+        }
+        @media (max-width: 480px) {
+            #title-wrap h1 {
+                font-size: 22px;
+            }
+            #title-wrap h1 .line2 {
+                font-size: 18px;
+            }
+            #title-wrap .caption {
+                font-size: 10px;
+                margin-top: 4px;
+            }
+            #title-wrap .caption span {
+                display: inline;
+            }
+            #title-wrap .caption span::after {
+                content: ' ';
+            }
+            #stats .stat-item {
+                font-size: 9px;
+            }
+            #stats .stat-value {
+                min-width: 32px;
+            }
+            #panel .preset-btn {
+                font-size: 10px;
+                padding: 6px 4px;
+                min-width: 44px;
+            }
+            .btn-row button {
+                font-size: 10px;
+                padding: 6px 8px;
+                min-width: 44px;
+            }
+            .control-group label {
+                font-size: 10px;
+            }
+            .checkbox-row {
+                font-size: 10px;
+                gap: 10px;
+            }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="app">
+        <div id="viewport-wrap">
+            <canvas id="gpu-canvas"></canvas>
+            <div id="title-wrap">
+                <div class="label">Material Studies / No. 009</div>
+                <h1>Melon <span class="line2">Jelly</span></h1>
+                <div class="caption"><span>A slice of summer.</span><span>A little wobble.</span><span>Too soft to share.</span></div>
+            </div>
+            <div id="status"><span class="dot"></span>WEBGPU · LIVE</div>
+            <div id="hint">↕ Grab the slice · drag to stretch &amp; twist</div>
+            <div id="stats">
+                <span class="stat-item">Mass <span class="stat-value" id="stat-mass">—</span></span>
+                <span class="stat-item">Volume <span class="stat-value" id="stat-vol">—</span></span>
+                <span class="stat-item">Energy <span class="stat-value" id="stat-ener">—</span></span>
+            </div>
+        </div>
+
+        <div id="panel">
+            <div>
+                <div class="section-label">The Specimen</div>
+                <div class="preset-row" id="preset-row">
+                    <button class="preset-btn active" data-preset="classic"><span class="swatch" style="background:#d44a5a;"></span>Classic</button>
+                    <button class="preset-btn" data-preset="sunset"><span class="swatch" style="background:#e8654a;"></span>Sunset</button>
+                    <button class="preset-btn" data-preset="frost"><span class="swatch" style="background:#c46a8a;"></span>Frost</button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Firmness <span class="val" id="val-firmness">0.65</span></label>
+                <input type="range" id="slider-firmness" min="0.1" max="1.0" step="0.01" value="0.65">
+            </div>
+
+            <div class="control-group">
+                <label>Internal Damping <span class="val" id="val-damping">0.35</span></label>
+                <input type="range" id="slider-damping" min="0.01" max="0.95" step="0.01" value="0.35">
+            </div>
+
+            <div class="btn-row">
+                <button id="btn-nudge" class="primary">Give it a nudge</button>
+                <button id="btn-reset">Reset</button>
+                <button id="btn-pause">Pause</button>
+            </div>
+
+            <div class="checkbox-row">
+                <label><input type="checkbox" id="chk-slowmo"> ¼ speed</label>
+                <label><input type="checkbox" id="chk-wireframe"> Show mesh</label>
+            </div>
+        </div>
+
+        <div id="footer">
+            <details>
+                <summary>Inside the experiment</summary>
+                <div class="details-content">
+                    <p><strong>Physics.</strong> XPBD soft-body simulation on a tetrahedral mesh (~1.2k elements). Volume preservation, elastic constraints, and adaptive ground contact. The rind is ~2× stiffer than the flesh.</p>
+                    <p><strong>Rendering.</strong> WebGPU + WGSL with thickness-dependent absorption, Fresnel reflections, and subsurface scattering approximation. Three distinct material layers: translucent jelly flesh, pale albedo layer, and glossy green rind with irregular stripes.</p>
+                    <p><strong>Interaction.</strong> Pointer-based grabbing with raycast picking. Drag anywhere on the slice to deform. Release to watch it settle. Touch and mouse supported.</p>
+                </div>
+            </details>
+        </div>
+    </div>
+
+    <div id="error-overlay" style="display:none;">
+        <div>
+            <div class="fallback-icon">🍉</div>
+            <h2>WebGPU not available</h2>
+            <p>This experiment requires a browser with WebGPU support. Try the latest Chrome, Edge, or Firefox (with flags enabled).</p>
+        </div>
+    </div>
+
+    <script type="module">
+        // ─── Imports & Setup ───────────────────────────────────────────────
+        const canvas = document.getElementById('gpu-canvas');
+        const statusEl = document.getElementById('status');
+        const errorOverlay = document.getElementById('error-overlay');
+
+        // ─── WebGPU Check ──────────────────────────────────────────────────
+        if (!navigator.gpu) {
+            errorOverlay.style.display = 'flex';
+            statusEl.textContent = 'WEBGPU · UNAVAILABLE';
+            throw new Error('WebGPU not available');
+        }
+
+        // ─── Constants ─────────────────────────────────────────────────────
+        const GRAVITY = -6.8;
+        const DT = 1 / 60;
+        const SUBSTEPS = 6;
+        const SUB_DT = DT / SUBSTEPS;
+        const GROUND_Y = -1.6;
+        const WEDGE_RADIUS = 2.0;
+        const WEDGE_ANGLE = 1.2; // ~69 deg
+        const WEDGE_THICKNESS = 0.55; // rad
+        const NU = 10;
+        const NV = 5;
+        const NW = 8;
+
+        // ─── State ─────────────────────────────────────────────────────────
+        const state = {
+            firmness: 0.65,
+            damping: 0.35,
+            paused: false,
+            slowmo: false,
+            wireframe: false,
+            preset: 'classic',
+            grabInfo: null,
+            time: 0,
+            frameCount: 0,
+            simReady: false,
+        };
+
+        // ─── Mesh Generation ───────────────────────────────────────────────
+        function buildWedgeMesh() {
+            const verts = [];
+            const tetIndices = [];
+            const surfaceFaces = [];
+            const edgeSet = new Set();
+
+            // Generate vertices
+            for (let iu = 0; iu < NU; iu++) {
+                const u = iu / (NU - 1);
+                const r = u * WEDGE_RADIUS;
+                for (let iv = 0; iv < NV; iv++) {
+                    const v = iv / (NV - 1);
+                    const theta = v * WEDGE_THICKNESS;
+                    for (let iw = 0; iw < NW; iw++) {
+                        const w = iw / (NW - 1);
+                        const phi = (w - 0.5) * WEDGE_ANGLE;
+                        const x = r * Math.cos(theta) * Math.cos(phi);
+                        const y = r * Math.sin(theta);
+                        const z = r * Math.cos(theta) * Math.sin(phi);
+                        // Shift so tip is near origin and wedge sits above ground
+                        const shiftX = 0.0;
+                        const shiftY = 0.6;
+                        const shiftZ = 0.0;
+                        verts.push({
+                            pos: [x + shiftX, y + shiftY, z + shiftZ],
+                            uv: [u, v, w],
+                            r: r,
+                            isRind: u > 0.85,
+                            isPale: u > 0.65 && u <= 0.85,
+                            isFlesh: u <= 0.65,
+                            idx: verts.length
+                        });
+                    }
+                }
+            }
+
+            // Helper to get vertex index
+            function idx(iu, iv, iw) {
+                if (iu < 0 || iu >= NU || iv < 0 || iv >= NV || iw < 0 || iw >= NW) return -1;
+                return iu * NV * NW + iv * NW + iw;
+            }
+
+            // Generate tetrahedra (5 per hex)
+            for (let iu = 0; iu < NU - 1; iu++) {
+                for (let iv = 0; iv < NV - 1; iv++) {
+                    for (let iw = 0; iw < NW - 1; iw++) {
+                        const h = [
+                            idx(iu, iv, iw),
+                            idx(iu + 1, iv, iw),
+                            idx(iu, iv + 1, iw),
+                            idx(iu, iv, iw + 1),
+                            idx(iu + 1, iv + 1, iw),
+                            idx(iu + 1, iv, iw + 1),
+                            idx(iu, iv + 1, iw + 1),
+                            idx(iu + 1, iv + 1, iw + 1)
+                        ];
+                        if (h.some(i => i < 0)) continue;
+                        // 5-tet decomposition
+                        const tets = [
+                            [h[0], h[1], h[2], h[3]],
+                            [h[1], h[4], h[2], h[5]],
+                            [h[1], h[2], h[5], h[3]],
+                            [h[2], h[4], h[6], h[5]],
+                            [h[2], h[6], h[7], h[5]],
+                            [h[2], h[3], h[5], h[6]],
+                            [h[2], h[5], h[7], h[6]],
+                            [h[1], h[5], h[4], h[7]],
+                            [h[1], h[3], h[5], h[7]],
+                            [h[0], h[3], h[1], h[7]],
+                            [h[0], h[1], h[7], h[4]],
+                            [h[0], h[4], h[7], h[6]],
+                            [h[0], h[2], h[3], h[6]],
+                            [h[0], h[2], h[6], h[4]],
+                            [h[0], h[6], h[7], h[4]],
+                        ];
+                        // Deduplicate: use first 5 for a clean mesh
+                        const useTets = tets.slice(0, 5);
+                        for (const tet of useTets) {
+                            tetIndices.push(tet);
+                            // Collect faces for surface extraction
+                            const faces = [
+                                [tet[0], tet[1], tet[2]],
+                                [tet[0], tet[1], tet[3]],
+                                [tet[0], tet[2], tet[3]],
+                                [tet[1], tet[2], tet[3]]
+                            ];
+                            for (const f of faces) {
+                                const key = f.slice().sort((a, b) => a - b).join(',');
+                                if (edgeSet.has(key)) {
+                                    edgeSet.delete(key);
+                                } else {
+                                    edgeSet.add(key);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Extract surface faces
+            const faceMap = new Map();
+            for (const tet of tetIndices) {
+                const faces = [
+                    [tet[0], tet[1], tet[2]],
+                    [tet[0], tet[1], tet[3]],
+                    [tet[0], tet[2], tet[3]],
+                    [tet[1], tet[2], tet[3]]
+                ];
+                for (const f of faces) {
+                    const key = f.slice().sort((a, b) => a - b).join(',');
+                    if (faceMap.has(key)) {
+                        faceMap.delete(key);
+                    } else {
+                        faceMap.set(key, f);
+                    }
+                }
+            }
+            const surfFaces = Array.from(faceMap.values());
+
+            // Build edges for constraints
+            const edgeMap = new Map();
+            for (const tet of tetIndices) {
+                const pairs = [
+                    [tet[0], tet[1]],
+                    [tet[0], tet[2]],
+                    [tet[0], tet[3]],
+                    [tet[1], tet[2]],
+                    [tet[1], tet[3]],
+                    [tet[2], tet[3]]
+                ];
+                for (const [a, b] of pairs) {
+                    const key = Math.min(a, b) + ',' + Math.max(a, b);
+                    if (!edgeMap.has(key)) {
+                        edgeMap.set(key, [a, b]);
+                    }
+                }
+            }
+            const edges = Array.from(edgeMap.values());
+
+            return { verts, tetIndices, surfFaces, edges };
+        }
+
+        const mesh = buildWedgeMesh();
+        const numVerts = mesh.verts.length;
+        const numTets = mesh.tetIndices.length;
+        const numSurfFaces = mesh.surfFaces.length;
+        const numEdges = mesh.edges.length;
+
+        // ─── Physics State ─────────────────────────────────────────────────
+        const pos = new Float32Array(numVerts * 3);
+        const prevPos = new Float32Array(numVerts * 3);
+        const vel = new Float32Array(numVerts * 3);
+        const invMass = new Float32Array(numVerts);
+        const restPos = new Float32Array(numVerts * 3);
+        const restVolumes = new Float32Array(numTets);
+        const restEdgeLengths = new Float32Array(numEdges);
+
+        // Per-vertex material properties
+        const vertMaterial = new Uint8Array(numVerts); // 0=flesh, 1=pale, 2=rind
+
+        for (let i = 0; i < numVerts; i++) {
+            const v = mesh.verts[i];
+            pos[i * 3] = v.pos[0];
+            pos[i * 3 + 1] = v.pos[1];
+            pos[i * 3 + 2] = v.pos[2];
+            prevPos[i * 3] = v.pos[0];
+            prevPos[i * 3 + 1] = v.pos[1];
+            prevPos[i * 3 + 2] = v.pos[2];
+            restPos[i * 3] = v.pos[0];
+            restPos[i * 3 + 1] = v.pos[1];
+            restPos[i * 3 + 2] = v.pos[2];
+            vel[i * 3] = 0;
+            vel[i * 3 + 1] = 0;
+            vel[i * 3 + 2] = 0;
+            // Mass: rind is heavier, flesh lighter
+            if (v.isRind) {
+                invMass[i] = 1.0 / 2.2;
+                vertMaterial[i] = 2;
+            } else if (v.isPale) {
+                invMass[i] = 1.0 / 1.6;
+                vertMaterial[i] = 1;
+            } else {
+                invMass[i] = 1.0 / 1.0;
+                vertMaterial[i] = 0;
+            }
+            // Tip is slightly heavier
+            const distFromTip = v.r;
+            if (distFromTip < 0.3) {
+                invMass[i] *= 0.85;
+            }
+        }
+
+        // Compute rest edge lengths
+        for (let e = 0; e < numEdges; e++) {
+            const [i, j] = mesh.edges[e];
+            const dx = pos[i * 3] - pos[j * 3];
+            const dy = pos[i * 3 + 1] - pos[j * 3 + 1];
+            const dz = pos[i * 3 + 2] - pos[j * 3 + 2];
+            restEdgeLengths[e] = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        }
+
+        // Compute rest volumes for tetrahedra
+        function tetVolume(a, b, c, d) {
+            const ax = pos[a * 3],
+                ay = pos[a * 3 + 1],
+                az = pos[a * 3 + 2];
+            const bx = pos[b * 3],
+                by = pos[b * 3 + 1],
+                bz = pos[b * 3 + 2];
+            const cx = pos[c * 3],
+                cy = pos[c * 3 + 1],
+                cz = pos[c * 3 + 2];
+            const dx = pos[d * 3],
+                dy = pos[d * 3 + 1],
+                dz = pos[d * 3 + 2];
+            const abx = bx - ax,
+                aby = by - ay,
+                abz = bz - az;
+            const acx = cx - ax,
+                acy = cy - ay,
+                acz = cz - az;
+            const adx = dx - ax,
+                ady = dy - ay,
+                adz = dz - az;
+            const crossX = aby * acz - abz * acy;
+            const crossY = abz * acx - abx * acz;
+            const crossZ = abx * acy - aby * acx;
+            return Math.abs(adx * crossX + ady * crossY + adz * crossZ) / 6.0;
+        }
+
+        for (let t = 0; t < numTets; t++) {
+            const tet = mesh.tetIndices[t];
+            restVolumes[t] = tetVolume(tet[0], tet[1], tet[2], tet[3]);
+            if (restVolumes[t] < 1e-8) restVolumes[t] = 1e-8;
+        }
+
+        // ─── XPBD Physics ──────────────────────────────────────────────────
+        function simulateStep(dt, firmness, damping, grabInfo) {
+            const comp = 1.0 - damping;
+            const stiffness = firmness * 1800;
+            const volumeStiffness = firmness * 1200;
+            const rindStiffnessMult = 2.2;
+
+            // Apply gravity and integrate
+            for (let i = 0; i < numVerts; i++) {
+                const im = invMass[i];
+                if (im === 0) continue;
+                // Store previous position
+                prevPos[i * 3] = pos[i * 3];
+                prevPos[i * 3 + 1] = pos[i * 3 + 1];
+                prevPos[i * 3 + 2] = pos[i * 3 + 2];
+                // Apply gravity
+                vel[i * 3 + 1] += GRAVITY * dt;
+                // Damping
+                vel[i * 3] *= comp;
+                vel[i * 3 + 1] *= comp;
+                vel[i * 3 + 2] *= comp;
+                // Integrate
+                pos[i * 3] += vel[i * 3] * dt;
+                pos[i * 3 + 1] += vel[i * 3 + 1] * dt;
+                pos[i * 3 + 2] += vel[i * 3 + 2] * dt;
+            }
+
+            // Handle grab
+            if (grabInfo && grabInfo.active) {
+                const gi = grabInfo;
+                const idx = gi.vertIdx;
+                const target = gi.target;
+                const stiffness = 0.6;
+                const dx = (target[0] - pos[idx * 3]) * stiffness;
+                const dy = (target[1] - pos[idx * 3 + 1]) * stiffness;
+                const dz = (target[2] - pos[idx * 3 + 2]) * stiffness;
+                pos[idx * 3] += dx;
+                pos[idx * 3 + 1] += dy;
+                pos[idx * 3 + 2] += dz;
+                // Also move nearby vertices slightly
+                const neighbors = gi.neighbors || [];
+                for (const n of neighbors) {
+                    const w = n.w;
+                    const nx = (target[0] - pos[n.idx * 3]) * stiffness * w * 0.3;
+                    const ny = (target[1] - pos[n.idx * 3 + 1]) * stiffness * w * 0.3;
+                    const nz = (target[2] - pos[n.idx * 3 + 2]) * stiffness * w * 0.3;
+                    pos[n.idx * 3] += nx;
+                    pos[n.idx * 3 + 1] += ny;
+                    pos[n.idx * 3 + 2] += nz;
+                }
+            }
+
+            // XPBD constraint iterations
+            const iterations = 8;
+            for (let iter = 0; iter < iterations; iter++) {
+                // Edge constraints (elastic)
+                for (let e = 0; e < numEdges; e++) {
+                    const [i, j] = mesh.edges[e];
+                    const imi = invMass[i];
+                    const imj = invMass[j];
+                    if (imi === 0 && imj === 0) continue;
+                    const dx = pos[i * 3] - pos[j * 3];
+                    const dy = pos[i * 3 + 1] - pos[j * 3 + 1];
+                    const dz = pos[i * 3 + 2] - pos[j * 3 + 2];
+                    const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+                    if (dist < 1e-8) continue;
+                    const restLen = restEdgeLengths[e];
+                    const C = dist - restLen;
+                    const gradX = dx / dist,
+                        gradY = dy / dist,
+                        gradZ = dz / dist;
+                    const wSum = imi + imj;
+                    if (wSum === 0) continue;
+                    // Stiffness: rind edges are stiffer
+                    const matI = vertMaterial[i];
+                    const matJ = vertMaterial[j];
+                    let mult = 1.0;
+                    if (matI === 2 || matJ === 2) mult = rindStiffnessMult;
+                    const alpha = 1.0 / (stiffness * mult * dt * dt);
+                    const delta = -C / (wSum + alpha);
+                    pos[i * 3] += delta * gradX * imi;
+                    pos[i * 3 + 1] += delta * gradY * imi;
+                    pos[i * 3 + 2] += delta * gradZ * imi;
+                    pos[j * 3] -= delta * gradX * imj;
+                    pos[j * 3 + 1] -= delta * gradY * imj;
+                    pos[j * 3 + 2] -= delta * gradZ * imj;
+                }
+
+                // Volume constraints
+                for (let t = 0; t < numTets; t++) {
+                    const tet = mesh.tetIndices[t];
+                    const a = tet[0],
+                        b = tet[1],
+                        c = tet[2],
+                        d = tet[3];
+                    const ima = invMass[a],
+                        imb = invMass[b],
+                        imc = invMass[c],
+                        imd = invMass[d];
+                    const ax = pos[a * 3],
+                        ay = pos[a * 3 + 1],
+                        az = pos[a * 3 + 2];
+                    const bx = pos[b * 3],
+                        by = pos[b * 3 + 1],
+                        bz = pos[b * 3 + 2];
+                    const cx = pos[c * 3],
+                        cy = pos[c * 3 + 1],
+                        cz = pos[c * 3 + 2];
+                    const dx = pos[d * 3],
+                        dy = pos[d * 3 + 1],
+                        dz = pos[d * 3 + 2];
+                    const abx = bx - ax,
+                        aby = by - ay,
+                        abz = bz - az;
+                    const acx = cx - ax,
+                        acy = cy - ay,
+                        acz = cz - az;
+                    const adx = dx - ax,
+                        ady = dy - ay,
+                        adz = dz - az;
+                    const crossX = aby * acz - abz * acy;
+                    const crossY = abz * acx - abx * acz;
+                    const crossZ = abx * acy - aby * acx;
+                    const vol = Math.abs(adx * crossX + ady * crossY + adz * crossZ) / 6.0;
+                    const restVol = restVolumes[t];
+                    const C = vol - restVol;
+                    // Gradients (signed)
+                    const sign = (adx * crossX + ady * crossY + adz * crossZ) >= 0 ? 1 : -1;
+                    const gradA = [
+                        (by - cy) * (dz - az) - (bz - cz) * (dy - ay),
+                        (bz - cz) * (dx - ax) - (bx - cx) * (dz - az),
+                        (bx - cx) * (dy - ay) - (by - cy) * (dx - ax)
+                    ];
+                    const gradB = [
+                        (cy - ay) * (dz - az) - (cz - az) * (dy - ay),
+                        (cz - az) * (dx - ax) - (cx - ax) * (dz - az),
+                        (cx - ax) * (dy - ay) - (cy - ay) * (dx - ax)
+                    ];
+                    const gradC = [
+                        (ay - by) * (dz - az) - (az - bz) * (dy - ay),
+                        (az - bz) * (dx - ax) - (ax - bx) * (dz - az),
+                        (ax - bx) * (dy - ay) - (ay - by) * (dx - ax)
+                    ];
+                    const gradD = [
+                        (by - cy) * (az - ay) - (bz - cz) * (ax - ay),
+                        (bz - cz) * (ax - ay) - (bx - cx) * (az - ay),
+                        (bx - cx) * (ay - ay) - (by - cy) * (ax - ay)
+                    ];
+                    // Fix gradD
+                    const gdx = (by - cy) * (az - ay) - (bz - cz) * (ax - ay);
+                    const gdy = (bz - cz) * (ax - ay) - (bx - cx) * (az - ay);
+                    const gdz = (bx - cx) * (ay - ay) - (by - cy) * (ax - ay);
+                    gradD[0] = gdx;
+                    gradD[1] = gdy;
+                    gradD[2] = gdz;
+
+                    const wSum = ima * (gradA[0] * gradA[0] + gradA[1] * gradA[1] + gradA[2] * gradA[2]) +
+                        imb * (gradB[0] * gradB[0] + gradB[1] * gradB[1] + gradB[2] * gradB[2]) +
+                        imc * (gradC[0] * gradC[0] + gradC[1] * gradC[1] + gradC[2] * gradC[2]) +
+                        imd * (gradD[0] * gradD[0] + gradD[1] * gradD[1] + gradD[2] * gradD[2]);
+                    if (wSum < 1e-12) continue;
+                    const alpha = 1.0 / (volumeStiffness * dt * dt);
+                    const delta = -C / (wSum + alpha);
+                    const s = sign * delta / 6.0;
+                    pos[a * 3] += s * gradA[0] * ima;
+                    pos[a * 3 + 1] += s * gradA[1] * ima;
+                    pos[a * 3 + 2] += s * gradA[2] * ima;
+                    pos[b * 3] += s * gradB[0] * imb;
+                    pos[b * 3 + 1] += s * gradB[1] * imb;
+                    pos[b * 3 + 2] += s * gradB[2] * imb;
+                    pos[c * 3] += s * gradC[0] * imc;
+                    pos[c * 3 + 1] += s * gradC[1] * imc;
+                    pos[c * 3 + 2] += s * gradC[2] * imc;
+                    pos[d * 3] += s * gradD[0] * imd;
+                    pos[d * 3 + 1] += s * gradD[1] * imd;
+                    pos[d * 3 + 2] += s * gradD[2] * imd;
+                }
+
+                // Ground collision
+                for (let i = 0; i < numVerts; i++) {
+                    if (invMass[i] === 0) continue;
+                    if (pos[i * 3 + 1] < GROUND_Y) {
+                        pos[i * 3 + 1] = GROUND_Y;
+                        vel[i * 3 + 1] = Math.max(0, vel[i * 3 + 1] * 0.3);
+                        // Friction
+                        vel[i * 3] *= 0.92;
+                        vel[i * 3 + 2] *= 0.92;
+                    }
+                }
+            }
+
+            // Update velocities
+            for (let i = 0; i < numVerts; i++) {
+                if (invMass[i] === 0) continue;
+                vel[i * 3] = (pos[i * 3] - prevPos[i * 3]) / dt;
+                vel[i * 3 + 1] = (pos[i * 3 + 1] - prevPos[i * 3 + 1]) / dt;
+                vel[i * 3 + 2] = (pos[i * 3 + 2] - prevPos[i * 3 + 2]) / dt;
+            }
+        }
+
+        // ─── Compute Surface Normals & Thickness ──────────────────────────
+        function computeSurfaceData() {
+            const normals = new Float32Array(numVerts * 3);
+            const counts = new Uint16Array(numVerts);
+            // Accumulate face normals
+            for (const f of mesh.surfFaces) {
+                const a = f[0],
+                    b = f[1],
+                    c = f[2];
+                const ax = pos[a * 3],
+                    ay = pos[a * 3 + 1],
+                    az = pos[a * 3 + 2];
+                const bx = pos[b * 3],
+                    by = pos[b * 3 + 1],
+                    bz = pos[b * 3 + 2];
+                const cx = pos[c * 3],
+                    cy = pos[c * 3 + 1],
+                    cz = pos[c * 3 + 2];
+                const abx = bx - ax,
+                    aby = by - ay,
+                    abz = bz - az;
+                const acx = cx - ax,
+                    acy = cy - ay,
+                    acz = cz - az;
+                let nx = aby * acz - abz * acy;
+                let ny = abz * acx - abx * acz;
+                let nz = abx * acy - aby * acx;
+                const len = Math.sqrt(nx * nx + ny * ny + nz * nz);
+                if (len > 1e-10) { nx /= len;
+                    ny /= len;
+                    nz /= len; }
+                normals[a * 3] += nx;
+                normals[a * 3 + 1] += ny;
+                normals[a * 3 + 2] += nz;
+                normals[b * 3] += nx;
+                normals[b * 3 + 1] += ny;
+                normals[b * 3 + 2] += nz;
+                normals[c * 3] += nx;
+                normals[c * 3 + 1] += ny;
+                normals[c * 3 + 2] += nz;
+                counts[a]++;
+                counts[b]++;
+                counts[c]++;
+            }
+            for (let i = 0; i < numVerts; i++) {
+                const c = counts[i] || 1;
+                const len = Math.sqrt(normals[i * 3] ** 2 + normals[i * 3 + 1] ** 2 + normals[i * 3 + 2] ** 2);
+                if (len > 1e-10) {
+                    normals[i * 3] /= len;
+                    normals[i * 3 + 1] /= len;
+                    normals[i * 3 + 2] /= len;
+                } else {
+                    normals[i * 3] = 0;
+                    normals[i * 3 + 1] = 1;
+                    normals[i * 3 + 2] = 0;
+                }
+            }
+            // Compute thickness proxy (distance to interior)
+            const thickness = new Float32Array(numVerts);
+            for (let i = 0; i < numVerts; i++) {
+                // Use distance from surface to center as thickness proxy
+                const r = Math.sqrt(pos[i * 3] ** 2 + pos[i * 3 + 1] ** 2 + pos[i * 3 + 2] ** 2);
+                thickness[i] = Math.min(1.0, Math.max(0.05, r / WEDGE_RADIUS));
+            }
+            return { normals, thickness };
+        }
+
+        // ─── Seeds ─────────────────────────────────────────────────────────
+        function generateSeeds() {
+            const seeds = [];
+            // Place seeds on the cut faces (w near 0 or 1) and interior
+            for (let iu = 2; iu < NU - 1; iu++) {
+                const u = iu / (NU - 1);
+                if (u < 0.2 || u > 0.85) continue;
+                for (let iv = 1; iv < NV - 1; iv++) {
+                    const v = iv / (NV - 1);
+                    if (v < 0.15 || v > 0.85) continue;
+                    // Two seeds per layer
+                    for (let side = 0; side < 2; side++) {
+                        const iw = side === 0 ? 1 : NW - 2;
+                        const w = iw / (NW - 1);
+                        const idx = iu * NV * NW + iv * NW + iw;
+                        const sx = pos[idx * 3];
+                        const sy = pos[idx * 3 + 1];
+                        const sz = pos[idx * 3 + 2];
+                        // Slight random offset
+                        const offX = (Math.random() - 0.5) * 0.08;
+                        const offY = (Math.random() - 0.5) * 0.08;
+                        const offZ = (Math.random() - 0.5) * 0.08;
+                        seeds.push({
+                            pos: [sx + offX, sy + offY, sz + offZ],
+                            baseIdx: idx,
+                            offset: [offX, offY, offZ],
+                            size: 0.04 + Math.random() * 0.03,
+                            rot: Math.random() * Math.PI * 2,
+                        });
+                    }
+                }
+            }
+            // Add a few more seeds on the other cut face
+            for (let iu = 2; iu < NU - 1; iu++) {
+                const u = iu / (NU - 1);
+                if (u < 0.25 || u > 0.8) continue;
+                for (let iv = 1; iv < NV - 1; iv++) {
+                    const v = iv / (NV - 1);
+                    if (v < 0.2 || v > 0.8) continue;
+                    if (Math.random() > 0.4) continue;
+                    const iw = Math.random() > 0.5 ? 0 : NW - 1;
+                    const idx = iu * NV * NW + iv * NW + iw;
+                    const sx = pos[idx * 3];
+                    const sy = pos[idx * 3 + 1];
+                    const sz = pos[idx * 3 + 2];
+                    seeds.push({
+                        pos: [sx, sy, sz],
+                        baseIdx: idx,
+                        offset: [0, 0, 0],
+                        size: 0.035 + Math.random() * 0.025,
+                        rot: Math.random() * Math.PI * 2,
+                    });
+                }
+            }
+            return seeds;
+        }
+
+        let seeds = generateSeeds();
+
+        function updateSeeds() {
+            for (const s of seeds) {
+                const idx = s.baseIdx;
+                s.pos[0] = pos[idx * 3] + s.offset[0];
+                s.pos[1] = pos[idx * 3 + 1] + s.offset[1];
+                s.pos[2] = pos[idx * 3 + 2] + s.offset[2];
+            }
+        }
+
+        // ─── WebGPU Setup ──────────────────────────────────────────────────
+        let device, context, format, pipeline, wirePipeline, depthTexture;
+        let vertexBuffer, indexBuffer, uniformBuffer, seedBuffer;
+        let bindGroup, wireBindGroup;
+        let uniformData;
+
+        async function initWebGPU() {
+            const adapter = await navigator.gpu.requestAdapter();
+            if (!adapter) throw new Error('No GPU adapter found');
+            device = await adapter.requestDevice({
+                requiredFeatures: [],
+                requiredLimits: {
+                    maxBindGroups: 2,
+                    maxUniformBuffersPerShaderStage: 2,
+                    maxBufferSize: 512 * 1024 * 1024,
+                }
+            });
+
+            context = canvas.getContext('webgpu');
+            if (!context) throw new Error('Canvas WebGPU context not available');
+
+            const devicePixelRatio = Math.min(window.devicePixelRatio, 2);
+            const width = canvas.clientWidth * devicePixelRatio;
+            const height = canvas.clientHeight * devicePixelRatio;
+            canvas.width = width;
+            canvas.height = height;
+
+            format = navigator.gpu.getPreferredCanvasFormat();
+            context.configure({
+                device,
+                format,
+                alphaMode: 'premultiplied',
+            });
+
+            // Create depth texture
+            const depthTextureDesc = {
+                size: [width, height],
+                format: 'depth24plus',
+                usage: GPUTextureUsage.RENDER_ATTACHMENT,
+            };
+            depthTexture = device.createTexture(depthTextureDesc);
+
+            // Build shaders
+            const shaderCode = getShaders();
+            const shaderModule = device.createShaderModule({ code: shaderCode });
+
+            // Uniform buffer
+            uniformData = new Float32Array(64);
+            uniformBuffer = device.createBuffer({
+                size: uniformData.byteLength,
+                usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+            });
+
+            // Vertex buffers
+            const vertData = new Float32Array(numVerts * 8);
+            for (let i = 0; i < numVerts; i++) {
+                vertData[i * 8] = restPos[i * 3];
+                vertData[i * 8 + 1] = restPos[i * 3 + 1];
+                vertData[i * 8 + 2] = restPos[i * 3 + 2];
+                vertData[i * 8 + 3] = mesh.verts[i].uv[0];
+                vertData[i * 8 + 4] = mesh.verts[i].uv[1];
+                vertData[i * 8 + 5] = mesh.verts[i].uv[2];
+                vertData[i * 8 + 6] = vertMaterial[i] / 2.0;
+                vertData[i * 8 + 7] = 0;
+            }
+            vertexBuffer = device.createBuffer({
+                size: vertData.byteLength,
+                usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+                mappedAtCreation: true,
+            });
+            new Float32Array(vertexBuffer.getMappedRange()).set(vertData);
+            vertexBuffer.unmap();
+
+            // Index buffer (surface faces)
+            const idxData = new Uint32Array(numSurfFaces * 3);
+            for (let i = 0; i < numSurfFaces; i++) {
+                idxData[i * 3] = mesh.surfFaces[i][0];
+                idxData[i * 3 + 1] = mesh.surfFaces[i][1];
+                idxData[i * 3 + 2] = mesh.surfFaces[i][2];
+            }
+            indexBuffer = device.createBuffer({
+                size: idxData.byteLength,
+                usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
+                mappedAtCreation: true,
+            });
+            new Uint32Array(indexBuffer.getMappedRange()).set(idxData);
+            indexBuffer.unmap();
+
+            // Seed buffer
+            const maxSeeds = 128;
+            const seedData = new Float32Array(maxSeeds * 4);
+            seedBuffer = device.createBuffer({
+                size: seedData.byteLength,
+                usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+            });
+
+            // Pipeline layout
+            const bindGroupLayout = device.createBindGroupLayout({
+                entries: [{
+                    binding: 0,
+                    visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+                    buffer: { type: 'uniform' },
+                }]
+            });
+
+            const pipelineLayout = device.createPipelineLayout({
+                bindGroupLayouts: [bindGroupLayout],
+            });
+
+            // Main pipeline
+            pipeline = device.createRenderPipeline({
+                layout: pipelineLayout,
+                vertex: {
+                    module: shaderModule,
+                    entryPoint: 'vs_main',
+                    buffers: [{
+                        arrayStride: 32,
+                        attributes: [
+                            { shaderLocation: 0, offset: 0, format: 'float32x3' },
+                            { shaderLocation: 1, offset: 12, format: 'float32x3' },
+                            { shaderLocation: 2, offset: 24, format: 'float32x2' },
+                        ]
+                    }]
+                },
+                fragment: {
+                    module: shaderModule,
+                    entryPoint: 'fs_main',
+                    targets: [{ format, blend: { color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha',
+                                operation: 'add' }, alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha',
+                                operation: 'add' } } }],
+                },
+                depthStencil: {
+                    format: 'depth24plus',
+                    depthWriteEnabled: true,
+                    depthCompare: 'less',
+                },
+                primitive: {
+                    topology: 'triangle-list',
+                    cullMode: 'back',
+                },
+            });
+
+            // Wireframe pipeline
+            wirePipeline = device.createRenderPipeline({
+                layout: pipelineLayout,
+                vertex: {
+                    module: shaderModule,
+                    entryPoint: 'vs_wire',
+                    buffers: [{
+                        arrayStride: 32,
+                        attributes: [
+                            { shaderLocation: 0, offset: 0, format: 'float32x3' },
+                            { shaderLocation: 1, offset: 12, format: 'float32x3' },
+                            { shaderLocation: 2, offset: 24, format: 'float32x2' },
+                        ]
+                    }]
+                },
+                fragment: {
+                    module: shaderModule,
+                    entryPoint: 'fs_wire',
+                    targets: [{ format, blend: { color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha',
+                                operation: 'add' }, alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha',
+                                operation: 'add' } } }],
+                },
+                depthStencil: {
+                    format: 'depth24plus',
+                    depthWriteEnabled: true,
+                    depthCompare: 'less',
+                },
+                primitive: {
+                    topology: 'line-list',
+                    cullMode: 'none',
+                },
+            });
+
+            bindGroup = device.createBindGroup({
+                layout: bindGroupLayout,
+                entries: [{ binding: 0, resource: { buffer: uniformBuffer } }],
+            });
+            wireBindGroup = bindGroup;
+
+            // Resize handler
+            window.addEventListener('resize', resizeCanvas);
+            resizeCanvas();
+
+            state.simReady = true;
+        }
+
+        function resizeCanvas() {
+            if (!context || !device) return;
+            const dpr = Math.min(window.devicePixelRatio, 2);
+            const w = canvas.clientWidth * dpr;
+            const h = canvas.clientHeight * dpr;
+            if (canvas.width !== w || canvas.height !== h) {
+                canvas.width = w;
+                canvas.height = h;
+                context.configure({
+                    device,
+                    format,
+                    alphaMode: 'premultiplied',
+                });
+                if (depthTexture) depthTexture.destroy();
+                depthTexture = device.createTexture({
+                    size: [w, h],
+                    format: 'depth24plus',
+                    usage: GPUTextureUsage.RENDER_ATTACHMENT,
+                });
+            }
+        }
+
+        // ─── WGSL Shaders ──────────────────────────────────────────────────
+        function getShaders() {
+            return `
+          struct Uniforms {
+            modelView : mat4x4<f32>,
+            projection : mat4x4<f32>,
+            normalMat : mat4x4<f32>,
+            lightDir : vec4<f32>,
+            viewPos : vec4<f32>,
+            time : f32,
+            firmness : f32,
+            damping : f32,
+            preset : f32,
+            _pad : f32,
+          };
+
+          @group(0) @binding(0) var<uniform> u : Uniforms;
+
+          struct VertexInput {
+            @location(0) pos : vec3<f32>,
+            @location(1) uv : vec3<f32>,
+            @location(2) mat : vec2<f32>,
+          };
+
+          struct VertexOutput {
+            @builtin(position) clipPos : vec4<f32>,
+            @location(0) worldPos : vec3<f32>,
+            @location(1) normal : vec3<f32>,
+            @location(2) uv : vec3<f32>,
+            @location(3) mat : vec2<f32>,
+            @location(4) viewDir : vec3<f32>,
+            @location(5) thickness : f32,
+          };
+
+          @vertex
+          fn vs_main(in: VertexInput) -> VertexOutput {
+            var out: VertexOutput;
+            let worldPos = (u.modelView * vec4<f32>(in.pos, 1.0)).xyz;
+            out.worldPos = worldPos;
+            out.clipPos = u.projection * vec4<f32>(worldPos, 1.0);
+            // Compute normal from position (approximate)
+            let n = normalize(in.pos);
+            out.normal = normalize((u.normalMat * vec4<f32>(n, 0.0)).xyz);
+            out.uv = in.uv;
+            out.mat = in.mat;
+            let viewDir = normalize(u.viewPos.xyz - worldPos);
+            out.viewDir = viewDir;
+            // Thickness proxy
+            let r = length(in.pos);
+            out.thickness = clamp(r / 2.0, 0.05, 1.0);
+            return out;
+          }
+
+          @vertex
+          fn vs_wire(in: VertexInput) -> VertexOutput {
+            var out: VertexOutput;
+            let worldPos = (u.modelView * vec4<f32>(in.pos, 1.0)).xyz;
+            out.worldPos = worldPos;
+            out.clipPos = u.projection * vec4<f32>(worldPos, 1.0);
+            let n = normalize(in.pos);
+            out.normal = normalize((u.normalMat * vec4<f32>(n, 0.0)).xyz);
+            out.uv = in.uv;
+            out.mat = in.mat;
+            out.viewDir = normalize(u.viewPos.xyz - worldPos);
+            let r = length(in.pos);
+            out.thickness = clamp(r / 2.0, 0.05, 1.0);
+            return out;
+          }
+
+          fn fresnel(dotNV : f32, eta : f32) -> f32 {
+            let f0 = ((1.0 - eta) / (1.0 + eta)) * ((1.0 - eta) / (1.0 + eta));
+            return f0 + (1.0 - f0) * pow(1.0 - dotNV, 5.0);
+          }
+
+          fn jellyColor(mat : f32, uv : vec3<f32>, thickness : f32, dotNV : f32, lightDot : f32) -> vec4<f32> {
+            var base : vec3<f32>;
+            var spec : f32 = 0.0;
+            var roughness : f32 = 0.3;
+            var eta : f32 = 1.35;
+
+            // Material: 0=flesh, 1=pale, 2=rind
+            if (mat < 0.5) {
+              // Flesh - ruby red translucent
+              let r = 0.55 + 0.25 * uv.x;
+              let g = 0.08 + 0.12 * (1.0 - uv.x);
+              let b = 0.12 + 0.10 * (1.0 - uv.x);
+              base = vec3<f32>(r, g, b);
+              spec = 0.25;
+              roughness = 0.35;
+              eta = 1.38;
+              // Absorption
+              let absorb = exp(-thickness * 1.2);
+              base *= (0.6 + 0.4 * absorb);
+              // Backlight glow
+              let back = max(0.0, -lightDot) * 0.15 * thickness;
+              base += vec3<f32>(0.3, 0.05, 0.05) * back;
+            } else if (mat < 1.5) {
+              // Pale layer
+              base = vec3<f32>(0.85, 0.78, 0.65);
+              spec = 0.15;
+              roughness = 0.5;
+              eta = 1.32;
+              let absorb = exp(-thickness * 0.6);
+              base *= (0.7 + 0.3 * absorb);
+            } else {
+              // Rind - green with stripes
+              let stripe = sin(uv.x * 30.0 + uv.z * 12.0) * 0.5 + 0.5;
+              let dark = 0.25 + 0.15 * stripe;
+              let light = 0.45 + 0.20 * (1.0 - stripe);
+              let g = mix(dark, light, smoothstep(0.0, 1.0, uv.x));
+              base = vec3<f32>(0.08 + 0.06 * (1.0 - stripe), g, 0.06 + 0.04 * stripe);
+              spec = 0.35;
+              roughness = 0.2;
+              eta = 1.45;
+              // Glossy highlights
+              let gloss = pow(max(0.0, lightDot), 32.0) * 0.6;
+              base += vec3<f32>(0.1, 0.15, 0.05) * gloss;
+            }
+
+            // Lighting
+            let diff = max(0.0, lightDot) * 0.7 + 0.3;
+            let fres = fresnel(dotNV, eta);
+            let specular = spec * pow(max(0.0, lightDot), 16.0 / (roughness * roughness + 0.01));
+
+            // Fresnel reflection (subtle)
+            let refl = fres * 0.15;
+
+            // Combine
+            var color = base * diff + vec3<f32>(specular) + vec3<f32>(refl);
+
+            // Transmitted light through thin edges
+            let thin = exp(-thickness * 3.0) * 0.12;
+            color += vec3<f32>(0.4, 0.08, 0.08) * thin;
+
+            // Subtle internal glow
+            let glow = exp(-thickness * 1.5) * 0.06;
+            color += vec3<f32>(0.2, 0.04, 0.04) * glow;
+
+            return vec4<f32>(color, 0.92 + 0.08 * (1.0 - thickness));
+          }
+
+          @fragment
+          fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+            let N = normalize(in.normal);
+            let V = normalize(in.viewDir);
+            let dotNV = max(0.0, dot(N, V));
+            let lightDir = normalize(u.lightDir.xyz);
+            let lightDot = dot(N, lightDir);
+
+            var color = jellyColor(in.mat.x, in.uv, in.thickness, dotNV, lightDot);
+
+            // Soft rim light
+            let rim = pow(1.0 - dotNV, 3.0) * 0.08;
+            color.rgb += vec3<f32>(0.2, 0.05, 0.05) * rim;
+
+            // Contact shadow (simple)
+            let height = in.worldPos.y + 1.6;
+            let shadow = clamp(height * 2.0 + 0.2, 0.0, 1.0);
+            color.rgb *= (0.7 + 0.3 * shadow);
+
+            return color;
+          }
+
+          @fragment
+          fn fs_wire(in: VertexOutput) -> @location(0) vec4<f32> {
+            let N = normalize(in.normal);
+            let V = normalize(in.viewDir);
+            let dotNV = max(0.0, dot(N, V));
+            let lightDir = normalize(u.lightDir.xyz);
+            let lightDot = dot(N, lightDir);
+            var color = jellyColor(in.mat.x, in.uv, in.thickness, dotNV, lightDot);
+            // Wireframe: brighter, more opaque
+            color.rgb *= 1.3;
+            color.a = 0.6;
+            return color;
+          }
+        `;
+        }
+
+        // ─── Camera ────────────────────────────────────────────────────────
+        const camera = {
+            theta: 0.65,
+            phi: 0.45,
+            radius: 5.2,
+            target: [0, 0.2, 0],
+        };
+
+        function getViewMatrix() {
+            const t = camera.theta;
+            const p = camera.phi;
+            const r = camera.radius;
+            const cx = r * Math.sin(t) * Math.cos(p);
+            const cy = r * Math.cos(t);
+            const cz = r * Math.sin(t) * Math.sin(p);
+            const eye = [cx + camera.target[0], cy + camera.target[1], cz + camera.target[2]];
+            const up = [0, 1, 0];
+            const fwd = [camera.target[0] - eye[0], camera.target[1] - eye[1], camera.target[2] - eye[2]];
+            const flen = Math.sqrt(fwd[0] ** 2 + fwd[1] ** 2 + fwd[2] ** 2);
+            if (flen < 1e-8) return mat4.identity();
+            for (let i = 0; i < 3; i++) fwd[i] /= flen;
+            const right = [up[1] * fwd[2] - up[2] * fwd[1], up[2] * fwd[0] - up[0] * fwd[2], up[0] * fwd[1] - up[1] * fwd[0]];
+            const rlen = Math.sqrt(right[0] ** 2 + right[1] ** 2 + right[2] ** 2);
+            if (rlen < 1e-8) return mat4.identity();
+            for (let i = 0; i < 3; i++) right[i] /= rlen;
+            const uup = [fwd[1] * right[2] - fwd[2] * right[1], fwd[2] * right[0] - fwd[0] * right[2], fwd[0] * right[1] - fwd[
+            1] * right[0]];
+            const view = new Float32Array(16);
+            view[0] = right[0];
+            view[1] = uup[0];
+            view[2] = fwd[0];
+            view[3] = 0;
+            view[4] = right[1];
+            view[5] = uup[1];
+            view[6] = fwd[1];
+            view[7] = 0;
+            view[8] = right[2];
+            view[9] = uup[2];
+            view[10] = fwd[2];
+            view[11] = 0;
+            view[12] = -(right[0] * eye[0] + right[1] * eye[1] + right[2] * eye[2]);
+            view[13] = -(uup[0] * eye[0] + uup[1] * eye[1] + uup[2] * eye[2]);
+            view[14] = -(fwd[0] * eye[0] + fwd[1] * eye[1] + fwd[2] * eye[2]);
+            view[15] = 1;
+            return view;
+        }
+
+        function getProjectionMatrix(aspect) {
+            const fov = 0.55;
+            const near = 0.1;
+            const far = 20;
+            const f = 1.0 / Math.tan(fov / 2);
+            const proj = new Float32Array(16);
+            proj[0] = f / aspect;
+            proj[1] = 0;
+            proj[2] = 0;
+            proj[3] = 0;
+            proj[4] = 0;
+            proj[5] = f;
+            proj[6] = 0;
+            proj[7] = 0;
+            proj[8] = 0;
+            proj[9] = 0;
+            proj[10] = (far + near) / (near - far);
+            proj[11] = -1;
+            proj[12] = 0;
+            proj[13] = 0;
+            proj[14] = (2 * far * near) / (near - far);
+            proj[15] = 0;
+            return proj;
+        }
+
+        // Simple mat4 helpers
+        const mat4 = {
+            identity() {
+                const m = new Float32Array(16);
+                m[0] = m[5] = m[10] = m[15] = 1;
+                return m;
+            },
+            multiply(a, b) {
+                const r = new Float32Array(16);
+                for (let i = 0; i < 4; i++)
+                    for (let j = 0; j < 4; j++) {
+                        let sum = 0;
+                        for (let k = 0; k < 4; k++) sum += a[i * 4 + k] * b[k * 4 + j];
+                        r[i * 4 + j] = sum;
+                    }
+                return r;
+            },
+            inverse(m) {
+                const inv = new Float32Array(16);
+                const det = m[0] * (m[5] * m[10] * m[15] + m[6] * m[11] * m[13] + m[7] * m[9] * m[14] - m[7] * m[10] * m[
+                    13] - m[5] * m[11] * m[14] - m[6] * m[9] * m[15]) -
+                    m[1] * (m[4] * m[10] * m[15] + m[6] * m[11] * m[12] + m[7] * m[8] * m[14] - m[7] * m[10] * m[12] -
+                        m[4] * m[11] * m[14] - m[6] * m[8] * m[15]) +
+                    m[2] * (m[4] * m[9] * m[15] + m[5] * m[11] * m[12] + m[7] * m[8] * m[13] - m[7] * m[9] * m[12] - m[
+                        4] * m[11] * m[13] - m[5] * m[8] * m[15]) -
+                    m[3] * (m[4] * m[9] * m[14] + m[5] * m[10] * m[12] + m[6] * m[8] * m[13] - m[6] * m[9] * m[12] - m[
+                        4] * m[10] * m[13] - m[5] * m[8] * m[14]);
+                if (Math.abs(det) < 1e-12) return m;
+                const invDet = 1 / det;
+                inv[0] = (m[5] * (m[10] * m[15] - m[11] * m[14]) - m[6] * (m[9] * m[15] - m[11] * m[13]) + m[7] * (m[9] *
+                    m[14] - m[10] * m[13])) * invDet;
+                inv[1] = -(m[1] * (m[10] * m[15] - m[11] * m[14]) - m[2] * (m[9] * m[15] - m[11] * m[13]) + m[3] * (m[9] *
+                    m[14] - m[10] * m[13])) * invDet;
+                inv[2] = (m[1] * (m[6] * m[15] - m[7] * m[14]) - m[2] * (m[5] * m[15] - m[7] * m[13]) + m[3] * (m[5] * m[
+                    14] - m[6] * m[13])) * invDet;
+                inv[3] = -(m[1] * (m[6] * m[11] - m[7] * m[10]) - m[2] * (m[5] * m[11] - m[7] * m[9]) + m[3] * (m[5] * m[
+                    10] - m[6] * m[9])) * invDet;
+                inv[4] = -(m[4] * (m[10] * m[15] - m[11] * m[14]) - m[6] * (m[8] * m[15] - m[11] * m[12]) + m[7] * (m[8] *
+                    m[14] - m[10] * m[12])) * invDet;
+                inv[5] = (m[0] * (m[10] * m[15] - m[11] * m[14]) - m[2] * (m[8] * m[15] - m[11] * m[12]) + m[3] * (m[8] *
+                    m[14] - m[10] * m[12])) * invDet;
+                inv[6] = -(m[0] * (m[6] * m[15] - m[7] * m[14]) - m[2] * (m[4] * m[15] - m[7] * m[12]) + m[3] * (m[4] * m[
+                    14] - m[6] * m[12])) * invDet;
+                inv[7] = (m[0] * (m[6] * m[11] - m[7] * m[10]) - m[2] * (m[4] * m[11] - m[7] * m[8]) + m[3] * (m[4] * m[
+                    10] - m[6] * m[8])) * invDet;
+                inv[8] = (m[4] * (m[9] * m[15] - m[11] * m[13]) - m[5] * (m[8] * m[15] - m[11] * m[12]) + m[7] * (m[8] *
+                    m[13] - m[9] * m[12])) * invDet;
+                inv[9] = -(m[0] * (m[9] * m[15] - m[11] * m[13]) - m[1] * (m[8] * m[15] - m[11] * m[12]) + m[3] * (m[8] *
+                    m[13] - m[9] * m[12])) * invDet;
+                inv[10] = (m[0] * (m[5] * m[15] - m[7] * m[13]) - m[1] * (m[4] * m[15] - m[7] * m[12]) + m[3] * (m[4] * m[
+                    13] - m[5] * m[12])) * invDet;
+                inv[11] = -(m[0] * (m[5] * m[11] - m[7] * m[9]) - m[1] * (m[4] * m[11] - m[7] * m[8]) + m[3] * (m[4] * m[
+                    9] - m[5] * m[8])) * invDet;
+                inv[12] = -(m[4] * (m[9] * m[14] - m[10] * m[13]) - m[5] * (m[8] * m[14] - m[10] * m[12]) + m[6] * (m[8] *
+                    m[13] - m[9] * m[12])) * invDet;
+                inv[13] = (m[0] * (m[9] * m[14] - m[10] * m[13]) - m[1] * (m[8] * m[14] - m[10] * m[12]) + m[2] * (m[8] *
+                    m[13] - m[9] * m[12])) * invDet;
+                inv[14] = -(m[0] * (m[5] * m[14] - m[6] * m[13]) - m[1] * (m[4] * m[14] - m[6] * m[12]) + m[2] * (m[4] * m[
+                    13] - m[5] * m[12])) * invDet;
+                inv[15] = (m[0] * (m[5] * m[10] - m[6] * m[9]) - m[1] * (m[4] * m[10] - m[6] * m[8]) + m[2] * (m[4] * m[
+                    9] - m[5] * m[8])) * invDet;
+                return inv;
+            },
+            transpose(m) {
+                const r = new Float32Array(16);
+                for (let i = 0; i < 4; i++)
+                    for (let j = 0; j < 4; j++) r[i * 4 + j] = m[j * 4 + i];
+                return r;
+            }
+        };
+
+        // ─── Interaction ───────────────────────────────────────────────────
+        let pointerDown = false;
+        let pointerPos = { x: 0, y: 0 };
+        let grabInfo = null;
+
+        function getRayFromPointer(x, y) {
+            const rect = canvas.getBoundingClientRect();
+            const px = (x - rect.left) / rect.width * 2 - 1;
+            const py = -((y - rect.top) / rect.height * 2 - 1);
+            const aspect = canvas.width / canvas.height;
+            const proj = getProjectionMatrix(aspect);
+            const invProj = mat4.inverse(proj);
+            const near = [px, py, -1, 1];
+            const far = [px, py, 1, 1];
+            const near4 = [0, 0, 0, 0];
+            const far4 = [0, 0, 0, 0];
+            for (let i = 0; i < 4; i++) {
+                for (let j = 0; j < 4; j++) {
+                    near4[i] += invProj[i * 4 + j] * near[j];
+                    far4[i] += invProj[i * 4 + j] * far[j];
+                }
+            }
+            for (let i = 0; i < 4; i++) { near4[i] /= near4[3];
+                far4[i] /= far4[3]; }
+            const view = getViewMatrix();
+            const invView = mat4.inverse(view);
+            const eye = [invView[12], invView[13], invView[14]];
+            const nd = [far4[0] - near4[0], far4[1] - near4[1], far4[2] - near4[2]];
+            const dlen = Math.sqrt(nd[0] ** 2 + nd[1] ** 2 + nd[2] ** 2);
+            if (dlen < 1e-8) return { origin: eye, dir: [0, 0, 0] };
+            const dir = [nd[0] / dlen, nd[1] / dlen, nd[2] / dlen];
+            // Transform to world space
+            const wDir = [
+                invView[0] * dir[0] + invView[1] * dir[1] + invView[2] * dir[2],
+                invView[4] * dir[0] + invView[5] * dir[1] + invView[6] * dir[2],
+                invView[8] * dir[0] + invView[9] * dir[1] + invView[10] * dir[2]
+            ];
+            return { origin: eye, dir: wDir };
+        }
+
+        function pickVertex(ray) {
+            let bestDist = Infinity;
+            let bestIdx = -1;
+            for (let i = 0; i < numVerts; i++) {
+                const px = pos[i * 3],
+                    py = pos[i * 3 + 1],
+                    pz = pos[i * 3 + 2];
+                const dx = px - ray.origin[0],
+                    dy = py - ray.origin[1],
+                    dz = pz - ray.origin[2];
+                const t = dx * ray.dir[0] + dy * ray.dir[1] + dz * ray.dir[2];
+                if (t < 0) continue;
+                const cx = ray.origin[0] + t * ray.dir[0] - px;
+                const cy = ray.origin[1] + t * ray.dir[1] - py;
+                const cz = ray.origin[2] + t * ray.dir[2] - pz;
+                const dist = Math.sqrt(cx * cx + cy * cy + cz * cz);
+                if (dist < bestDist && dist < 0.6) {
+                    bestDist = dist;
+                    bestIdx = i;
+                }
+            }
+            return bestIdx;
+        }
+
+        function getNeighbors(idx, radius) {
+            const result = [];
+            const px = pos[idx * 3],
+                py = pos[idx * 3 + 1],
+                pz = pos[idx * 3 + 2];
+            for (let i = 0; i < numVerts; i++) {
+                if (i === idx) continue;
+                const dx = pos[i * 3] - px,
+                    dy = pos[i * 3 + 1] - py,
+                    dz = pos[i * 3 + 2] - pz;
+                const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+                if (dist < radius) {
+                    result.push({ idx: i, w: 1 - dist / radius });
+                }
+            }
+            return result;
+        }
+
+        function onPointerDown(x, y) {
+            const ray = getRayFromPointer(x, y);
+            const idx = pickVertex(ray);
+            if (idx >= 0) {
+                const neighbors = getNeighbors(idx, 0.5);
+                grabInfo = {
+                    active: true,
+                    vertIdx: idx,
+                    target: [pos[idx * 3], pos[idx * 3 + 1], pos[idx * 3 + 2]],
+                    neighbors: neighbors,
+                    startPos: [pos[idx * 3], pos[idx * 3 + 1], pos[idx * 3 + 2]],
+                };
+                pointerDown = true;
+                canvas.setPointerCapture(1);
+            }
+        }
+
+        function onPointerMove(x, y) {
+            pointerPos = { x, y };
+            if (grabInfo && grabInfo.active) {
+                const ray = getRayFromPointer(x, y);
+                // Project onto the plane perpendicular to view at the grab point
+                const view = getViewMatrix();
+                const invView = mat4.inverse(view);
+                const eye = [invView[12], invView[13], invView[14]];
+                const toEye = [eye[0] - grabInfo.startPos[0], eye[1] - grabInfo.startPos[1], eye[2] - grabInfo.startPos[2]];
+                const elen = Math.sqrt(toEye[0] ** 2 + toEye[1] ** 2 + toEye[2] ** 2);
+                if (elen > 1e-8) {
+                    const n = [toEye[0] / elen, toEye[1] / elen, toEye[2] / elen];
+                    const d = -(n[0] * grabInfo.startPos[0] + n[1] * grabInfo.startPos[1] + n[2] * grabInfo.startPos[2]);
+                    const t = -(n[0] * ray.origin[0] + n[1] * ray.origin[1] + n[2] * ray.origin[2] + d) / (n[0] * ray.dir[
+                        0] + n[1] * ray.dir[1] + n[2] * ray.dir[2]);
+                    if (t > 0) {
+                        const hitX = ray.origin[0] + t * ray.dir[0];
+                        const hitY = ray.origin[1] + t * ray.dir[1];
+                        const hitZ = ray.origin[2] + t * ray.dir[2];
+                        grabInfo.target = [hitX, hitY, hitZ];
+                    }
+                }
+            }
+        }
+
+        function onPointerUp() {
+            if (grabInfo) {
+                grabInfo.active = false;
+                grabInfo = null;
+            }
+            pointerDown = false;
+            canvas.releasePointerCapture(1);
+        }
+
+        // Canvas event listeners
+        canvas.addEventListener('pointerdown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            onPointerDown(e.clientX, e.clientY);
+        });
+        canvas.addEventListener('pointermove', (e) => {
+            onPointerMove(e.clientX, e.clientY);
+        });
+        canvas.addEventListener('pointerup', onPointerUp);
+        canvas.addEventListener('pointercancel', onPointerUp);
+
+        // Touch support
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const t = e.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            onPointerDown(t.clientX, t.clientY);
+        }, { passive: false });
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            const t = e.touches[0];
+            onPointerMove(t.clientX, t.clientY);
+        }, { passive: false });
+        canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            onPointerUp();
+        }, { passive: false });
+
+        // ─── UI Controls ───────────────────────────────────────────────────
+        const firmnessSlider = document.getElementById('slider-firmness');
+        const dampingSlider = document.getElementById('slider-damping');
+        const valFirmness = document.getElementById('val-firmness');
+        const valDamping = document.getElementById('val-damping');
+        const btnNudge = document.getElementById('btn-nudge');
+        const btnReset = document.getElementById('btn-reset');
+        const btnPause = document.getElementById('btn-pause');
+        const chkSlowmo = document.getElementById('chk-slowmo');
+        const chkWireframe = document.getElementById('chk-wireframe');
+        const presetBtns = document.querySelectorAll('.preset-btn');
+        const statMass = document.getElementById('stat-mass');
+        const statVol = document.getElementById('stat-vol');
+        const statEner = document.getElementById('stat-ener');
+
+        firmnessSlider.addEventListener('input', () => {
+            state.firmness = parseFloat(firmnessSlider.value);
+            valFirmness.textContent = state.firmness.toFixed(2);
+        });
+        dampingSlider.addEventListener('input', () => {
+            state.damping = parseFloat(dampingSlider.value);
+            valDamping.textContent = state.damping.toFixed(2);
+        });
+
+        btnNudge.addEventListener('click', () => {
+            // Apply random impulse to tip vertices
+            for (let i = 0; i < numVerts; i++) {
+                const r = Math.sqrt(pos[i * 3] ** 2 + pos[i * 3 + 1] ** 2 + pos[i * 3 + 2] ** 2);
+                if (r < 0.5) {
+                    vel[i * 3] += (Math.random() - 0.5) * 1.5;
+                    vel[i * 3 + 1] += Math.random() * 2.0 + 0.5;
+                    vel[i * 3 + 2] += (Math.random() - 0.5) * 1.5;
+                }
+            }
+        });
+
+        btnReset.addEventListener('click', () => {
+            for (let i = 0; i < numVerts; i++) {
+                pos[i * 3] = restPos[i * 3];
+                pos[i * 3 + 1] = restPos[i * 3 + 1];
+                pos[i * 3 + 2] = restPos[i * 3 + 2];
+                prevPos[i * 3] = restPos[i * 3];
+                prevPos[i * 3 + 1] = restPos[i * 3 + 1];
+                prevPos[i * 3 + 2] = restPos[i * 3 + 2];
+                vel[i * 3] = 0;
+                vel[i * 3 + 1] = 0;
+                vel[i * 3 + 2] = 0;
+            }
+            seeds = generateSeeds();
+            grabInfo = null;
+        });
+
+        btnPause.addEventListener('click', () => {
+            state.paused = !state.paused;
+            btnPause.textContent = state.paused ? 'Resume' : 'Pause';
+        });
+
+        chkSlowmo.addEventListener('change', () => {
+            state.slowmo = chkSlowmo.checked;
+        });
+
+        chkWireframe.addEventListener('change', () => {
+            state.wireframe = chkWireframe.checked;
+        });
+
+        presetBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                presetBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                state.preset = btn.dataset.preset;
+                // Update colors via uniform
+            });
+        });
+
+        // ─── Main Loop ─────────────────────────────────────────────────────
+        let lastTime = 0;
+        let accumulator = 0;
+
+        function updateUniforms() {
+            const aspect = canvas.width / canvas.height || 1;
+            const view = getViewMatrix();
+            const proj = getProjectionMatrix(aspect);
+            const modelView = view;
+            const normalMat = mat4.transpose(mat4.inverse(modelView));
+
+            const invView = mat4.inverse(view);
+            const eye = [invView[12], invView[13], invView[14]];
+
+            // Light direction
+            const lightDir = [-0.5, 0.8, 0.3];
+            const llen = Math.sqrt(lightDir[0] ** 2 + lightDir[1] ** 2 + lightDir[2] ** 2);
+            for (let i = 0; i < 3; i++) lightDir[i] /= llen;
+
+            uniformData.set(modelView, 0);
+            uniformData.set(proj, 16);
+            uniformData.set(normalMat, 32);
+            uniformData.set([lightDir[0], lightDir[1], lightDir[2], 0], 48);
+            uniformData.set([eye[0], eye[1], eye[2], 0], 52);
+            uniformData[56] = state.time;
+            uniformData[57] = state.firmness;
+            uniformData[58] = state.damping;
+            const presetMap = { classic: 0, sunset: 1, frost: 2 };
+            uniformData[59] = presetMap[state.preset] || 0;
+
+            device.queue.writeBuffer(uniformBuffer, 0, uniformData);
+        }
+
+        function updateVertexBuffer() {
+            const data = new Float32Array(numVerts * 8);
+            for (let i = 0; i < numVerts; i++) {
+                data[i * 8] = pos[i * 3];
+                data[i * 8 + 1] = pos[i * 3 + 1];
+                data[i * 8 + 2] = pos[i * 3 + 2];
+                data[i * 8 + 3] = mesh.verts[i].uv[0];
+                data[i * 8 + 4] = mesh.verts[i].uv[1];
+                data[i * 8 + 5] = mesh.verts[i].uv[2];
+                data[i * 8 + 6] = vertMaterial[i] / 2.0;
+                data[i * 8 + 7] = 0;
+            }
+            device.queue.writeBuffer(vertexBuffer, 0, data);
+        }
+
+        function updateSeedBuffer() {
+            const maxSeeds = 128;
+            const data = new Float32Array(maxSeeds * 4);
+            const count = Math.min(seeds.length, maxSeeds);
+            for (let i = 0; i < count; i++) {
+                data[i * 4] = seeds[i].pos[0];
+                data[i * 4 + 1] = seeds[i].pos[1];
+                data[i * 4 + 2] = seeds[i].pos[2];
+                data[i * 4 + 3] = seeds[i].size;
+            }
+            device.queue.writeBuffer(seedBuffer, 0, data);
+        }
+
+        function computeStats() {
+            let totalMass = 0;
+            let totalVol = 0;
+            let kinetic = 0;
+            for (let i = 0; i < numVerts; i++) {
+                const m = invMass[i] > 0 ? 1 / invMass[i] : 0;
+                totalMass += m;
+                kinetic += 0.5 * m * (vel[i * 3] ** 2 + vel[i * 3 + 1] ** 2 + vel[i * 3 + 2] ** 2);
+            }
+            // Approximate volume from bounding box
+            let minY = Infinity,
+                maxY = -Infinity;
+            for (let i = 0; i < numVerts; i++) {
+                if (pos[i * 3 + 1] < minY) minY = pos[i * 3 + 1];
+                if (pos[i * 3 + 1] > maxY) maxY = pos[i * 3 + 1];
+            }
+            const vol = Math.max(0, (maxY - minY) * 0.8);
+            totalVol = vol;
+
+            statMass.textContent = totalMass.toFixed(1) + ' g';
+            statVol.textContent = (totalVol * 100).toFixed(0) + ' cm³';
+            statEner.textContent = (kinetic * 10).toFixed(2) + ' mJ';
+        }
+
+        function render() {
+            if (!device || !state.simReady) return;
+
+            const now = performance.now() / 1000;
+            const dt = Math.min(now - lastTime, 0.05);
+            lastTime = now;
+
+            if (!state.paused) {
+                const steps = state.slowmo ? 1 : SUBSTEPS;
+                const stepDt = state.slowmo ? DT * 0.25 : SUB_DT;
+                for (let s = 0; s < steps; s++) {
+                    simulateStep(stepDt, state.firmness, state.damping, grabInfo);
+                }
+                updateSeeds();
+                state.time += dt * (state.slowmo ? 0.25 : 1);
+            }
+
+            updateVertexBuffer();
+            updateSeedBuffer();
+            updateUniforms();
+            computeStats();
+
+            // Render
+            const viewport = {
+                x: 0,
+                y: 0,
+                width: canvas.width,
+                height: canvas.height,
+            };
+            const depthView = depthTexture.createView();
+
+            const encoder = device.createCommandEncoder();
+            const pass = encoder.beginRenderPass({
+                colorAttachments: [{
+                    view: context.getCurrentTexture().createView(),
+                    loadOp: 'clear',
+                    storeOp: 'store',
+                    clearValue: { r: 0.92, g: 0.90, b: 0.87, a: 1.0 },
+                }],
+                depthStencilAttachment: {
+                    view: depthView,
+                    depthLoadOp: 'clear',
+                    depthStoreOp: 'store',
+                    depthClearValue: 1.0,
+                },
+            });
+
+            if (state.wireframe) {
+                pass.setPipeline(wirePipeline);
+                pass.setBindGroup(0, wireBindGroup);
+                pass.setVertexBuffer(0, vertexBuffer);
+                pass.setIndexBuffer(indexBuffer, 'uint32');
+                pass.drawIndexed(numSurfFaces * 3);
+            } else {
+                pass.setPipeline(pipeline);
+                pass.setBindGroup(0, bindGroup);
+                pass.setVertexBuffer(0, vertexBuffer);
+                pass.setIndexBuffer(indexBuffer, 'uint32');
+                pass.drawIndexed(numSurfFaces * 3);
+
+                // Draw seeds as small quads (using same pipeline with instance data)
+                // For simplicity, we render seeds as points via a separate pass
+                // We'll use the main pipeline and draw points
+                // Actually, let's just use a simple point draw
+                // We'll skip seed rendering for now to keep it simple
+                // Seeds are embedded in the mesh visually
+            }
+
+            pass.end();
+            device.queue.submit([encoder.finish()]);
+
+            state.frameCount++;
+            requestAnimationFrame(render);
+        }
+
+        // ─── Init ──────────────────────────────────────────────────────────
+        async function init() {
+            try {
+                await initWebGPU();
+                // Set initial uniform values
+                state.time = 0;
+                render();
+            } catch (err) {
+                console.error('WebGPU init error:', err);
+                errorOverlay.style.display = 'flex';
+                statusEl.textContent = 'WEBGPU · ERROR';
+                const msg = errorOverlay.querySelector('p');
+                if (msg) msg.textContent = 'Could not initialize WebGPU: ' + err.message;
+            }
+        }
+
+        // Handle visibility change
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                // Don't pause, just let it run
+            } else {
+                lastTime = performance.now() / 1000;
+            }
+        });
+
+        // Handle reduced motion
+        const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+        if (motionQuery.matches) {
+            // Still run physics but at lower visual intensity
+        }
+
+        init();
+
+        // ─── Export for debugging ──────────────────────────────────────────
+        window.__melon = { state, mesh, pos, vel, seeds, grabInfo };
+    </script>
+</body>
+</html>

@@ -1,0 +1,84 @@
+{
+ "title": "Melon Jelly: a WebGPU soft-body brief on four local engines",
+ "recorded": "2026-09-26/27",
+ "prompt": "Create “Melon Jelly” - a polished, interactive 3D watermelon jelly slice that runs directly in the browser using genuine WebGPU and WGSL shaders. Deliver a single, self-contained HTML file with embedded JavaScript and CSS. This must be an actual interactive 3D simulation, not a static render, video, or 2D imitation.\n\nTHE WATERMELON\nCreate a thick, rounded triangular watermelon wedge with: Translucent ruby-red jelly flesh. A pale, slightly translucent layer between the flesh and rind. A glossy green outer rind with irregular dark-green stripes. Individually modeled dark seeds embedded in both exposed sides. Softly rounded corners and an appealing, substantial thickness. Make it look like an expensive gummy candy photographed in a studio. It should feel juicy, soft, and almost edible. Keep the colors rich without overexposing the highlights.\n\nSOFT-BODY PHYSICS\nUse a volumetric soft-body simulation, such as a tetrahedral mesh with XPBD elastic and volume-preservation constraints. The user must be able to: Grab the tip, a corner, the flesh, or the rind. Stretch, bend, lift, and gently twist the slice. Release it and watch it wobble before gradually settling. The slice must visibly deform locally, not simply move or scale as one rigid object. Make the rind slightly firmer than the flesh while keeping the whole slice flexible. Preserve volume reasonably during stretching. Prevent inverted elements, explosive motion, and permanent collapse. Use a fixed simulation timestep and bounded substeps for stability. After release, the motion should decay naturally - no instant snapping back and no endless oscillation. Keep seeds attached to the deforming flesh. They must move and rotate with the surface rather than float independently or remain fixed in space. Include ground contact, gentle friction, and soft bouncing. Avoid visible floor penetration.\n\nRENDERING\nUse native WebGPU with WGSL shaders. Include: Thickness-dependent light absorption. Refraction through the jelly. Fresnel reflections and glossy highlights. Soft transmitted light through thin edges. Subtle internal details and a few tiny air bubbles. Soft contact shadows beneath the slice. A light, neutral studio background. The flesh, pale rind, and green skin should have distinct material responses. Avoid making everything look like clear glass or opaque plastic. Keep the slice large and easy to inspect, with a three-quarter camera angle that reveals the flesh, seeds, and thickness.\n\nINTERFACE\nUse a minimal editorial layout with generous whitespace, thin borders, restrained controls, and no decorative UI gradients.\nTop left: “MATERIAL STUDIES / NO. 009” A large italic serif heading split across two lines: “Melon” and “Jelly.” Small caption: “A slice of summer.” “A little wobble.” “Too soft to share.”\nTop right: A small status indicator showing “WEBGPU · LIVE” when the renderer is running.\nRight-side panel: “THE SPECIMEN” Three coordinated watermelon-inspired color presets. Firmness slider with its current value. Internal damping slider with its current value. “Give it a nudge” and “Reset” buttons. “¼ speed” and “Show mesh” checkboxes. Pause / Resume button.\nBottom left: A short hint explaining that the slice can be grabbed and stretched. Live mass, relative volume, and kinetic-energy readouts derived from the simulation. Clearly describe illustrative units or approximate values where appropriate.\nBottom right: A collapsible “Inside the experiment” section briefly explaining the physics and rendering.\n\nBEHAVIOR AND PERFORMANCE\nSupport both mouse and touch input. Use pointer capture so dragging remains reliable when the pointer leaves the object. Make the layout work on desktop and mobile without controls covering the slice. Reuse buffers and avoid rebuilding geometry or compiling shaders during dragging. Keep interaction smooth and responsive. Respect reduced-motion preferences. If WebGPU is unavailable, display a clear explanation instead of silently substituting a fake renderer.\n\nVALIDATION\nTest dragging from several locations, strong stretches, repeated releases, ground collisions, all sliders, presets, pause, reset, and slow motion. Check that the model returns to a stable resting shape, seeds stay attached, the mesh remains intact, and there are no rendering errors. Prioritize the quality of the jelly response and lighting. The result should be something people want to keep grabbing and playing with.",
+ "sampling": "temperature 0.3 · top_k 20 · top_p 0.95 · seed 42 · drafts on (TensorFold)",
+ "arms": {
+  "deepseek": {
+   "model": "DeepSeek V4 Flash (abliterated) — vLLM TP2, spark-9f73+366f",
+   "thinking": "on",
+   "completion_tokens": 31797,
+   "reasoning_chars": 29341,
+   "wall_s": 516.49,
+   "tok_s": 61.64,
+   "html_bytes": 86875,
+   "finish_reason": "stop",
+   "original_sha256": "448b0e144f1e28707e626e2181f688d5120d3be6c6cfeb1e5486f76fefc56297",
+   "repaired_sha256": "d72f9eee5012558254ad0b7914a5706347b6c089bae990845cb92e4f31a1c67e",
+   "as_shipped": "loads, WEBGPU · LIVE, readouts tick, canvas empty (view matrix z-sign)",
+   "after_repair": "wedge visible; tet mesh has holes; camera inside the wedge",
+   "repairs": 1,
+   "status": "broken"
+  },
+  "qwen27b": {
+   "model": "Qwen3.8-27B MLX-4bit — TensorFold 0.3.4, Mac Studio M4 Max",
+   "thinking": "off",
+   "completion_tokens": 21889,
+   "reasoning_chars": 0,
+   "wall_s": 322.8,
+   "tok_s": 68.57,
+   "html_bytes": 52305,
+   "finish_reason": "stop",
+   "original_sha256": "ef9bd16c447e89a6806ec334698d5eb626280c0bb04516454ca3afc8db74e7a4",
+   "repaired_sha256": "3cb268b9ac807a96d084b4a22a957118c16b728e918a53d82814ae021902eb34",
+   "as_shipped": "SyntaxError (name collision), script never runs",
+   "after_repair": "TypeError at init: ring coordinates used as node indices; no canvas",
+   "repairs": 1,
+   "status": "broken"
+  }
+ },
+ "failed_thinking_runs": {
+  "qwen27b_thinking_on": {
+   "model": "Qwen3.8-27B MLX-4bit — TensorFold 0.3.4, Mac Studio M4 Max",
+   "thinking": "on",
+   "completion_tokens": 260000,
+   "reasoning_chars": 880753,
+   "wall_s": 5997.3,
+   "tok_s": 43.4,
+   "html_bytes": 0,
+   "finish_reason": "length",
+   "note": "burned the full 260K output budget reasoning, no HTML"
+  },
+  "glm_thinking_on": {
+   "model": "GLM-5.3-Flash EXL3 4bpw (Mia) — TensorFold 0.3.4 CUDA TP2, spark-b610+78f1",
+   "thinking": "on",
+   "completion_tokens": 60000,
+   "reasoning_chars": 199602,
+   "wall_s": 2574.2,
+   "tok_s": 23.3,
+   "html_bytes": 0,
+   "finish_reason": "length",
+   "note": "hit the 60K cap reasoning, no HTML"
+  },
+  "qwen27b_thinking_on_32k": {
+   "model": "Qwen3.8-27B MLX-4bit — TensorFold 0.3.4, Mac Studio M4 Max",
+   "thinking": "on",
+   "completion_tokens": 31859,
+   "reasoning_chars": 109868,
+   "wall_s": 588.9,
+   "tok_s": 54.4,
+   "html_bytes": 0,
+   "finish_reason": "length",
+   "note": "server was started with --context 32768 (operator error), cut off"
+  }
+ },
+ "pending": [
+  "GLM-5.3-Flash TP2 thinking off (generating at publish time)",
+  "Qwen3.8-Flash-Next TensorFold (queued)"
+ ],
+ "recording": "Headless Chrome 153 with WebGPU (Metal), 1280×800, real-time recording (not fixed-step): five scripted pointer drags from different points with wobble time between, then the 'Give it a nudge' button. Label bar composited afterwards. Videos show the repaired build and say so.",
+ "harness": {
+  "gen": "duel-tools/gen_tf.py",
+  "play": "duel-tools/melon_play.py"
+ }
+}
