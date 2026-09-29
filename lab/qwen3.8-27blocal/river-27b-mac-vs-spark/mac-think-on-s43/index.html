@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>River Shaper</title>
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:#0b0f14;font-family:system-ui,sans-serif;}
+  canvas{display:block;}
+  #hud{position:fixed;top:12px;left:12px;background:rgba(10,16,24,.8);color:#dfe8f2;
+       padding:14px 16px;border-radius:10px;font-size:13px;backdrop-filter:blur(6px);
+       min-width:230px;user-select:none;z-index:10;}
+  #hud h1{font-size:15px;margin:0 0 8px;font-weight:600;}
+  .row{display:flex;justify-content:space-between;gap:12px;margin:3px 0;}
+  .stat{color:#8fd0ff;font-variant-numeric:tabular-nums;}
+  label{display:block;margin-top:10px;color:#9fb2c8;font-size:12px;}
+  input[type=range]{width:100%;accent-color:#3f82ef;}
+  button{margin-top:12px;width:100%;padding:7px;border:none;border-radius:6px;
+         background:#2e6fd8;color:#fff;cursor:pointer;font-size:13px;}
+  button:hover{background:#3f82ef;}
+  #help{margin-top:10px;font-size:11px;color:#7d8fa5;line-height:1.55;}
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+<div id="hud">
+  <h1>&#127958; River Shaper</h1>
+  <div class="row"><span>Flow rate</span><span class="stat" id="sFlow">1.00</span></div>
+  <div class="row"><span>Water volume</span><span class="stat" id="sVol">0 u&sup3;</span></div>
+  <div class="row"><span>FPS</span><span class="stat" id="sFps">--</span></div>
+  <label>Flow rate <span id="vFlow">1.00</span></label>
+  <input id="flow" type="range" min="0" max="4" step="0.05" value="1">
+  <label>Brush size <span id="vBrush">8</span></label>
+  <input id="brush" type="range" min="2" max="24" step="1" value="8">
+  <button id="reset">Reset terrain</button>
+  <div id="help">
+    <b>Left-drag</b> raise land &middot; <b>Shift/Right-drag</b> dig<br>
+    <b>Middle-drag</b> or <b>Space + Left-drag</b> orbit &middot; wheel zoom<br>
+    The river finds a new path in a few seconds.
+  </div>
+</div>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* ---------------- grid / sim state ---------------- */
+const N = 128, S = 64, CELL = S / (N - 1);
+const H    = new Float32Array(N * N);   // terrain height
+const H0   = new Float32Array(N * N);   // pristine terrain
+const W    = new Float32Array(N * N);   // water depth
+const Wn   = new Float32Array(N * N);   // scratch
+const foam = new Float32Array(N * N);   // smoothed flow speed for colouring
+const MAXW = 8, MAXH = 18, MINH = -3;
+
+function baseH(i, j) {
+  const t = i / (N - 1);
+  let h = 0.6 + 9 * (1 - t);                       // slope: high edge -> low edge
+  const mz = S * 0.5 + 10 * Math.sin(i * 0.07) + 5 * Math.sin(i * 0.023 + 1.7);
+  const d = (j * CELL - mz) / S;
+  h -= 3.2 * Math.exp(-d * d * 70);               // carved valley
+  h += 0.6 * Math.sin(i * 0.17) * Math.cos(j * 0.14)
+       + 0.35 * Math.sin((i + j) * 0.09 + 2.0)
+       + 0.25 * Math.cos(i * 0.045 - j * 0.06);  // bumps
+  return h;
+}
+
+let flowRate = 1.0, brushSize = 8, terrainDirty = true;
+
+function resetTerrain() {
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+    const k = j * N + i;
+    H0[k] = H[k] = baseH(i, j);
+  }
+  W.fill(0); Wn.fill(0); foam.fill(0);
+  terrainDirty = true;
+}
+resetTerrain();
+
+/* ---------------- virtual-pipe water sim ---------------- */
+function simStep() {
+  Wn.set(W);
+  const c = 0.3;                                   // per-neighbour flow fraction (<=1 => stable)
+  for (let j = 0; j < N; j++) {
+    for (let i = 0; i < N; i++) {
+      const k = j * N + i;
+      const w = W[k];
+      if (w < 1e-4) {
+        if (foam[k] > 0.001) foam[k] *= 0.92; else foam[k] = 0;
+        continue;
+      }
+      const hi = H[k] + w;
+      let f0 = 0, f1 = 0, f2 = 0, f3 = 0;
+      if (i > 0)     { const n = k - 1, d = hi - H[n] - W[n]; if (d > 0) f0 = Math.min(d, w * 0.25) * c; }
+      if (i < N - 1) { const n = k + 1, d = hi - H[n] - W[n]; if (d > 0) f1 = Math.min(d, w * 0.25) * c; }
+      if (j > 0)     { const n = k - N, d = hi - H[n] - W[n]; if (d > 0) f2 = Math.min(d, w * 0.25) * c; }
+      if (j < N - 1) { const n = k + N, d = hi - H[n] - W[n]; if (d > 0) f3 = Math.min(d, w * 0.25) * c; }
+      const out = f0 + f1 + f2 + f3;
+      Wn[k] -= out;
+      if (f0) Wn[k - 1] += f0;
+      if (f1) Wn[k + 1] += f1;
+      if (f2) Wn[k - N] += f2;
+      if (f3) Wn[k + N] += f3;
+      const t = Math.min(1, out * 5);
+      foam[k] += (t - foam[k]) * 0.18;
+    }
+  }
+  const sp = 0.12 * flowRate;                     // spring at high edge (column 0)
+  if (sp > 0) for (let j = 0; j < N; j++) Wn[j * N] += sp;
+  for (let j = 0; j < N; j++) Wn[j * N + N - 1] *= 0.55;   // drain at low edge
+  if (flowRate < 0.01) for (let k = 0; k < N * N; k++) Wn[k] *= 0.998; // dries up
+  for (let k = 0; k < N * N; k++) {               // hard clamps: never blows up
+    let w = Wn[k];
+    if (w < 0) w = 0; else if (w > MAXW) w = MAXW;
+    Wn[k] = w;
+  }
+  W.set(Wn);
+}
+
+/* ---------------- scene ---------------- */
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b0f14);
+scene.fog = new THREE.Fog(0x0b0f14, 110, 260);
+
+const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 500);
+camera.position.set(0, 42, 52);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+document.body.appendChild(renderer.domElement);
+
+scene.add(new THREE.HemisphereLight(0xbcd4ff, 0x2a2418, 0.9));
+const sun = new THREE.DirectionalLight(0xfff2d8, 1.4);
+sun.position.set(30, 55, 20);
+scene.add(sun);
+
+function makeGeo() {
+  const g = new THREE.BufferGeometry();
+  const pos = new Float32Array(N * N * 3);
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+    const k = j * N + i;
+    pos[k * 3]     = -S / 2 + i * CELL;
+    pos[k * 3 + 1] = 0;
+    pos[k * 3 + 2] = -S / 2 + j * CELL;
+  }
+  const index = [];
+  for (let j = 0; j < N - 1; j++) for (let i = 0; i < N - 1; i++) {
+    const a = j * N + i, b = a + 1, c2 = a + N, d = c2 + 1;
+    index.push(a, c2, b, b, c2, d);
+  }
+  g.setIndex(index);
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(N * N * 3), 3));
+  g.computeVertexNormals();
+  g.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), 300);
+  return g;
+}
+
+const terrainGeo = makeGeo();
+const terrainMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0 });
+const terrain = new THREE.Mesh(terrainGeo, terrainMat);
+terrain.frustumCulled = false;
+scene.add(terrain);
+
+const waterGeo = makeGeo();
+const waterMat = new THREE.MeshPhongMaterial({
+  vertexColors: true, transparent: true, opacity: 0.78,
+  shininess: 90, specular: 0x99bbff,
+  side: THREE.DoubleSide, depthWrite: false,
+  polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1
+});
+const water = new THREE.Mesh(waterGeo, waterMat);
+water.frustumCulled = false;
+water.renderOrder = 1;
+scene.add(water);
+
+/* ---------------- terrain colouring ---------------- */
+function updateTerrain() {
+  const pos = terrainGeo.attributes.position.array;
+  for (let k = 0; k < N * N; k++) pos[k * 3 + 1] = H[k];
+  terrainGeo.attributes.position.needsUpdate = true;
+  terrainGeo.computeVertexNormals();
+  const nrm = terrainGeo.attributes.normal.array;
+  const col = terrainGeo.attributes.color.array;
+  for (let k = 0; k < N * N; k++) {
+    const h = H[k], slope = 1 - nrm[k * 3 + 1];
+    let rock = Math.min(1, Math.max((slope - 0.22) / 0.30, (h - 6.5) / 7));
+    let dirt = Math.min(1, Math.max(0, (slope - 0.06) / 0.18)) * (1 - rock);
+    const grass = 1 - rock - dirt;
+    const v = 0.9 + 0.18 * Math.sin(k * 0.71);
+    col[k * 3]     = (0.30 * grass + 0.52 * dirt + 0.55 * rock) * v;
+    col[k * 3 + 1] = (0.50 * grass + 0.40 * dirt + 0.53 * rock) * v;
+    col[k * 3 + 2] = (0.22 * grass + 0.26 * dirt + 0.50 * rock) * v;
+  }
+  terrainGeo.attributes.color.needsUpdate = true;
+}
+updateTerrain();
+
+function updateWater() {
+  const pos = waterGeo.attributes.position.array;
+  const col = waterGeo.attributes.color.array;
+  for (let k = 0; k < N * N; k++) {
+    const w = W[k];
+    pos[k * 3 + 1] = H[k] + (w > 0.004 ? w : -0.05);
+    const f = Math.min(1, foam[k]);
+    col[k * 3]     = 0.18 + 0.72 * f;   // faster -> lighter / foamy
+    col[k * 3 + 1] = 0.42 + 0.50 * f;
+    col[k * 3 + 2] = 0.70 + 0.28 * f;
+  }
+  waterGeo.attributes.position.needsUpdate = true;
+  waterGeo.attributes.color.needsUpdate = true;
+  waterGeo.computeVertexNormals();
+}
+
+/* ---------------- camera controls ---------------- */
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 2, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.maxPolarAngle = Math.PI * 0.49;
+controls.minDistance = 8;
+controls.maxDistance = 160;
+controls.mouseButtons = { LEFT: null, MIDDLE: THREE.MOUSE.ROTATE, RIGHT: null };
+
+/* ---------------- input / tools ---------------- */
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+const held = new Set();
+let spaceHeld = false, shiftHeld = false;
+
+renderer.domElement.addEventListener('contextmenu', e => e.preventDefault());
+renderer.domElement.addEventListener('pointerdown', e => {
+  held.add(e.button);
+  renderer.domElement.setPointerCapture(e.pointerId);
+});
+renderer.domElement.addEventListener('pointerup', e => held.delete(e.button));
+renderer.domElement.addEventListener('pointerleave', () => held.clear());
+renderer.domElement.addEventListener('pointermove', e => {
+  mouse.x = (e.clientX / innerWidth) * 2 - 1;
+  mouse.y = -(e.clientY / innerHeight) * 2 + 1;
+});
+addEventListener('keydown', e => {
+  if (e.code === 'Space') {
+    spaceHeld = true;
+    controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
+    held.clear();
+  }
+  if (e.key === 'Shift') shiftHeld = true;
+  if (e.key === '+' || e.key === '=') setFlow(Math.min(4, flowRate + 0.25));
+  if (e.key === '-' || e.key === '_') setFlow(Math.max(0, flowRate - 0.25));
+});
+addEventListener('keyup', e => {
+  if (e.code === 'Space') {
+    spaceHeld = false;
+    controls.mouseButtons.LEFT = null;
+  }
+  if (e.key === 'Shift') shiftHeld = false;
+});
+
+function applyBrush(px, pz, dir) {
+  const ci = (px + S / 2) / CELL, cj = (pz + S / 2) / CELL;
+  const r = brushSize, r2 = r * r, sig2 = (r * 0.55) * (r * 0.55);
+  const a = 0.3 * dir;
+  const i0 = Math.max(0, Math.floor(ci - r)), i1 = Math.min(N - 1, Math.ceil(ci + r));
+  const j0 = Math.max(0, Math.floor(cj - r)), j1 = Math.min(N - 1, Math.ceil(cj + r));
+  for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+    const dx = i - ci, dy = j - cj, d2 = dx * dx + dy * dy;
+    if (d2 < r2) {
+      const k = j * N + i;
+      H[k] = Math.min(MAXH, Math.max(MINH, H[k] + a * Math.exp(-d2 / sig2)));
+    }
+  }
+  terrainDirty = true;
+}
+
+/* ---------------- HUD ---------------- */
+const sFlow = document.getElementById('sFlow');
+const sVol = document.getElementById('sVol');
+const sFps = document.getElementById('sFps');
+const flowEl = document.getElementById('flow');
+const brushEl = document.getElementById('brush');
+const vFlow = document.getElementById('vFlow');
+const vBrush = document.getElementById('vBrush');
+
+function setFlow(v) {
+  flowRate = v;
+  flowEl.value = v;
+  vFlow.textContent = v.toFixed(2);
+  sFlow.textContent = v.toFixed(2);
+}
+flowEl.addEventListener('input', () => setFlow(parseFloat(flowEl.value)));
+brushEl.addEventListener('input', () => {
+  brushSize = parseInt(brushEl.value, 10);
+  vBrush.textContent = brushSize;
+});
+document.getElementById('reset').addEventListener('click', resetTerrain);
+
+function updateHud() {
+  let vol = 0;
+  for (let k = 0; k < N * N; k++) vol += W[k];
+  sVol.textContent = (vol * CELL * CELL).toFixed(0) + ' u\u00b3';
+}
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+/* ---------------- main loop ---------------- */
+let last = performance.now(), frames = 0, fpsT = last;
+function animate(now) {
+  requestAnimationFrame(animate);
+
+  // terrain editing
+  if (!spaceHeld) {
+    let dir = 0;
+    if (held.has(2)) dir = -1;
+    else if (held.has(0)) dir = shiftHeld ? -1 : 1;
+    if (dir !== 0) {
+      raycaster.setFromCamera(mouse, camera);
+      const hit = raycaster.intersectObject(terrain, false);
+      if (hit.length) applyBrush(hit[0].point.x, hit[0].point.z, dir);
+    }
+  }
+
+  for (let s = 0; s < 2; s++) simStep();
+
+  if (terrainDirty) { updateTerrain(); terrainDirty = false; }
+  updateWater();
+
+  controls.update();
+  renderer.render(scene, camera);
+
+  frames++;
+  if (now - fpsT > 500) {
+    sFps.textContent = Math.round(frames * 1000 / (now - fpsT));
+    frames = 0; fpsT = now;
+    updateHud();
+  }
+}
+requestAnimationFrame(animate);
+</script>
+</body>
+</html>

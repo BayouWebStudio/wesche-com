@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Confluence — a river you shape</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#eef3f6; --ink-dim:#9fb0b8; --ink-faint:#6d7d86;
+    --line:rgba(150,180,195,.16);
+    --water:#5fd0e6; --water-deep:#1f86a0; --dirt:#d98a4b; --rock:#a7a29a;
+    --good:#8fd07a; --warn:#e6b45a; --bad:#e56363;
+    --panel:rgba(15,21,26,.62);
+    --font-d:'Fraunces',Georgia,'Times New Roman',serif;
+    --font-b:'Space Grotesk',system-ui,-apple-system,sans-serif;
+    --font-m:ui-monospace,'SF Mono','Cascadia Code',Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:#0a0f14;color:var(--ink);font-family:var(--font-b)}
+  canvas{display:block;position:fixed;inset:0}
+  #vignette{position:fixed;inset:0;pointer-events:none;z-index:5;
+    background:radial-gradient(130% 120% at 50% 38%, transparent 52%, rgba(4,7,10,.55) 100%)}
+
+  /* ---------- HUD ---------- */
+  .hud{position:fixed;z-index:10;user-select:none}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    backdrop-filter:blur(16px) saturate(1.25);-webkit-backdrop-filter:blur(16px) saturate(1.25);
+    box-shadow:0 18px 50px -18px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.05)}
+
+  #brand{top:20px;left:20px;padding:15px 20px 16px;max-width:340px;
+    animation:rise .7s cubic-bezier(.2,.9,.25,1) both}
+  #brand .kicker{font:600 11px/1 var(--font-b);letter-spacing:.3em;color:var(--water);text-transform:uppercase}
+  #brand h1{font-family:var(--font-d);font-weight:900;font-size:44px;line-height:.92;margin:8px 0 7px;letter-spacing:-.01em}
+  #brand h1 em{font-style:italic;font-weight:500;color:var(--water);position:relative}
+  #brand h1 em::after{content:"";position:absolute;left:0;right:0;bottom:2px;height:2px;background:linear-gradient(90deg,var(--water),transparent);opacity:.55}
+  #brand .sub{font:400 13px/1.45 var(--font-b);color:var(--ink-dim)}
+  #brand .sub b{color:var(--ink);font-weight:600}
+
+  #stats{top:20px;right:20px;width:214px;padding:15px 16px 12px;
+    animation:rise .7s .08s cubic-bezier(.2,.9,.25,1) both}
+  .stat{display:flex;justify-content:space-between;align-items:baseline;padding:9px 0;border-bottom:1px solid var(--line)}
+  .stat:last-of-type{border-bottom:0}
+  .stat .lab{font:600 10px/1 var(--font-b);letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint)}
+  .stat .val{font-family:var(--font-m);font-size:19px;font-weight:500;letter-spacing:-.01em}
+  .stat .val small{font-size:11px;color:var(--ink-faint);margin-left:3px}
+  .stat .val.water{color:var(--water)} .stat .val.dirt{color:var(--dirt)}
+  .stat .val.good{color:var(--good)} .stat .val.warn{color:var(--warn)} .stat .val.bad{color:var(--bad)}
+  #stats .foot{font:500 10px/1 var(--font-b);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);padding-top:11px;margin-top:4px}
+
+  #dock{left:50%;bottom:22px;transform:translateX(-50%);display:flex;gap:14px;padding:14px 16px;
+    animation:rise .7s .16s cubic-bezier(.2,.9,.25,1) both}
+  .ctl{display:flex;flex-direction:column;gap:9px;min-width:186px}
+  .ctl .top{display:flex;justify-content:space-between;align-items:baseline}
+  .ctl .name{font:600 11px/1 var(--font-b);letter-spacing:.16em;text-transform:uppercase;color:var(--ink-dim)}
+  .ctl .read{font-family:var(--font-m);font-size:13px;color:var(--water)}
+  .ctl .read.dirt{color:var(--dirt)}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:5px;border-radius:6px;
+    background:linear-gradient(90deg,var(--water-deep),var(--water));outline:none;cursor:pointer}
+  #flowRange{background:linear-gradient(90deg,#3a4a52,var(--water))}
+  #brushRange{background:linear-gradient(90deg,#5a4a3c,var(--dirt))}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:17px;height:17px;border-radius:50%;
+    background:#fff;border:3px solid var(--water);box-shadow:0 3px 9px rgba(0,0,0,.5);transition:transform .12s}
+  #brushRange::-webkit-slider-thumb{border-color:var(--dirt)}
+  input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.18)}
+  input[type=range]::-moz-range-thumb{width:15px;height:15px;border-radius:50%;background:#fff;border:3px solid var(--water)}
+  .ctl .scale{display:flex;justify-content:space-between;font:500 9px/1 var(--font-m);color:var(--ink-faint);letter-spacing:.05em}
+  .btns{display:flex;flex-direction:column;gap:9px;justify-content:center}
+  .btn{font:600 12px/1 var(--font-b);letter-spacing:.06em;text-transform:uppercase;color:var(--ink);
+    background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:9px;padding:11px 16px;cursor:pointer;
+    transition:transform .12s,background .15s,border-color .15s;white-space:nowrap}
+  .btn:hover{transform:translateY(-2px);background:rgba(255,255,255,.1);border-color:rgba(150,180,195,.35)}
+  .btn:active{transform:translateY(0)}
+  .btn.primary{background:linear-gradient(180deg,rgba(95,208,230,.28),rgba(31,134,160,.28));border-color:rgba(95,208,230,.5);color:#eafcff}
+  .btn.primary:hover{background:linear-gradient(180deg,rgba(95,208,230,.42),rgba(31,134,160,.42))}
+
+  #hint{left:20px;bottom:22px;padding:12px 15px;font:500 11px/1.7 var(--font-b);color:var(--ink-dim);
+    animation:rise .7s .24s cubic-bezier(.2,.9,.25,1) both}
+  #hint b{color:var(--ink);font-weight:600}
+  #hint .k{font-family:var(--font-m);font-size:10px;color:var(--water);background:rgba(95,208,230,.12);
+    border:1px solid rgba(95,208,230,.3);border-radius:5px;padding:1px 6px;margin:0 2px}
+  #hint .k.d{color:var(--dirt);background:rgba(217,138,75,.12);border-color:rgba(217,138,75,.3)}
+
+  #orbitTag{left:50%;bottom:96px;transform:translateX(-50%) translateY(6px);opacity:0;pointer-events:none;
+    font:600 11px/1 var(--font-b);letter-spacing:.16em;text-transform:uppercase;color:var(--water);
+    background:rgba(15,21,26,.7);border:1px solid rgba(95,208,230,.4);border-radius:20px;padding:8px 15px;
+    transition:opacity .25s,transform .25s}
+  #orbitTag.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+  #dock{animation-name:riseD}
+  @keyframes riseD{from{opacity:0;transform:translate(-50%,14px)}to{opacity:1;transform:translate(-50%,0)}}
+  #orbitTag{animation:none}
+  @media (max-width:820px){#brand h1{font-size:34px}#stats{display:none}#dock .ctl{min-width:150px}}
+</style>
+</head>
+<body>
+  <div id="vignette"></div>
+
+  <div id="brand" class="hud panel">
+    <div class="kicker">Hydrology · Sandbox</div>
+    <h1>Confl<em>uence</em></h1>
+    <div class="sub">Shape the valley — drop rock, carve channels, and watch the water find its way. It re-routes in seconds.</div>
+  </div>
+
+  <div id="stats" class="hud panel">
+    <div class="stat"><span class="lab">Flow rate</span><span class="val water" id="vFlow">0<small>L/s</small></span></div>
+    <div class="stat"><span class="lab">Water volume</span><span class="val" id="vVol">0<small>m³</small></span></div>
+    <div class="stat"><span class="lab">Wetted area</span><span class="val" id="vWet">0<small>%</small></span></div>
+    <div class="stat"><span class="lab">Frame rate</span><span class="val" id="vFps">60<small>fps</small></span></div>
+    <div class="foot" id="vState">river running</div>
+  </div>
+
+  <div id="dock" class="hud panel">
+    <div class="ctl">
+      <div class="top"><span class="name">Flow rate</span><span class="read" id="flowRead">2.0</span></div>
+      <input id="flowRange" type="range" min="0" max="10" step="0.1" value="2">
+      <div class="scale"><span>dry</span><span>flood</span></div>
+    </div>
+    <div class="ctl">
+      <div class="top"><span class="name">Brush size</span><span class="read dirt" id="brushRead">12</span></div>
+      <input id="brushRange" type="range" min="2" max="40" step="1" value="12">
+      <div class="scale"><span>fine</span><span>broad</span></div>
+    </div>
+    <div class="btns">
+      <button class="btn primary" id="resetBtn">Reset valley</button>
+      <button class="btn" id="soundBtn">Sound: off</button>
+    </div>
+  </div>
+
+  <div id="hint" class="hud panel">
+    <b>Paint terrain</b> — <span class="k d">L-drag</span> raise &nbsp; <span class="k">Shift</span>+drag or <span class="k d">R-drag</span> lower<br>
+    <b>Orbit</b> — <span class="k">Middle-drag</span> or hold <span class="k">Space</span> &nbsp;·&nbsp; <b>Scroll</b> zoom &nbsp;·&nbsp; <b>+/−</b> flow &nbsp;·&nbsp; <b>0</b> dry
+  </div>
+
+  <div id="orbitTag">orbiting</div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+
+  <script type="module">
+  import * as THREE from 'three';
+  import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+  /* ============================== CONFIG ============================== */
+  const N = 128;                 // grid resolution (N x N cells)
+  const SIZE = 128;              // world size in metres
+  const CELL = SIZE / N;
+  const H0 = 4.0;                // base terrain height
+  const HMAX = 48, HMIN = 0;     // terrain clamps
+  const WMAX = 12, WMIN = 0;     // water depth clamps
+  const SUBSTEPS = 2;            // sim substeps per frame
+  const DRY = 1e-4;              // treat thinner water as dry
+  const HORIZON = 14;            // height of the flat horizon plane
+  const MAXDT = 0.05;
+
+  // colour ramp (r,g,b in 0..1)
+  const PAL = {
+    deep:[0.10,0.34,0.45], water:[0.42,0.72,0.82], foam:[0.95,0.98,1.0],
+    sand:[0.74,0.67,0.47], grass:[0.40,0.53,0.26], grass2:[0.27,0.42,0.20],
+    dirt:[0.50,0.37,0.25], rock:[0.62,0.60,0.57], rock2:[0.34,0.33,0.31]
+  };
+  const lerp=(a,b,t)=>a+(b-a)*t;
+  const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+  const smooth=t=>t*t*(3-2*t);
+  const mix3=(a,b,t)=>[lerp(a[0],b[0],t),lerp(a[1],b[1],t),lerp(a[2],b[2],t)];
+
+  /* ============================== STATE ============================== */
+  const terrain = new Float32Array(N*N);
+  const water   = new Float32Array(N*N);
+  const speed   = new Float32Array(N*N);
+  const height  = new Float32Array(N*N);   // terrain + water
+  const slope   = new Float32Array(N*N);
+  const tmp     = new Float32Array(N*N);   // scratch for water update
+
+  let flowRate = 2.0;       // spring rate slider 0..10
+  let brushSize = 12;
+  let soundOn = false;
+
+  /* ============================== MATH ============================== */
+  function idx(x,y){ return y*N + x; }
+  function hAt(x,y){ return terrain[idx(x,y)]; }
+  function hAtC(x,y){
+    if(x<0||y<0||x>=N||y>=N) return HORIZON;
+    return height[idx(x,y)];
+  }
+  function slopeAt(x,y){
+    const hl=hAtC(x-1,y),hr=hAtC(x+1,y),hd=hAtC(x,y-1),hu=hAtC(x,y+1);
+    const dx=(hr-hl)/(2*CELL), dy=(hu-hd)/(2*CELL);
+    return Math.sqrt(dx*dx+dy*dy);
+  }
+
+  // A gently carved V-valley that slopes from the high edge (y=0) to the low edge (y=N-1).
+  function baseHeight(x,y){
+    const u=x/(N-1), v=y/(N-1);
+    let h = H0 + (1-v)*(HMAX-H0);
+    const c = u*2-1;
+    h -= 0.24*(1-c*c)*(1-v);                 // carve a channel down the middle
+    h += 0.11*Math.sin(x*0.18)*Math.cos(y*0.15);   // rolling detail
+    h += 0.05*Math.sin(x*0.05+y*0.11);
+    return h;
+  }
+
+  function initTerrain(){
+    for(let y=0;y<N;y++) for(let x=0;x<N;x++) terrain[idx(x,y)] = baseHeight(x,y);
+  }
+  function initWater(){
+    water.fill(0);
+    for(let y=0;y<N;y++) for(let x=0;x<N;x++)
+      if(terrain[idx(x,y)] < 9) water[idx(x,y)] = 0.15;   // seed a trickle
+  }
+  function initAll(){ initTerrain(); initWater(); }
+
+  // recompute the combined height + slope fields
+  function computeFields(){
+    for(let i=0;i<N*N;i++) height[i] = terrain[i]+water[i];
+    for(let y=0;y<N;y++) for(let x=0;x<N;x++) slope[idx(x,y)] = slopeAt(x,y);
+  }
+
+  /* ============================== WATER SIM (virtual-pipe) ============================== */
+  function stepWater(dt){
+    // spring at the high edge
+    const add = flowRate*dt;
+    for(let x=0;x<N;x++) water[idx(x,0)] += add;
+
+    const k = 4.0, cap = 0.9*dt;
+    for(let y=0;y<N;y++) for(let x=0;x<N;x++){
+      const i=idx(x,y), wi=water[i];
+      if(wi < DRY){ tmp[i]=0; continue; }
+      const hi=height[i];
+      let sum=0, flux=0;
+      // left
+      { const j=idx(x-1,y); if(j>=0){ const d=wi-water[j]; const f=k*d*dt; if(f>0){ flux+=f; sum+=clamp(d,-cap,cap);} } }
+      // right
+      { const j=idx(x+1,y); if(j<N){ const d=wi-water[j]; const f=k*d*dt; if(f>0){ flux+=f; sum+=clamp(d,-cap,cap);} } }
+      // down
+      { const j=idx(x,y-1); if(j>=0){ const d=wi-water[j]; const f=k*d*dt; if(f>0){ flux+=f; sum+=clamp(d,-cap,cap);} } }
+      // up
+      { const j=idx(x,y+1); if(j<N*N-N){ const d=wi-water[j]; const f=k*d*dt; if(f>0){ flux+=f; sum+=clamp(d,-cap,cap);} } }
+      if(sum>0) flux -= sum;
+      let nv = wi + flux;
+      if(nv < 0) nv = 0;
+      if(nv > WMAX) nv = WMAX;
+      tmp[i] = nv;
+    }
+    water.set(tmp);
+  }
+
+  function computeSpeed(){
+    for(let y=0;y<N;y++) for(let x=0;x<N;x++){
+      const i=idx(x,y);
+      if(water[i] < DRY){ speed[i]=0; continue; }
+      const hl=hAtC(x-1,y),hr=hAtC(x+1,y),hd=hAtC(x,y-1),hu=hAtC(x,y+1);
+      const dx=(hr-hl)/(2*CELL), dy=(hu-hd)/(2*CELL);
+      speed[i] = Math.sqrt(dx*dx+dy*dy);
+    }
+  }
+
+  /* ============================== SCENE ============================== */
+  const scene = new THREE.Scene();
+  scene.fog = new THREE.Fog(0x0c151d, 160, 420);
+
+  const camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.5, 2000);
+  camera.position.set(64, 78, 152);
+
+  const renderer = new THREE.WebGLRenderer({ antialias:true, powerPreference:'high-performance' });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.setClearColor(0x0c151d, 1);
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.12;
+  document.body.appendChild(renderer.domElement);
+
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.target.set(0, 15, 0);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.minDistance = 40;
+  controls.maxDistance = 340;
+  controls.maxPolarAngle = Math.PI*0.49;
+  controls.minPolarAngle = 0.15;
+  controls.mouseButtons = { LEFT:null, MIDDLE:THREE.MOUSE.ROTATE, RIGHT:null };
+  controls.touches = { ONE:null, TWO:THREE.TOUCH.DOLLY_ROTATE };
+  controls.update();
+
+  // lights
+  scene.add(new THREE.HemisphereLight(0xbfd6ff, 0x241a12, 0.55));
+  const sun = new THREE.DirectionalLight(0xffe6c0, 1.45);
+  sun.position.set(-70, 110, 55);
+  scene.add(sun);
+  const fill = new THREE.DirectionalLight(0x6fb0ff, 0.28);
+  fill.position.set(60, 40, -60);
+  scene.add(fill);
+
+  // faint ground ring for a little grounding
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(96, 118, 96),
+    new THREE.MeshBasicMaterial({ color:0x16222b, transparent:true, opacity:0.5, side:THREE.DoubleSide })
+  );
+  ring.rotation.x = -Math.PI/2; ring.position.y = -0.15;
+  scene.add(ring);
+
+  // ---- terrain mesh ----
+  const tGeo = new THREE.BufferGeometry();
+  tGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(N*N*3), 3));
+  tGeo.setAttribute('color',    new THREE.BufferAttribute(new Float32Array(N*N*3), 3));
+  const tIdx = new Uint32Array((N-1)*(N-1)*6);
+  { let k=0; for(let y=0;y<N-1;y++) for(let x=0;x<N-1;x++){
+      const a=idx(x,y), b=idx(x+1,y), c=idx(x,y+1), d=idx(x+1,y+1);
+      tIdx[k++]=a; tIdx[k++]=c; tIdx[k++]=b;
+      tIdx[k++]=b; tIdx[k++]=c; tIdx[k++]=d;
+  }}
+  tGeo.setIndex(new THREE.BufferAttribute(tIdx,1));
+  const tMat = new THREE.MeshStandardMaterial({ vertexColors:true, roughness:0.96, metalness:0.0, flatShading:false });
+  const terrainMesh = new THREE.Mesh(tGeo, tMat);
+  terrainMesh.frustumCulled = false;
+  scene.add(terrainMesh);
+
+  // ---- water mesh ----
+  const wGeo = new THREE.BufferGeometry();
+  wGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(N*N*3), 3));
+  wGeo.setAttribute('color',    new THREE.BufferAttribute(new Float32Array(N*N*3), 3));
+  wGeo.setIndex(new THREE.BufferAttribute(tIdx,1));
+  const wMat = new THREE.MeshStandardMaterial({
+    vertexColors:true, transparent:true, opacity:0.86, roughness:0.22, metalness:0.05,
+    side:THREE.DoubleSide, depthWrite:false,
+    emissive:new THREE.Color(0x1f6f86), emissiveIntensity:0.16
+  });
+  const waterMesh = new THREE.Mesh(wGeo, wMat);
+  waterMesh.frustumCulled = false;
+  waterMesh.renderOrder = 2;
+  scene.add(waterMesh);
+
+  // ---- brush ring ----
+  const brush = new THREE.LineLoop(
+    new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array(64*3),3)),
+    new THREE.LineBasicMaterial({ color:0xffffff, transparent:true, opacity:0.85 })
+  );
+  brush.frustumCulled = false;
+  brush.visible = false;
+  scene.add(brush);
+
+  /* ============================== MESH UPDATES ============================== */
+  function updateTerrainMesh(){
+    const pos = tGeo.attributes.position.array;
+    const col = tGeo.attributes.color.array;
+    for(let y=0;y<N;y++) for(let x=0;x<N;x++){
+      const i=idx(x,y), j=i*3;
+      pos[j]=(x-N/2)*CELL; pos[j+1]=terrain[i]; pos[j+2]=(y-N/2)*CELL;
+      const h=terrain[i], s=slope[i];
+      const t=clamp((h-HMIN)/(HMAX-HMIN),0,1);
+      let c;
+      if(t<0.10)      c = mix3(PAL.sand, PAL.grass, smooth(t/0.10));
+      else if(t<0.42) c = mix3(PAL.grass, PAL.grass2, smooth((t-0.10)/0.32));
+      else if(t<0.68) c = mix3(PAL.grass2, PAL.dirt, smooth((t-0.42)/0.26));
+      else            c = mix3(PAL.dirt, PAL.rock, smooth((t-0.68)/0.32));
+      const rs = clamp((s-0.35)/0.95, 0, 1);
+      c = mix3(c, PAL.rock2, rs*0.85);
+      col[j]=c[0]; col[j+1]=c[1]; col[j+2]=c[2];
+    }
+    tGeo.attributes.position.needsUpdate = true;
+    tGeo.attributes.color.needsUpdate = true;
+    tGeo.computeVertexNormals();
+  }
+
+  function updateWaterMesh(){
+    const pos = wGeo.attributes.position.array;
+    const col = wGeo.attributes.color.array;
+    for(let y=0;y<N;y++) for(let x=0;x<N;x++){
+      const i=idx(x,y), j=i*3;
+      pos[j]=(x-N/2)*CELL; pos[j+1]=height[i]; pos[j+2]=(y-N/2)*CELL;
+      const w=water[i];
+      if(w < DRY){ col[j]=0; col[j+1]=0; col[j+2]=0; continue; }
+      const dn = clamp(w/3.0, 0, 1);
+      let c = mix3(PAL.deep, PAL.water, dn);
+      const f = clamp(speed[i]*1.6, 0, 1);
+      c = mix3(c, PAL.foam, f*0.9);
+      col[j]=c[0]; col[j+1]=c[1]; col[j+2]=c[2];
+    }
+    wGeo.attributes.position.needsUpdate = true;
+    wGeo.attributes.color.needsUpdate = true;
+    wGeo.computeVertexNormals();
+  }
+
+  /* ============================== BRUSH / INPUT ============================== */
+  const raycaster = new THREE.Raycaster();
+  const ndc = new THREE.Vector2();
+  let painting = false, paintMode = 'raise';
+  let spaceDown = false;
+  let lastClient = {x:innerWidth/2, y:innerHeight/2};
+
+  function setNDC(e){
+    ndc.x = (e.clientX/innerWidth)*2-1;
+    ndc.y = -(e.clientY/innerHeight)*2+1;
+    lastClient = {x:e.clientX, y:e.clientY};
+  }
+
+  function paintAt(cx,cy){
+    setNDC({clientX:cx, clientY:cy});
+    raycaster.setFromCamera(ndc, camera);
+    const hits = raycaster.intersectObject(terrainMesh);
+    if(!hits.length) return;
+    const p = hits[0].point;
+    const gx = Math.round(p.x/CELL + N/2);
+    const gy = Math.round(p.z/CELL + N/2);
+    const r = brushSize;
+    const amt = 2.4 * (paintMode==='raise'?1:-1);
+    for(let dy=-r; dy<=r; dy++) for(let dx=-r; dx<=r; dx++){
+      const d2 = dx*dx+dy*dy;
+      if(d2 > r*r) continue;
+      const x=gx+dx, y=gy+dy;
+      if(x<0||y<0||x>=N||y>=N) continue;
+      const fall = 1 - Math.sqrt(d2)/r;
+      const i=idx(x,y);
+      terrain[i] = clamp(terrain[i] + amt*fall, HMIN, HMAX);
+    }
+  }
+
+  function updateBrushRing(){
+    setNDC(lastClient);
+    raycaster.setFromCamera(ndc, camera);
+    const hits = raycaster.intersectObject(terrainMesh);
+    if(!hits.length){ brush.visible=false; return; }
+    const p = hits[0].point;
+    const r = brushSize*CELL;
+    const arr = brush.geometry.attributes.position.array;
+    const pts = brush.geometry.attributes.position.count;
+    for(let k=0;k<pts;k++){
+      const a = k/pts*Math.PI*2;
+      arr[k*3]=p.x+Math.cos(a)*r;
+      arr[k*3+1]=p.y+0.35;
+      arr[k*3+2]=p.z+Math.sin(a)*r;
+    }
+    brush.geometry.attributes.position.needsUpdate = true;
+    brush.visible = true;
+    brush.material.color.set(paintMode==='raise'?0xe8b06a:0x7fe3f2);
+  }
+
+  const dom = renderer.domElement;
+  dom.addEventListener('pointerdown', e=>{
+    if(e.button===0 && !spaceDown){
+      painting = true; paintMode = e.shiftKey ? 'lower' : 'raise';
+      setNDC(e); paintAt(e.clientX, e.clientY);
+      dom.setPointerCapture(e.pointerId);
+    }
+  });
+  dom.addEventListener('pointermove', e=>{
+    setNDC(e);
+    if(painting) paintAt(e.clientX, e.clientY);
+    else if(!spaceDown) updateBrushRing();
+  });
+  const endPaint = e=>{ if(painting){ painting=false; dom.releasePointerCapture?.(e.pointerId); } };
+  dom.addEventListener('pointerup', endPaint);
+  dom.addEventListener('pointerleave', ()=>{ if(!spaceDown) brush.visible=false; });
+  dom.addEventListener('contextmenu', e=>e.preventDefault());
+  dom.style.touchAction = 'none';
+
+  addEventListener('keydown', e=>{
+    if(e.code==='Space'){ if(!spaceDown){ spaceDown=true; controls.enabled=true; orbitTag.classList.add('show'); } e.preventDefault(); }
+    if(e.key==='+'||e.key==='='){ setFlow(flowRate+1); }
+    if(e.key==='-'||e.key==='_'){ setFlow(flowRate-1); }
+    if(e.key==='0'){ setFlow(0); }
+  });
+  addEventListener('keyup', e=>{
+    if(e.code==='Space'){ spaceDown=false; controls.enabled=false; orbitTag.classList.remove('show'); }
+  });
+
+  // keep controls disabled except while orbiting (space / middle)
+  controls.enabled = false;
+
+  /* ============================== HUD ============================== */
+  const $ = s=>document.querySelector(s);
+  const flowRange=$('#flowRange'), brushRange=$('#brushRange');
+  const flowRead=$('#flowRead'), brushRead=$('#brushRead');
+  const vFlow=$('#vFlow'), vVol=$('#vVol'), vWet=$('#vWet'), vFps=$('#vFps'), vState=$('#vState');
+  const orbitTag=$('#orbitTag');
+
+  function fmtVol(v){ return v>=1000 ? (v/1000).toFixed(1)+'k' : v.toFixed(0); }
+  function setFlow(v){
+    flowRate = clamp(v, 0, 10);
+    flowRange.value = flowRate;
+    flowRead.textContent = flowRate.toFixed(1);
+  }
+  flowRange.addEventListener('input', ()=> setFlow(parseFloat(flowRange.value)));
+  brushRange.addEventListener('input', ()=>{ brushSize = parseInt(brushRange.value); brushRead.textContent = brushSize; });
+
+  $('#resetBtn').addEventListener('click', ()=>{
+    initAll();
+    for(let i=0;i<160;i++) stepWater(1/60);   // let it settle into a path
+    computeFields(); computeSpeed();
+    updateTerrainMesh(); updateWaterMesh();
+  });
+
+  const soundBtn = $('#soundBtn');
+  let actx, noiseSrc, noiseGain, flowGain, noiseBuf;
+  function buildNoise(){
+    const len = actx.sampleRate*2;
+    noiseBuf = actx.createBuffer(1, len, actx.sampleRate);
+    const d = noiseBuf.getChannelData(0);
+    let last=0;
+    for(let i=0;i<len;i++){ const w=Math.random()*2-1; last=(last+0.02*w)/1.02; d[i]=last*3.5; }
+  }
+  function enableSound(){
+    if(!actx){
+      actx = new (window.AudioContext||window.webkitAudioContext)();
+      buildNoise();
+      noiseSrc = actx.createBufferSource(); noiseSrc.buffer=noiseBuf; noiseSrc.loop=true;
+      const lp = actx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=700;
+      noiseGain = actx.createGain(); noiseGain.gain.value=0;
+      flowGain = actx.createGain(); flowGain.gain.value=0;
+      noiseSrc.connect(lp); lp.connect(noiseGain); noiseGain.connect(flowGain); flowGain.connect(actx.destination);
+      noiseSrc.start();
+    }
+    actx.resume();
+  }
+  soundBtn.addEventListener('click', ()=>{
+    soundOn = !soundOn;
+    if(soundOn) enableSound();
+    soundBtn.textContent = 'Sound: ' + (soundOn?'on':'off');
+  });
+
+  /* ============================== LOOP ============================== */
+  let last = performance.now();
+  let fps = 60, fpsSmooth = 60, hudT = 0, vol=0, wet=0;
+
+  function loop(now){
+    requestAnimationFrame(loop);
+    let dt = (now-last)/1000; last = now;
+    if(dt > MAXDT) dt = MAXDT;
+    if(dt > 0) fps = 1/dt;
+    fpsSmooth += (fps - fpsSmooth)*0.1;
+
+    // simulation (fixed-ish substeps, clamped)
+    const sub = dt/SUBSTEPS;
+    for(let s=0;s<SUBSTEPS;s++) stepWater(sub);
+    computeFields();
+    computeSpeed();
+
+    // meshes
+    updateTerrainMesh();
+    updateWaterMesh();
+
+    // audio (water sound tracks current flow)
+    if(soundOn && actx){
+      const g = clamp(flowRate/10,0,1);
+      flowGain.gain.setTargetAtTime(g*0.22, actx.currentTime, 0.15);
+      noiseGain.gain.setTargetAtTime(0.5 + g*0.5, actx.currentTime, 0.2);
+    }
+
+    // HUD
+    hudT += dt;
+    if(hudT > 0.12){
+      hudT = 0;
+      vol = 0; wet = 0;
+      for(let i=0;i<N*N;i++){ if(water[i]>DRY){ vol += water[i]; wet++; } }
+      vol *= CELL*CELL;
+      vFlow.innerHTML = flowRate.toFixed(1)+'<small>L/s</small>';
+      vVol.innerHTML = fmtVol(vol)+'<small>m³</small>';
+      vWet.innerHTML = (wet/(N*N)*100).toFixed(1)+'<small>%</small>';
+      const f = Math.round(fpsSmooth);
+      vFps.innerHTML = f+'<small>fps</small>';
+      vFps.className = 'val ' + (f>=50?'good':f>=28?'warn':'bad');
+      vState.textContent = flowRate<=0.05 ? 'drying up' : flowRate>=6 ? 'flooded' : 'river running';
+    }
+
+    // brush ring (only when not actively orbiting)
+    if(!spaceDown) updateBrushRing();
+
+    controls.update();
+    renderer.render(scene, camera);
+  }
+
+  addEventListener('resize', ()=>{
+    camera.aspect = innerWidth/innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
+  });
+
+  /* ============================== BOOT ============================== */
+  initAll();
+  for(let i=0;i<160;i++) stepWater(1/60);   // settle into an initial river
+  computeFields(); computeSpeed();
+  updateTerrainMesh(); updateWaterMesh();
+  requestAnimationFrame(loop);
+  </script>
+</body>
+</html>

@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Riverwright — Shape the Water</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#080c13; --panel:rgba(13,20,29,0.82); --panel2:rgba(9,14,21,0.9);
+    --line:rgba(120,170,210,0.14); --line2:rgba(120,170,210,0.28);
+    --text:#e8f0f6; --muted:#8496a7; --dim:#5a6b7a;
+    --water:#5cc8ff; --water2:#8fe0ff; --earth:#c99a5e; --rock:#a7b3c1; --hot:#ff7a5c;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);
+    font-family:"Space Grotesk",system-ui,sans-serif;color:var(--text);
+    -webkit-font-smoothing:antialiased;user-select:none;}
+  #scene{position:fixed;inset:0;display:block;cursor:none}
+  #vignette{position:fixed;inset:0;pointer-events:none;z-index:1;
+    background:radial-gradient(125% 120% at 50% 36%,transparent 42%,rgba(4,7,11,.55) 100%);
+    mix-blend-mode:multiply}
+
+  .panel{position:fixed;z-index:2;background:var(--panel);border:1px solid var(--line);
+    border-radius:15px;backdrop-filter:blur(14px) saturate(1.15);-webkit-backdrop-filter:blur(14px) saturate(1.15);
+    box-shadow:0 22px 50px -22px rgba(0,0,0,.85),inset 0 1px 0 rgba(255,255,255,.05);
+    animation:rise .55s cubic-bezier(.2,.8,.2,1) both}
+  @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+  /* Brand */
+  .brand{top:18px;left:18px;padding:15px 20px 16px;max-width:330px}
+  .brand .mark{font-family:"Anton",sans-serif;font-size:33px;line-height:.92;letter-spacing:.01em;
+    text-shadow:0 0 26px rgba(92,200,255,.22)}
+  .brand .mark b{color:var(--water);font-weight:400}
+  .brand .sub{margin-top:9px;font-size:12.5px;color:var(--muted);line-height:1.5;max-width:290px}
+  .brand .tag{margin-top:11px;display:inline-flex;align-items:center;gap:7px;font-size:10.5px;
+    letter-spacing:.16em;text-transform:uppercase;color:var(--dim);
+    border:1px solid var(--line);border-radius:999px;padding:4px 11px}
+  .brand .tag .dot{width:7px;height:7px;border-radius:50%;background:var(--water);
+    box-shadow:0 0 10px var(--water);animation:pulse 2.2s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:.4;transform:scale(.8)}50%{opacity:1;transform:scale(1.15)}}
+
+  /* Telemetry */
+  .tele{top:18px;right:18px;width:238px;padding:16px 18px 18px}
+  .tele h2,.tools h2{margin:0 0 4px;font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--dim);
+    display:flex;align-items:center;gap:8px}
+  .tele h2::after,.tools h2::after{content:"";flex:1;height:1px;background:var(--line)}
+  .metric{margin-top:14px}
+  .metric .k{font-size:11px;letter-spacing:.06em;color:var(--muted);text-transform:uppercase}
+  .metric .v{font-family:"JetBrains Mono",monospace;font-weight:700;font-size:27px;letter-spacing:-.01em;
+    margin-top:2px;display:flex;align-items:baseline;gap:6px}
+  .metric .v .u{font-size:12px;font-weight:500;color:var(--dim)}
+  .metric.water .v{color:var(--water2);text-shadow:0 0 22px rgba(92,200,255,.35)}
+  .metric.flow .v{color:var(--earth)}
+  .metric.fps .v{color:#cfe3d6}
+  .fpsbar{margin-top:8px;height:5px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden}
+  .fpsbar i{display:block;height:100%;width:100%;border-radius:4px;
+    background:linear-gradient(90deg,#3fd08a,#8fe0ff);transition:width .2s linear}
+
+  /* Tools */
+  .tools{bottom:18px;left:18px;width:262px;padding:16px 18px 18px;animation-delay:.08s}
+  .slider{margin-top:15px}
+  .slider .lab{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;color:var(--muted);
+    letter-spacing:.03em;margin-bottom:9px}
+  .slider .lab b{font-family:"JetBrains Mono",monospace;font-weight:700;font-size:15px;color:var(--text)}
+  .slider .lab b.hi{color:var(--water2)}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:6px;
+    background:rgba(255,255,255,.1);outline:none;cursor:pointer}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:17px;height:17px;border-radius:50%;
+    background:var(--text);border:3px solid #0d141d;box-shadow:0 0 0 1px var(--line2),0 4px 10px rgba(0,0,0,.5);
+    transition:transform .12s ease,box-shadow .12s ease}
+  input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.18)}
+  input[type=range]:active::-webkit-slider-thumb{transform:scale(1.28);box-shadow:0 0 0 1px var(--water),0 0 16px var(--water),0 4px 10px rgba(0,0,0,.5)}
+  input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--text);
+    border:3px solid #0d141d;box-shadow:0 0 0 1px var(--line2)}
+  .hint{margin-top:16px;font-size:11px;color:var(--dim);line-height:1.75}
+  .hint b{color:var(--muted);font-weight:600}
+  .hint .key{font-family:"JetBrains Mono",monospace;font-size:10px;color:var(--text);
+    background:rgba(255,255,255,.08);border:1px solid var(--line);border-radius:5px;padding:1px 6px}
+
+  /* Buttons */
+  .actions{bottom:18px;right:18px;display:flex;gap:10px;align-items:center;
+    padding:10px;border-radius:13px;animation-delay:.14s}
+  button{font-family:"Space Grotesk",sans-serif;font-weight:600;font-size:13px;letter-spacing:.02em;
+    color:var(--text);background:rgba(255,255,255,.05);border:1px solid var(--line);
+    border-radius:10px;padding:11px 16px;cursor:pointer;transition:all .16s ease}
+  button:hover{background:rgba(255,255,255,.1);border-color:var(--line2);transform:translateY(-1px)}
+  button:active{transform:translateY(0)}
+  button.reset{color:#12202e;background:linear-gradient(180deg,#7fd6ff,#4fb6f0);border-color:transparent;
+    box-shadow:0 8px 22px -8px rgba(80,180,240,.7)}
+  button.reset:hover{box-shadow:0 12px 28px -8px rgba(80,180,240,.85)}
+  .camstate{font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--dim);letter-spacing:.1em;
+    padding:0 6px;transition:color .2s}
+  .camstate.on{color:var(--water2)}
+
+  /* Custom cursor */
+  #brush{position:fixed;z-index:5;width:200px;height:200px;margin:-100px 0 0 -100px;border-radius:50%;
+    border:1.5px solid rgba(180,220,255,.85);pointer-events:none;opacity:0;
+    box-shadow:0 0 0 1px rgba(8,12,18,.6) inset,0 0 24px rgba(92,200,255,.25);
+    transition:opacity .15s ease}
+  #brush::before,#brush::after{content:"";position:absolute;background:rgba(180,220,255,.7)}
+  #brush::before{left:50%;top:50%;width:5px;height:5px;margin:-2.5px;border-radius:50%}
+  #brush::after{left:50%;top:50%;width:1px;height:12px;margin:-6px 0 0 -.5px}
+  #brush .lab{position:absolute;left:50%;top:-24px;transform:translateX(-50%);white-space:nowrap;
+    font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:.1em;color:var(--water2);
+    background:rgba(8,12,18,.7);padding:2px 8px;border-radius:6px}
+  #brush.raise{border-color:rgba(201,154,94,.95);box-shadow:0 0 0 1px rgba(8,12,18,.6) inset,0 0 24px rgba(201,154,94,.3)}
+  #brush.raise::before,#brush.raise::after{background:rgba(201,154,94,.9)}
+  #brush.raise .lab{color:var(--earth)}
+  body.orbit #brush{opacity:0!important}
+
+  @media (max-width:820px){
+    .brand{max-width:none}
+    .brand .sub{display:none}
+    .tele{width:auto}
+    .metric{display:inline-block;width:34%;margin-right:8px}
+    .tools{width:auto;right:18px;left:auto}
+  }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+<canvas id="scene"></canvas>
+<div id="vignette"></div>
+<div id="brush"><span class="lab" id="brushLab">RAISE · 12</span></div>
+
+<div class="panel brand">
+  <div class="mark">RIVER<b>WRIGHT</b></div>
+  <div class="sub">Carve the valley, dam the current, and watch the water find its own way.</div>
+  <div class="tag"><span class="dot"></span> live shallow-water sim</div>
+</div>
+
+<div class="panel tele">
+  <h2>Telemetry</h2>
+  <div class="metric water"><div class="k">Total water</div><div class="v"><span id="mVol">0</span><span class="u">k u³</span></div></div>
+  <div class="metric flow"><div class="k">Spring rate</div><div class="v"><span id="mFlow">0</span><span class="u">u³/s</span></div></div>
+  <div class="metric fps"><div class="k">Frame rate</div><div class="v"><span id="mFps">0</span><span class="u">fps</span></div><div class="fpsbar"><i id="mFpsBar"></i></div></div>
+</div>
+
+<div class="panel tools">
+  <h2>Tools</h2>
+  <div class="slider">
+    <div class="lab"><span>Brush size</span><b id="vBrush">12</b></div>
+    <input type="range" id="brush" min="2" max="40" step="1" value="12">
+  </div>
+  <div class="slider">
+    <div class="lab"><span>Spring flow</span><b class="hi" id="vFlow">35%</b></div>
+    <input type="range" id="flow" min="0" max="100" step="1" value="35">
+  </div>
+  <div class="hint">
+    <b>Left-drag</b> raise &nbsp;·&nbsp; <b>Shift / Right-drag</b> dig<br>
+    <span class="key">Middle</span> or <span class="key">Space</span> orbit &nbsp; <span class="key">Wheel</span> zoom<br>
+    <span class="key">+ / −</span> spring flow &nbsp; <span class="key">R</span> reset
+  </div>
+</div>
+
+<div class="panel actions">
+  <span class="camstate" id="camstate">FREE</span>
+  <button class="reset" id="reset">↺ Reset</button>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* ---------- Constants ---------- */
+const N = 128, HALF = N/2;
+const CELL = 1.0, WORLD = (N-1)*CELL;
+const H_MIN = -4, H_MAX = 13;
+const WATER_MAX = 12;
+const SPRING_RATE = 4.6;        // u³/s per unit flow (0..1)
+const WATER_ADD = 0.55;         // per-step add at spring
+const WATER_DRAIN = 0.5;        // per-step removal at low edge
+const WATER_DIFF = 0.22;        // diffusion factor (stability)
+const WATER_VISC = 0.05;
+const WATER_DAMP = 0.998;
+const FLOW_K = 0.55;            // virtual-pipe discharge constant
+const MAX_H = 16;               // hard height clamp
+const GRAV = 9.81;
+const BRUSH_RAISE = 0.16, BRUSH_DIG = 0.22;
+const SPRING_CELL = 16;         // index along the high (north) edge
+
+/* ---------- Grid arrays ---------- */
+const size = N*N;
+const height = new Float32Array(size);
+const water  = new Float32Array(size);
+const water2 = new Float32Array(size);
+const flow   = new Float32Array(size);
+const slope  = new Float32Array(size);
+const normal = new Float32Array(size*3);
+const cCol   = new Float32Array(size*3);
+const cWtr   = new Float32Array(size*3);
+const cEmit  = new Float32Array(size);
+const cAlpha = new Float32Array(size);
+const cFlow  = new Float32Array(size);
+
+const idx = (x,y) => y*N + x;
+const clamp = (v,a,b) => v<a?a:(v>b?b:v);
+const smooth = (a,b,x) => { x = clamp((x-a)/(b-a),0,1); return x*x*(3-2*x); };
+
+/* ---------- Terrain generation (valley + meander) ---------- */
+function genTerrain(){
+  const cx = HALF, cy = HALF;
+  const d1 = Math.hypot(cx-14, cy-16);   // upper meander bend
+  const d2 = Math.hypot(cx-118, cy-118); // lower meander bend
+  for(let y=0;y<N;y++){
+    for(let x=0;x<N;x++){
+      const r = Math.hypot(x-cx, y-cy);
+      const valley = 1.15 + 1.7*Math.exp(-r*r/(2*20*20));
+      const meander = 1.6*Math.exp(-((x-14)**2+(y-16)**2)/(2*d1*d1))
+                    + 1.2*Math.exp(-((x-118)**2+(y-118)**2)/(2*d2*d2));
+      const ridge = 5.0*Math.exp(-((x-16)**2+(y-112)**2)/(2*15*15));
+      const rock  = 2.5*Math.exp(-((x-112)**2+(y-16)**2)/(2*18*18));
+      const n = (Math.sin(x*0.31+y*0.17)+Math.sin(x*0.13-y*0.29)+Math.sin((x+y)*0.07))*0.55;
+      const h = 1.2 + 0.055*y + valley + meander + ridge + rock + n;
+      height[idx(x,y)] = h;
+    }
+  }
+}
+function recomputeSlope(){
+  for(let y=0;y<N;y++)for(let x=0;x<N;x++){
+    const i=idx(x,y);
+    const hl = x>0?height[i-1]:height[i];
+    const hr = x<N-1?height[i+1]:height[i];
+    const hd = y>0?height[i-N]:height[i];
+    const hu = y<N-1?height[i+N]:height[i];
+    const gx=(hr-hl)/(2*CELL), gy=(hu-hd)/(2*CELL);
+    const inv=1/Math.sqrt(gx*gx+gy*gy+1);
+    normal[i*3]=-gx*inv; normal[i*3+1]=inv; normal[i*3+2]=-gy*inv;
+    slope[i]=Math.sqrt(gx*gx+gy*gy);
+  }
+}
+function reset(){
+  genTerrain();
+  water.fill(0); water2.fill(0); flow.fill(0);
+  recomputeSlope();
+  resetCamera();
+}
+
+/* ---------- Terrain colours (grass / dirt / rock) ---------- */
+const C_GRASS=[0.235,0.47,0.215], C_GRASS2=[0.17,0.36,0.19];
+const C_DIRT=[0.44,0.315,0.185], C_ROCK=[0.52,0.55,0.6], C_ROCK2=[0.36,0.39,0.45];
+function terrainColor(h,s,nx,ny,nz,out){
+  const t = clamp((h-1.2)/(11-1.2),0,1);
+  let r,g,b;
+  if(t<0.5){ const u=smooth(0.12,0.5,t); r=C_DIRT[0]+(C_GRASS[0]-C_DIRT[0])*u; g=C_DIRT[1]+(C_GRASS[1]-C_DIRT[1])*u; b=C_DIRT[2]+(C_GRASS[2]-C_DIRT[2])*u;
+    const v=smooth(0,0.5,t); r+=(C_GRASS2[0]-C_GRASS[0])*v; g+=(C_GRASS2[1]-C_GRASS[1])*v; b+=(C_GRASS2[2]-C_GRASS[2])*v; }
+  else { const u=smooth(0.5,0.75,t); r=C_GRASS[0]+(C_ROCK[0]-C_GRASS[0])*u; g=C_GRASS[1]+(C_ROCK[1]-C_GRASS[1])*u; b=C_GRASS[2]+(C_ROCK[2]-C_GRASS[2])*u;
+    const v=smooth(0.75,1,t); r+=(C_ROCK2[0]-C_ROCK[0])*v; g+=(C_ROCK2[1]-C_ROCK[1])*v; b+=(C_ROCK2[2]-C_ROCK[2])*v; }
+  const shade = clamp(0.45 + 0.6*ny + 0.15*nx + 0.08*nz, 0.28, 1.25);
+  const slopeMix = smooth(0.22,0.85,s)*0.55;
+  out[0]=r*shade*(1-slopeMix)+C_ROCK[0]*shade*slopeMix;
+  out[1]=g*shade*(1-slopeMix)+C_ROCK[1]*shade*slopeMix;
+  out[2]=b*shade*(1-slopeMix)+C_ROCK[2]*shade*slopeMix;
+}
+
+/* ---------- Water colours ---------- */
+const C_DEEP=[0.05,0.32,0.45], C_MID=[0.16,0.55,0.7], C_SHAL=[0.6,0.85,0.93], C_FOAM=[0.96,0.98,1.0];
+function waterColor(d,sp,out){
+  const dt = clamp(d/WATER_MAX,0,1);
+  let r,g,b;
+  if(dt<0.5){ const u=smooth(0,0.5,dt); r=C_SHAL[0]+(C_MID[0]-C_SHAL[0])*u; g=C_SHAL[1]+(C_MID[1]-C_SHAL[1])*u; b=C_SHAL[2]+(C_MID[2]-C_SHAL[2])*u; }
+  else { const u=smooth(0.5,1,dt); r=C_MID[0]+(C_DEEP[0]-C_MID[0])*u; g=C_MID[1]+(C_DEEP[1]-C_MID[1])*u; b=C_MID[2]+(C_DEEP[2]-C_MID[2])*u; }
+  const f = Math.min(sp*2.2, 1);
+  const fc = Math.min(sp*1.3, 0.92);
+  r += (C_FOAM[0]-r)*f*fc; g += (C_FOAM[1]-g)*f*fc; b += (C_FOAM[2]-b)*f*fc;
+  out[0]=r; out[1]=g; out[2]=b;
+}
+
+/* ---------- Renderer / scene ---------- */
+const canvas = document.getElementById('scene');
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true, powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.12;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0a1119);
+scene.fog = new THREE.Fog(0x0a1119, 70, 230);
+
+const camera = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 0.1, 600);
+camera.position.set(0, 58, 92);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.dampingFactor = 0.08;
+controls.target.set(0, 4, -12);
+controls.minDistance = 12; controls.maxDistance = 260;
+controls.maxPolarAngle = Math.PI*0.495;
+controls.mouseButtons = { LEFT:null, MIDDLE:THREE.MOUSE.ROTATE, RIGHT:null };
+controls.touches = { ONE:THREE.TOUCH.ROTATE, TWO:THREE.TOUCH.DOLLY_PAN };
+controls.update();
+
+/* Lights */
+scene.add(new THREE.HemisphereLight(0xbcd6ff, 0x2a2018, 0.55));
+const sun = new THREE.DirectionalLight(0xfff0d8, 1.35); sun.position.set(55, 90, 35); scene.add(sun);
+const fill = new THREE.DirectionalLight(0x6f86c8, 0.35); fill.position.set(-45, 40, -55); scene.add(fill);
+
+/* ---------- Geometry ---------- */
+function buildTerrain(){
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(size*3),3));
+  g.setAttribute('normal',   new THREE.BufferAttribute(new Float32Array(size*3),3));
+  g.setAttribute('color',    new THREE.BufferAttribute(new Float32Array(size*3),3));
+  const idxs = new Uint32Array((N-1)*(N-1)*6); let k=0;
+  for(let y=0;y<N-1;y++)for(let x=0;x<N-1;x++){
+    const a=idx(x,y), b=idx(x+1,y), c=idx(x,y+1), d=idx(x+1,y+1);
+    idxs[k++]=a; idxs[k++]=c; idxs[k++]=b;
+    idxs[k++]=b; idxs[k++]=c; idxs[k++]=d;
+  }
+  g.setIndex(new THREE.BufferAttribute(idxs,1));
+  return g;
+}
+function buildWater(){
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(size*3),3));
+  g.setAttribute('normal',   new THREE.BufferAttribute(new Float32Array(size*3),3));
+  g.setAttribute('color',    new THREE.BufferAttribute(new Float32Array(size*3),3));
+  g.setAttribute('emissive', new THREE.BufferAttribute(new Float32Array(size*3),3));
+  g.setAttribute('alpha',    new THREE.BufferAttribute(new Float32Array(size),1));
+  g.setAttribute('flow',     new THREE.BufferAttribute(new Float32Array(size),1));
+  const idxs = new Uint32Array((N-1)*(N-1)*6); let k=0;
+  for(let y=0;y<N-1;y++)for(let x=0;x<N-1;x++){
+    const a=idx(x,y), b=idx(x+1,y), c=idx(x,y+1), d=idx(x+1,y+1);
+    idxs[k++]=a; idxs[k++]=c; idxs[k++]=b;
+    idxs[k++]=b; idxs[k++]=c; idxs[k++]=d;
+  }
+  g.setIndex(new THREE.BufferAttribute(idxs,1));
+  return g;
+}
+const terrainGeo = buildTerrain();
+const waterGeo   = buildWater();
+
+const terrainMat = new THREE.MeshStandardMaterial({vertexColors:true, roughness:0.96, metalness:0.0});
+const terrain = new THREE.Mesh(terrainGeo, terrainMat);
+terrain.frustumCulled = false;
+scene.add(terrain);
+
+const waterMat = new THREE.ShaderMaterial({
+  transparent:true, depthWrite:false,
+  uniforms:{ uSunDir:{value:sun.position.clone().normalize()} },
+  vertexShader:`
+    attribute vec3 emissive; attribute float alpha; attribute float flow;
+    varying vec3 vE; varying float vA; varying float vF; varying vec3 vN; varying vec3 vW;
+    void main(){ vE=emissive; vA=alpha; vF=flow; vN=normalize(normal); vW=position;
+      gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+  fragmentShader:`
+    precision highp float; uniform vec3 uSunDir;
+    varying vec3 vE; varying float vA; varying float vF; varying vec3 vN; varying vec3 vW;
+    void main(){
+      if(vA<0.004) discard;
+      vec3 N=normalize(vN); vec3 V=normalize(cameraPosition-vW);
+      float fres=pow(1.0-max(dot(N,V),0.0),2.0);
+      float spec=pow(max(dot(N,normalize(uSunDir)),0.0),90.0);
+      vec3 col=vE*(0.62+0.38*fres)+vec3(1.0,0.98,0.9)*spec*0.9+vE*fres*0.4;
+      float a=clamp(vA*(0.5+0.5*fres)+0.05,0.0,0.96);
+      gl_FragColor=vec4(col,a);
+    }`
+});
+const water = new THREE.Mesh(waterGeo, waterMat);
+water.frustumCulled = false;
+scene.add(water);
+
+/* ---------- Simulation ---------- */
+let flowRate = 0.35;
+
+function addSpring(){
+  const y = SPRING_CELL;
+  for(let x=0;x<N;x++){
+    const i=idx(x,y);
+    const d = water[i];
+    if(d < WATER_MAX) water[i] = Math.min(WATER_MAX, d + WATER_ADD*flowRate);
+  }
+}
+function drainEdge(){
+  for(let x=0;x<N;x++){ const i=idx(x,N-1); water[i] -= WATER_DRAIN; if(water[i]<0) water[i]=0; }
+}
+function diffuse(){
+  for(let y=0;y<N;y++)for(let x=0;x<N;x++){
+    const i=idx(x,y);
+    const l = x>0?idx(x-1,y):i, r = x<N-1?idx(x+1,y):i;
+    const d = y>0?idx(x,y-1):i, u = y<N-1?idx(x,y+1):i;
+    water2[i] = water[i] + WATER_DIFF*((water[l]+water[r]+water[d]+water[u])*0.25 - water[i]);
+  }
+}
+function flowStep(){
+  let total = 0;
+  for(let y=0;y<N;y++)for(let x=0;x<N;x++){
+    const i=idx(x,y);
+    const d = water[i];
+    if(d<=0){ flow[i]=0; continue; }
+    const hl = x>0?height[i-1]:height[i];
+    const hr = x<N-1?height[i+1]:height[i];
+    const hd = y>0?height[i-N]:height[i];
+    const hu = y<N-1?height[i+N]:height[i];
+    const wl = x>0?water[i-1]:water[i];
+    const wr = x<N-1?water[i+1]:water[i];
+    const wd = y>0?water[i-N]:water[i];
+    const wu = y<N-1?water[i+N]:water[i];
+    const fl = FLOW_K*d*Math.sqrt(Math.max(0, (height[i]+water[i])-(hl+wl)));
+    const fr = FLOW_K*d*Math.sqrt(Math.max(0, (height[i]+water[i])-(hr+wr)));
+    const fd = FLOW_K*d*Math.sqrt(Math.max(0, (height[i]+water[i])-(hd+wd)));
+    const fu = FLOW_K*d*Math.sqrt(Math.max(0, (height[i]+water[i])-(hu+wu)));
+    let out = fl+fr+fd+fu;
+    if(out>d) out=d;
+    if(x>0) water[i-1]+=fl;
+    if(x<N-1) water[i+1]+=fr;
+    if(y>0) water[i-N]+=fd;
+    if(y<N-1) water[i+N]+=fu;
+    water[i]-=out;
+    if(water[i]<0) water[i]=0;
+    flow[i]=out; total+=out;
+  }
+  return total;
+}
+function post(){
+  let total=0;
+  for(let i=0;i<size;i++){
+    let v = (water[i]+WATER_VISC*water2[i])*(1-WATER_VISC)*WATER_DAMP;
+    if(v<0) v=0; if(v>WATER_MAX) v=WATER_MAX;
+    water[i]=v; total+=v;
+  }
+  return total;
+}
+function simStep(){
+  addSpring();
+  diffuse();
+  flowStep();
+  const total = post();
+  drainEdge();
+  return total;
+}
+
+/* ---------- Attribute update ---------- */
+function updateTerrain(){
+  const pos=terrainGeo.attributes.position.array, nor=terrainGeo.attributes.normal.array, col=terrainGeo.attributes.color.array;
+  for(let y=0;y<N;y++)for(let x=0;x<N;i=y*N+x){
+    const i=y*N+x;
+    pos[i*3]=(x-HALF)*CELL; pos[i*3+1]=height[i]; pos[i*3+2]=(y-HALF)*CELL;
+    nor[i*3]=normal[i*3]; nor[i*3+1]=normal[i*3+1]; nor[i*3+2]=normal[i*3+2];
+    terrainColor(height[i], slope[i], normal[i*3], normal[i*3+1], normal[i*3+2], cCol);
+    col[i*3]=cCol[0]; col[i*3+1]=cCol[1]; col[i*3+2]=cCol[2];
+  }
+  terrainGeo.attributes.position.needsUpdate=true;
+  terrainGeo.attributes.normal.needsUpdate=true;
+  terrainGeo.attributes.color.needsUpdate=true;
+  terrainGeo.computeBoundingSphere();
+}
+function updateWater(){
+  const pos=waterGeo.attributes.position.array, nor=waterGeo.attributes.normal.array;
+  const col=waterGeo.attributes.color.array, emi=waterGeo.attributes.emissive.array;
+  const al=waterGeo.attributes.alpha.array, fl=waterGeo.attributes.flow.array;
+  for(let y=0;y<N;y++)for(let x=0;x<N;x++){
+    const i=y*N+x;
+    const d=water[i];
+    pos[i*3]=(x-HALF)*CELL; pos[i*3+1]=height[i]+d; pos[i*3+2]=(y-HALF)*CELL;
+    const nx=normal[i*3], ny=normal[i*3+1], nz=normal[i*3+2];
+    const inv=1/Math.sqrt(nx*nx+ny*ny+nz*nz);
+    nor[i*3]=nx*inv; nor[i*3+1]=ny*inv; nor[i*3+2]=nz*inv;
+    waterColor(d, flow[i], cWtr);
+    col[i*3]=cWtr[0]; col[i*3+1]=cWtr[1]; col[i*3+2]=cWtr[2];
+    const emiF=Math.min(flow[i]*1.1,0.7);
+    emi[i*3]=cWtr[0]*emiF; emi[i*3+1]=cWtr[1]*emiF; emi[i*3+2]=cWtr[2]*emiF;
+    cAlpha[i]=d<=0.001?0:Math.min(0.92, 0.18+0.72*clamp(d/WATER_MAX,0,1));
+    cFlow[i]=Math.min(flow[i]*1.3,1);
+  }
+  al.set(cAlpha); fl.set(cFlow);
+  waterGeo.attributes.position.needsUpdate=true;
+  waterGeo.attributes.normal.needsUpdate=true;
+  waterGeo.attributes.color.needsUpdate=true;
+  waterGeo.attributes.emissive.needsUpdate=true;
+  waterGeo.attributes.alpha.needsUpdate=true;
+  waterGeo.attributes.flow.needsUpdate=true;
+  waterGeo.computeBoundingSphere();
+}
+
+/* ---------- Terrain editing ---------- */
+const raycaster = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
+const hit = new THREE.Vector3();
+let hitValid=false;
+let brushSize=12, brushCells=12, brushPos={x:0,y:0};
+let painting=false, paintMode=0, spaceDown=false, orbiting=false;
+
+function setBrush(v){ brushSize=v; brushCells=Math.max(1,Math.round(v/CELL)); document.getElementById('vBrush').textContent=brushSize; }
+
+function paint(p){
+  const r=brushCells;
+  const x0=Math.max(0,Math.floor(p.x-r)), x1=Math.min(N-1,Math.ceil(p.x+r));
+  const y0=Math.max(0,Math.floor(p.y-r)), y1=Math.min(N-1,Math.ceil(p.y+r));
+  const rad=Math.max(1,r*0.9);
+  const amp = paintMode<0 ? BRUSH_DIG : BRUSH_RAISE;
+  for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){
+    const dx=x-p.x, dy=y-p.y, dist=Math.hypot(dx,dy);
+    if(dist>rad) continue;
+    const w=1-dist/rad, fall=w*w*(3-2*w);
+    const i=idx(x,y);
+    height[i]=clamp(height[i]+paintMode*amp*fall, H_MIN, H_MAX);
+  }
+  recomputeSlope();
+}
+
+function screenToGrid(e){
+  ndc.x=(e.clientX/innerWidth)*2-1;
+  ndc.y=-(e.clientY/innerHeight)*2+1;
+  raycaster.setFromCamera(ndc, camera);
+  hitValid = raycaster.intersectObject(terrain,false).length>0;
+  if(hitValid){ hit.copy(raycaster.intersects[0].point); brushPos={x:hit.x/CELL+HALF, y:hit.z/CELL+HALF}; }
+  else {
+    raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0,1,0),0), hit);
+    brushPos={x:hit.x/CELL+HALF, y:hit.z/CELL+HALF};
+  }
+  return brushPos;
+}
+function screenToBrush(e){
+  const bc=document.getElementById('brush');
+  bc.style.left=e.clientX+'px'; bc.style.top=e.clientY+'px';
+  bc.style.width=bc.style.height=(brushCells*2*CELL*cellPx())+'px';
+  bc.style.margin=(-brushCells*CELL*cellPx())+'px 0 0 '+(-brushCells*CELL*cellPx())+'px';
+  bc.style.opacity=hitValid?1:0;
+  bc.className = paintMode<0 ? 'raise' : '';
+  document.getElementById('brushLab').textContent = (paintMode<0?'DIG':'RAISE')+' · '+brushSize;
+}
+function cellPx(){
+  const v=new THREE.Vector3(0,0,0);
+  camera.updateMatrixWorld();
+  const proj=new THREE.Vector3().copy(hit).project(camera);
+  const proj2=new THREE.Vector3().copy(hit).add(new THREE.Vector3(CELL,0,0)).project(camera);
+  const dx=(proj2.x-proj.x)*innerWidth*0.5;
+  return Math.max(4, Math.min(48, Math.abs(dx)));
+}
+
+/* ---------- Input ---------- */
+function toggleOrbit(on){
+  orbiting=on;
+  controls.enabled=!on;
+  document.body.classList.toggle('orbit', on);
+  const cs=document.getElementById('camstate');
+  cs.textContent=on?'ORBIT':'FREE';
+  cs.classList.toggle('on',on);
+}
+function setFlow(v){
+  flowRate=clamp(v,0,1);
+  document.getElementById('flow').value=Math.round(flowRate*100);
+  document.getElementById('vFlow').textContent=Math.round(flowRate*100)+'%';
+}
+
+renderer.domElement.addEventListener('pointerdown', e=>{
+  if(e.button===1 || spaceDown){ e.preventDefault(); toggleOrbit(true); return; }
+  if(e.button===0){ painting=true; paintMode = e.shiftKey?-1:1; try{renderer.domElement.setPointerCapture(e.pointerId);}catch(_){} }
+});
+renderer.domElement.addEventListener('pointermove', e=>{
+  screenToBrush(e);
+  if(painting){ paintMode=e.shiftKey?-1:1; paint(screenToGrid(e)); }
+});
+window.addEventListener('pointerup', e=>{
+  if(painting){ painting=false; try{renderer.domElement.releasePointerCapture(e.pointerId);}catch(_){} }
+  if(e.button===1) toggleOrbit(false);
+});
+renderer.domElement.addEventListener('pointerleave', ()=>{ document.getElementById('brush').style.opacity=0; });
+renderer.domElement.addEventListener('contextmenu', e=>e.preventDefault());
+renderer.domElement.addEventListener('wheel', e=>{ if(!orbiting) e.preventDefault(); }, {passive:false});
+
+window.addEventListener('keydown', e=>{
+  if(e.code==='Space'){ if(!spaceDown){ spaceDown=true; toggleOrbit(true);} e.preventDefault(); }
+  else if(e.key==='+'||e.key==='='){ setFlow(flowRate+0.05); }
+  else if(e.key==='-'||e.key==='_'){ setFlow(flowRate-0.05); }
+  else if(e.key==='r'||e.key==='R'){ reset(); }
+});
+window.addEventListener('keyup', e=>{ if(e.code==='Space'){ spaceDown=false; if(orbiting) toggleOrbit(false);} });
+
+document.getElementById('brush').addEventListener('input', e=>setBrush(+e.target.value));
+document.getElementById('flow').addEventListener('input', e=>setFlow(+e.target.value/100));
+document.getElementById('reset').addEventListener('click', reset);
+
+function resetCamera(){
+  camera.position.set(0,58,92);
+  controls.target.set(0,4,-12);
+  controls.update();
+}
+
+/* ---------- HUD ---------- */
+const mVol=document.getElementById('mVol'), mFlow=document.getElementById('mFlow'),
+      mFps=document.getElementById('mFps'), mFpsBar=document.getElementById('mFpsBar');
+let lastHud=0, fpsSmooth=60;
+function updateHud(t, vol){
+  if(t-lastHud<120) return;
+  lastHud=t;
+  mVol.textContent=(vol/1000).toFixed(1);
+  mFlow.textContent=(flowRate*SPRING_RATE*1000).toFixed(0);
+  mFps.textContent=Math.round(fpsSmooth);
+  mFpsBar.style.width=clamp(fpsSmooth/60,0,1)*100+'%';
+  mFpsBar.style.background = fpsSmooth>45?'linear-gradient(90deg,#3fd08a,#8fe0ff)':fpsSmooth>28?'linear-gradient(90deg,#e0b23f,#8fe0ff)':'linear-gradient(90deg,#ff6a5c,#e0b23f)';
+}
+
+/* ---------- Resize ---------- */
+addEventListener('resize', ()=>{
+  camera.aspect=innerWidth/innerHeight; camera.updateMatrixWorld();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+/* ---------- Boot ---------- */
+reset();
+setBrush(12); setFlow(0.35);
+updateTerrain(); updateWater();
+document.getElementById('brush').style.opacity=0;
+
+/* ---------- Loop ---------- */
+let last=performance.now(), acc=0, steps=0;
+function animate(t){
+  requestAnimationFrame(animate);
+  const dt=Math.min((t-last)/1000, 0.05); last=t;
+  if(dt>0) fpsSmooth += ((1/dt)-fpsSmooth)*0.12;
+
+  acc+=dt; steps=0;
+  while(acc>=1/60 && steps<5){ simStep(); updateTerrain(); updateWater(); acc-=1/60; steps++; }
+  if(steps===5) acc=0;
+
+  if(orbiting) controls.update();
+  renderer.render(scene, camera);
+  updateHud(t, simStep ? 0 : 0); // volume computed below via last sim; use cached
+}
+// compute volume for HUD from current water
+function currentVolume(){ let s=0; for(let i=0;i<size;i++) s+=water[i]; return s; }
+let _vol=0;
+const _origStep = simStep;
+simStep = function(){ const v=_origStep(); _vol=v; return v; };
+
+// rebind HUD to real volume
+const _origHud = updateHud;
+updateHud = function(t){ if(t-lastHud<120) return; lastHud=t;
+  mVol.textContent=(_vol/1000).toFixed(1);
+  mFlow.textContent=(flowRate*SPRING_RATE*1000).toFixed(0);
+  mFps.textContent=Math.round(fpsSmooth);
+  mFpsBar.style.width=clamp(fpsSmooth/60,0,1)*100+'%';
+  mFpsBar.style.background = fpsSmooth>45?'linear-gradient(90deg,#3fd08a,#8fe0ff)':fpsSmooth>28?'linear-gradient(90deg,#e0b23f,#8fe0ff)':'linear-gradient(90deg,#ff6a5c,#e0b23f)';
+};
+// fix loop call
+(function loop(t){
+  requestAnimationFrame(loop);
+  const d=Math.min((t-last)/1000,0.05); last=t;
+  if(d>0) fpsSmooth+=((1/d)-fpsSmooth)*0.12;
+  acc+=d; let s=0;
+  while(acc>=1/60 && s<5){ simStep(); updateTerrain(); updateWater(); acc-=1/60; s++; }
+  if(s===5) acc=0;
+  if(orbiting) controls.update();
+  renderer.render(scene,camera);
+  updateHud(t);
+})(last);
+</script>
+</body>
+</html>
