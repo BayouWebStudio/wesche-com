@@ -1,0 +1,289 @@
+{
+ "title": "Qwen3.8-27B on one Spark: TensorFold vs vLLM vs SGLang",
+ "recorded": "2026-09-30 to 2026-10-02",
+ "hardware": "1x DGX Spark (spark-78f1)",
+ "model": "nvidia/Qwen3.8-27B-NVFP4",
+ "drafter": "z-lab/Qwen3.8-27B-DFlash2, 7 speculative tokens",
+ "engines": {
+  "tensorfold-0.3.6.3": "default (one request at a time on CUDA)",
+  "tensorfold-0.6.1": "17c73e1, --parallel 16",
+  "vllm": "vllm/vllm-openai:v0.30.0",
+  "sglang": "lmsysorg/sglang:v0.5.21-cu130"
+ },
+ "speed": {
+  "TensorFold 0.3.6.3 (default)": {
+   "1": [
+    83.2,
+    0.495
+   ],
+   "4": [
+    61.2,
+    18.062
+   ],
+   "8": [
+    61.5,
+    51.123
+   ],
+   "16": [
+    61.5,
+    116.816
+   ],
+   "16384": [
+    1754.6,
+    32.72
+   ],
+   "65536": [
+    1247.7,
+    18.66
+   ],
+   "131072": [
+    881.9,
+    11.07
+   ],
+   "rep": 0.4496
+  },
+  "TensorFold 0.6.1 --parallel 16": {
+   "1": [
+    98.5,
+    0.099
+   ],
+   "4": [
+    142.9,
+    0.177
+   ],
+   "8": [
+    244.3,
+    0.206
+   ],
+   "16": [
+    372.5,
+    0.304
+   ],
+   "16384": [
+    2709.4,
+    34.09
+   ],
+   "65536": [
+    2044.0,
+    29.99
+   ],
+   "131072": [
+    1514.6,
+    21.19
+   ],
+   "rep": 0.4038
+  },
+  "vLLM 0.30.0": {
+   "1": [
+    57.4,
+    0.256
+   ],
+   "4": [
+    103.2,
+    0.4
+   ],
+   "8": [
+    162.4,
+    0.426
+   ],
+   "16": [
+    252.7,
+    0.554
+   ],
+   "16384": [
+    2494.1,
+    20.62
+   ],
+   "65536": [
+    1918.7,
+    17.58
+   ],
+   "131072": [
+    1456.2,
+    13.22
+   ],
+   "rep": 1.289
+  },
+  "SGLang 0.5.21": {
+   "1": [
+    60.4,
+    0.241
+   ],
+   "4": [
+    94.6,
+    0.496
+   ],
+   "8": [
+    149.6,
+    0.375
+   ],
+   "16": [
+    223.9,
+    0.634
+   ],
+   "16384": [
+    1643.9,
+    24.43
+   ],
+   "65536": [
+    1256.2,
+    16.8
+   ],
+   "131072": [
+    1197.1,
+    16.59
+   ],
+   "rep": 0.5869
+  }
+ },
+ "exactness": {
+  "tf061": {
+   "names": [
+    "numbers",
+    "code",
+    "json",
+    "prose",
+    "explain",
+    "sql",
+    "email",
+    "math"
+   ],
+   "rr_on": 8,
+   "cc_on": 8,
+   "cc_div_on": [],
+   "rr_off": 8,
+   "cc_off": 8,
+   "cc_div_off": [],
+   "draft_vs_plain": 8,
+   "draft_div": {
+    "numbers": null,
+    "code": null,
+    "json": null,
+    "prose": null,
+    "explain": null,
+    "sql": null,
+    "email": null,
+    "math": null
+   }
+  },
+  "vllm": {
+   "names": [
+    "numbers",
+    "code",
+    "json",
+    "prose",
+    "explain",
+    "sql",
+    "email",
+    "math"
+   ],
+   "rr_on": 8,
+   "cc_on": 1,
+   "cc_div_on": [
+    0,
+    0,
+    4,
+    16,
+    34,
+    34,
+    74,
+    98,
+    117,
+    191,
+    234,
+    235,
+    413,
+    1053
+   ],
+   "rr_off": 8,
+   "cc_off": 1,
+   "cc_div_off": [
+    10,
+    10,
+    16,
+    17,
+    46,
+    94,
+    99,
+    126,
+    126,
+    169,
+    171,
+    344,
+    377,
+    793
+   ],
+   "draft_vs_plain": 1,
+   "draft_div": {
+    "numbers": null,
+    "code": 10,
+    "json": 344,
+    "prose": 17,
+    "explain": 16,
+    "sql": 696,
+    "email": 336,
+    "math": 0
+   }
+  },
+  "sgl": {
+   "names": [
+    "numbers",
+    "code",
+    "json",
+    "prose",
+    "explain",
+    "sql",
+    "email",
+    "math"
+   ],
+   "rr_on": 7,
+   "cc_on": 1,
+   "cc_div_on": [
+    0,
+    0,
+    0,
+    0,
+    3,
+    3,
+    61,
+    61,
+    117,
+    117,
+    134,
+    169,
+    291,
+    536
+   ],
+   "rr_off": 7,
+   "cc_off": 1,
+   "cc_div_off": [
+    0,
+    0,
+    0,
+    0,
+    72,
+    72,
+    74,
+    74,
+    114,
+    114,
+    155,
+    155,
+    191,
+    191
+   ],
+   "draft_vs_plain": 1,
+   "draft_div": {
+    "numbers": null,
+    "code": 72,
+    "json": 536,
+    "prose": 17,
+    "explain": 150,
+    "sql": 0,
+    "email": 61,
+    "math": 3
+   }
+  }
+ },
+ "correction": "The first post compared vLLM/SGLang against TensorFold 0.3.6.3; 0.6.1 with --parallel was rerun on the same box and the correction posted."
+}

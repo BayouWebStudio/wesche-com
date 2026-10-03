@@ -1,0 +1,130 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#111310">
+<title>GLM-5.3-Flash on two DGX Sparks: four serving stacks — Wesche Lab</title><meta name="description" content="Same model, same two Sparks, four ways to serve it: Kindling&#x27;s vLLM with NVIDIA&#x27;s NVFP4, Mia&#x27;s vLLM kit with EXL3, and TensorFold 0.6.2 with EXL3 and with MLX 4-bit. Kindling wins crowds and long prompts. TensorFold MLX wins single-user speed and repeats, with byte-identical output. The best-looking volcano came from TensorFold EXL3, after a one-character fix."><link rel="canonical" href="https://wesche.com/lab/experiments/glm-flash-four-stacks/">
+<meta property="og:type" content="article"><meta property="og:title" content="GLM-5.3-Flash on two DGX Sparks: four serving stacks"><meta property="og:image" content="https://wesche.com/lab/experiments/glm-flash-four-stacks/poster.jpg"><meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="/lab/lab.css">
+<style>.bench-wrap{overflow-x:auto;margin:28px 0 8px;border:1px solid var(--line)}.bench{border-collapse:collapse;width:100%;min-width:640px;font-size:12px}
+.bench th,.bench td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}.bench thead th{font-weight:500;font-size:11px;line-height:1.35;vertical-align:bottom}
+.bench tbody th{text-align:left;font-weight:400;color:var(--muted)}.bench strong{color:var(--accent);font-weight:600}.study-figure{width:100%;height:auto;border:1px solid var(--line);margin-top:22px}
+.study-h2{font-size:30px;font-weight:500;letter-spacing:-.04em;margin:56px 0 14px}</style></head><body>
+<a href="#main" class="skip">Skip to content</a>
+<header class="site-header"><div class="wrap nav-inner"><a class="brand" href="/lab/">WESCHE LAB</a><nav class="main-nav" aria-label="Main navigation"><a href="/lab/#work">← All experiments</a><a href="evidence.json">Evidence JSON ↗</a></nav></div></header>
+<main id="main" class="catalog wrap">
+<span class="eyebrow">Serving study / recorded October 1–3, 2026</span>
+<h1>GLM-5.3-Flash on two DGX Sparks: four serving stacks</h1>
+<p class="catalog-lede">Same model, same two Sparks, four ways to serve it: Kindling&#x27;s vLLM with NVIDIA&#x27;s NVFP4, Mia&#x27;s vLLM kit with EXL3, and TensorFold 0.6.2 with EXL3 and with MLX 4-bit. Kindling wins crowds and long prompts. TensorFold MLX wins single-user speed and repeats, with byte-identical output. The best-looking volcano came from TensorFold EXL3, after a one-character fix.</p>
+
+<h2 class="study-h2">Volcano, four stacks</h2>
+<div class="study-legend" style="--panels:2"><span>Kindling vLLM · NVFP4 · top left</span><span>Mia vLLM · EXL3 · top right</span><span>TensorFold · EXL3 (repaired) · bottom left</span><span>TensorFold · MLX 4-bit · bottom right</span></div>
+<video class="study-video" style="height:auto" controls playsinline preload="none" poster="poster.webp" width="1920" height="1200" aria-label="Four volcano recordings in a 2x2 grid"><source src="volcano-4way.mp4" type="video/mp4"><a href="volcano-4way.mp4">Download video</a></video>
+<p class="fine-print">Headless-browser recordings of each model's generated code on a fixed-step 24 fps virtual clock, 75 s from the first frame, no interaction. Not recordings of inference. Cards below are in visual rank by eye; one run each.</p>
+<div class="study-arms"><article><h3>TensorFold 0.6.2 · Mia EXL3 4bpw</h3><p>91,944 output tokens · 51.9 min · 30 tok/s · 66.8 KB · 1 one-character repair</p><p>Best-looking volcano: textured slopes, glowing crater, a large billowing plume, steam vents and a turquoise coast. As written the page never started: one typo (<code>x,z pz</code>) is a syntax error. One-character repair in a separate copy; the repaired term is multiplied by zero, so the fix changes nothing visible.</p><div class="scene-links"><a href="/lab/glm5.3local/volcano-four-stacks/tf-exl3/" target="_blank" rel="noopener">Play original (broken)</a><a href="/lab/glm5.3local/volcano-four-stacks/tf-exl3/repaired/" target="_blank" rel="noopener">Play repaired ↗</a><a href="/lab/glm5.3local/volcano-four-stacks/tf-exl3/repaired/REPAIRS.diff">Repair diff</a><a href="volcano-tf-exl3.mp4" target="_blank" rel="noopener">Solo recording ↗</a></div></article><article><h3>Kindling vLLM · NVIDIA NVFP4</h3><p>62,104 output tokens · 26.0 min · 40 tok/s · 52.8 KB · no repairs</p><p>Most complete eruption sequence: ash column, ejecta, a lava river winding to the coast and a full pull-back. A large tan blob covers the top of the frame in the second half. No repairs.</p><div class="scene-links"><a href="/lab/glm5.3local/volcano-four-stacks/kindling-nvfp4/" target="_blank" rel="noopener">Play ↗</a><a href="volcano-kindling-nvfp4.mp4" target="_blank" rel="noopener">Solo recording ↗</a></div></article><article><h3>TensorFold 0.6.2 · MLX 4-bit</h3><p>112,773 output tokens · 41.8 min · 45 tok/s · 71.4 KB · no repairs</p><p>Clean and bright: village, striped cone, lightning in the plume and a lava line down the slope. Mild for an eruption and the camera stays close to the cone. No repairs.</p><div class="scene-links"><a href="/lab/glm5.3local/volcano-four-stacks/tf-mlx4/" target="_blank" rel="noopener">Play ↗</a><a href="volcano-tf-mlx4.mp4" target="_blank" rel="noopener">Solo recording ↗</a></div></article><article><h3>Mia vLLM · EXL3 4bpw</h3><p>65,912 output tokens · 42.7 min · 26 tok/s · 61.8 KB · no repairs</p><p>The camera buries itself in the hillside during the eruption and the eruption itself is thin; good wide island at the end. No repairs.</p><div class="scene-links"><a href="/lab/glm5.3local/volcano-four-stacks/mia-exl3/" target="_blank" rel="noopener">Play ↗</a><a href="volcano-mia-exl3.mp4" target="_blank" rel="noopener">Solo recording ↗</a></div></article></div>
+
+<h2 class="study-h2">Speed, same harness</h2>
+<p class="catalog-lede">Thinking on for every row except the last three, which use Kindling's own decode test with thinking off at temperature 0. Best value per row highlighted.</p>
+<div class=bench-wrap><table class=bench><thead><tr><th></th><th scope=col>Kindling vLLM<br>NVFP4</th><th scope=col>Mia vLLM<br>EXL3 4bpw</th><th scope=col>TensorFold<br>EXL3 4bpw</th><th scope=col>TensorFold<br>MLX 4-bit</th></tr></thead><tbody><tr><th scope=row>1 request, tok/s</th><td>53</td><td>42</td><td>43</td><td><strong>58</strong></td></tr><tr><th scope=row>4 at once, combined tok/s</th><td><strong>67</strong></td><td>56</td><td>36</td><td>53</td></tr><tr><th scope=row>8 at once, combined tok/s</th><td><strong>87</strong></td><td>60</td><td>37</td><td>53</td></tr><tr><th scope=row>First token, 1 request</th><td>0.38 s</td><td>0.32 s</td><td>0.25 s</td><td><strong>0.23 s</strong></td></tr><tr><th scope=row>First token, 4 at once (median)</th><td>0.84 s</td><td><strong>0.65 s</strong></td><td>24.12 s</td><td>19.92 s</td></tr><tr><th scope=row>First token, 8 at once (median)</th><td><strong>1.2 s</strong></td><td>29.8 s</td><td>66.8 s</td><td>30.2 s</td></tr><tr><th scope=row>Prompt read 16K, tok/s</th><td>1,330</td><td><strong>1,534</strong></td><td>552</td><td>1,147</td></tr><tr><th scope=row>Prompt read 64K, tok/s</th><td><strong>2,044</strong></td><td>1,560</td><td>627</td><td>1,253</td></tr><tr><th scope=row>Prompt read 128K, tok/s</th><td><strong>1,578</strong></td><td>1,542</td><td>610</td><td>1,179</td></tr><tr><th scope=row>Decode after 128K prompt, tok/s</th><td>40</td><td>31</td><td>36</td><td><strong>48</strong></td></tr><tr><th scope=row>Same 64K prompt again, first token</th><td>2.46 s</td><td>2.37 s</td><td>0.15 s</td><td><strong>0.13 s</strong></td></tr><tr><th scope=row>4 × 32K prompts, wall</th><td><strong>69 s</strong></td><td>114 s</td><td>233 s</td><td>123 s</td></tr><tr><th scope=row>Thinking off, structured tok/s</th><td><strong>93</strong></td><td>71</td><td>—</td><td>84</td></tr><tr><th scope=row>Thinking off, code tok/s</th><td><strong>70</strong></td><td>52</td><td>—</td><td>69</td></tr><tr><th scope=row>Thinking off, prose tok/s</th><td>40</td><td>24</td><td>—</td><td><strong>40</strong></td></tr><tr><th scope=row>Same request twice / solo = 16 at once</th><td>8/8 · 0/8</td><td>0/8 · 0/8</td><td>8/8 · 8/8</td><td>8/8 · 8/8</td></tr></tbody></table></div>
+<p class="fine-print">TensorFold 0.6.2 serves GLM one request at a time, so its 4- and 8-at-once rows are queueing. Mia's default profile runs four at a time; requests 5–8 queue. TensorFold EXL3 was not run on the thinking-off test. The last row counts byte-identical replies out of 8 prompts.</p>
+<img class="study-figure" src="speed.png" width="1800" height="1500" alt="Four-panel chart: combined decode, first-token wait, prompt reading and decode after long prompts for the four stacks" loading="lazy">
+
+<h2 class="study-h2">Island weather, three stacks</h2>
+<p class="catalog-lede">The earlier round, before Mia's kit joined. TensorFold EXL3 built the cleanest island; on the volcano the clean-versus-repaired split went the other way, which is why neither round ranks the formats.</p>
+<video class="study-video" style="height:auto" controls playsinline preload="none" width="1728" height="1080" aria-label="TensorFold EXL3 and MLX island recordings side by side"><source src="island-tf-exl3-vs-mlx4.mp4" type="video/mp4"></video>
+<p class="fine-print">TensorFold EXL3 left, TensorFold MLX 4-bit (two repairs) right. Weather buttons clicked at the same virtual seconds on every arm: sun 0 s, rain 6 s, storm 13 s, hurricane 20 s, sun 27 s.</p>
+<div class="study-arms"><article><h3>TensorFold 0.6.2 · Mia EXL3 4bpw</h3><p>72,014 output tokens · 38.7 min · 31 tok/s · 50.6 KB · no repairs</p><p>Clean on the first try: palm island, weather station panel, rain, storm and a hurricane with huge jagged waves.</p><div class="scene-links"><a href="/lab/glm5.3local/island-weather-four-stacks/tf-exl3/" target="_blank" rel="noopener">Play ↗</a><a href="island-tf-exl3.mp4" target="_blank" rel="noopener">Solo recording ↗</a></div></article><article><h3>Kindling vLLM · NVIDIA NVFP4</h3><p>60,832 output tokens · 24.6 min · 41 tok/s · 40.0 KB · 2 one-line repairs</p><p>Rendered a black sky and ocean as written. Two one-line repairs (missing fog include in the ocean shader; a <code>sun</code> brightness value overwritten by a colour of the same name) restore turquoise water, beach, palms, hut and pier.</p><div class="scene-links"><a href="/lab/glm5.3local/island-weather-four-stacks/kindling-nvfp4/" target="_blank" rel="noopener">Play original (broken)</a><a href="/lab/glm5.3local/island-weather-four-stacks/kindling-nvfp4/repaired/" target="_blank" rel="noopener">Play repaired ↗</a><a href="/lab/glm5.3local/island-weather-four-stacks/kindling-nvfp4/repaired/REPAIRS.diff">Repair diff</a><a href="island-kindling-nvfp4.mp4" target="_blank" rel="noopener">Solo recording ↗</a></div></article><article><h3>TensorFold 0.6.2 · MLX 4-bit</h3><p>98,082 output tokens · 36.1 min · 45 tok/s · 53.3 KB · 2 one-line repairs</p><p>Two one-line repairs (the same missing fog include; a storm mesh used before it was declared). After them: lagoon, hut, pier, rain. The island still renders as a black silhouette and storm clouds as black blobs, a third defect left unrepaired.</p><div class="scene-links"><a href="/lab/glm5.3local/island-weather-four-stacks/tf-mlx4/" target="_blank" rel="noopener">Play original (broken)</a><a href="/lab/glm5.3local/island-weather-four-stacks/tf-mlx4/repaired/" target="_blank" rel="noopener">Play repaired ↗</a><a href="/lab/glm5.3local/island-weather-four-stacks/tf-mlx4/repaired/REPAIRS.diff">Repair diff</a><a href="island-tf-mlx4.mp4" target="_blank" rel="noopener">Solo recording ↗</a></div></article></div>
+
+<section class="study-notes" aria-labelledby="notes"><span class="section-no">Read before comparing</span><h2 id="notes">The setup, the caveats, the limits.</h2>
+<p>Hardware: two DGX Sparks (GB10, 128 GB each), tensor-parallel 2 over 200 Gb RoCE. All four stacks used an incoai DFlash2 drafter; that drafter is licensed CC BY-NC-ND.</p>
+<p>Stacks: Kindling <code>kindlingai/glm-5.3-flash-gx10</code> @ d5abfe1 on <code>nvidia/GLM-5.3-Flash-NVFP4</code>. Mia <code>MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks</code> @ 6278ecb, published image, default profile. TensorFold 0.6.2 @ 56e2e3e (the latest release when run) with <code>Mia-AiLab/GLM-5.3-Flash-EXL3-TR3-4bpw</code> and with <code>TensorFold/GLM-5.3-Flash-MLX-4bit-MTP</code>.</p>
+<p>What each comparison isolates: TensorFold EXL3 vs TensorFold MLX is the same engine with two quantizations. Kindling vs Mia is NVFP4 vs EXL3 on vLLM, but two different vLLM builds with their own patches, and Mia's kit pins a newer drafter revision. Kindling vs TensorFold mixes engine and format.</p>
+<p>Exactness: TensorFold gave byte-identical replies run to run and alone versus 16 at once (8/8 both). Kindling repeated itself (8/8) but changed under load (0/8); Mia's kit varied in both (0/8, 0/8).</p>
+<p>Incidents: a first Mia speed run was thrown out after two copies of the harness hit the same server; every Mia number here is from the clean rerun. TensorFold ignores the switch Kindling's test uses to turn thinking off, so its first thinking-off pass was still thinking; the published row uses the switch TensorFold honours and was checked to produce zero reasoning tokens.</p>
+<p style="white-space:pre-wrap">Volcano prompt, verbatim: &quot;Create a single self-contained HTML file using Three.js that renders a visually spectacular, bright, colorful, and highly detailed 3D animated volcanic eruption scene with glowing lava, thick ash, flying ejecta, and dramatic environmental effects.
+
+Requirements:
+
+* Use Three.js loaded from a CDN.
+
+* Everything must be contained in one HTML file and work directly when opened in a modern browser.
+
+* Fill the entire browser viewport edge to edge with the 3D scene. Do not leave margins, borders, blank space, or unused areas.
+
+* Create a bright, polished, AAA-quality stylized 3D visual style with vibrant colors, detailed materials, cinematic lighting, soft shadows, atmospheric depth, and excellent visibility.
+
+* Create a large detailed volcanic island landscape surrounded by colorful terrain, a tropical coastline, turquoise sea, black sand beaches, jungle vegetation, a small village with huts and a wooden pier near the shore, and distant smaller islands.
+
+* Make the volcano the clear central focus of the scene, large enough to see important details such as the crater rim, layered rock strata, old solidified lava channels, fumaroles, and vegetation climbing the lower slopes.
+
+* Position the volcano in the center of the island at the beginning of the animation, calm and dormant, with a thin wisp of steam rising from the crater.
+
+* Include a small research station or observation post on the lower slope with instruments, antennas, and warning lights.
+
+* Start with a brief calm pre-eruption moment with subtle atmospheric movement such as light steam drifting, birds circling, gentle waves on the shore, and warning lights beginning to blink.
+
+* Show the ground beginning to tremble, with small rocks tumbling down the slopes and dust shaking loose from the crater rim.
+
+* Show the crater gradually beginning to glow from within, brightening from dull red to intense orange-white as pressure builds.
+
+* Create bright, powerful animated lava fountains erupting from the crater with multiple layers, including a bright white-yellow core, glowing orange lava blobs, and long arcing trails of molten rock.
+
+* Add intense heat glow and warm light from the lava reflecting onto the crater walls, the ash cloud, the nearby slopes, and the research station.
+
+* Create large volumes of thick animated ash and steam billowing upward from the crater into a towering eruption column, expanding outward at the top into a broad anvil shape.
+
+* Make the ash cloud roll, expand, swirl, and rise naturally instead of appearing as simple static clouds, with the underside lit orange by the lava.
+
+* Add glowing volcanic bombs and ejecta launched in ballistic arcs from the crater, leaving glowing trails and landing on the slopes with bursts of sparks and dust.
+
+* Add smaller particles, sparks, glowing embers, ash flakes, and drifting cinders throughout the eruption area.
+
+* Show rivers of glowing lava breaking over the crater rim and flowing down the flanks in branching channels, with a bright liquid core and a cooling darker crust forming on the surface as it advances.
+
+* Make nearby trees, grass, and vegetation react as the lava and hot ash approach, bending, catching fire, and burning.
+
+* Show steam explosions where lava reaches the sea, with white steam plumes and hissing spray.
+
+* Add visible atmospheric distortion or heat shimmer above the lava and crater if possible.
+
+* Add occasional volcanic lightning flickering inside the ash column.
+
+* Include subtle camera vibration and a brief cinematic camera shake during the initial tremor and the main eruption without making the scene difficult to watch.
+
+* Use a smooth cinematic camera that begins close to the coastline and village, then slowly pulls back and rises to reveal the full eruption, the lava rivers, and the towering ash column, while keeping the volcano and major effects clearly visible.
+
+* As the camera rises, smoothly reveal more of the colorful island, the coastline, the sea, clouds, and the distant horizon.
+
+* Keep the volcano large and prominent throughout the sequence.
+
+* Add layered clouds at different heights, with the eruption column eventually climbing toward and punching through them.
+
+* Use a bright blue daytime sky with colorful white clouds and strong sunlight so the lava, ash, glow, and environment remain clearly visible.
+
+* Avoid a dark night scene. The result should be bright, vibrant, high-contrast, and visually clear.
+
+* Use realistic-looking shadows and dynamic lighting, including the changing influence of the bright lava glow.
+
+* Keep the viewport visually dense and impressive throughout the animation, with no excessive empty sky or unused space.
+
+* Use layered terrain, sea, vegetation, ash, clouds, and atmospheric effects to maintain visual interest as the camera pulls back.
+
+* The animation should follow a clear sequence: calm volcano with steam wisp → warning lights blink → ground trembles and rocks tumble → crater glows brighter → lava fountain erupts → ash column rises → volcanic bombs arc outward → lava rivers flow down the flanks → vegetation burns → lava reaches the sea and steam explodes → ash column punches through the clouds with lightning → camera pulls back to reveal the whole island.
+
+* Use smooth animation for the lava, ash, ejecta, sparks, particles, vegetation, sea, steam, clouds, lighting, shadows, and camera movement.
+
+* Do not add overlay text, titles, labels, HUD, captions, menus, buttons, borders, or UI elements over the scene.
+
+* The browser viewport should contain only the animated 3D volcanic eruption scene, filling the entire screen edge to edge.
+
+* Start the animation automatically when the page loads.
+
+* Add smooth camera controls only if they do not obstruct the scene or interfere with the cinematic composition.
+
+* Optimize for smooth performance in a modern browser.
+
+* No build process is allowed, and there must be no external dependencies other than the Three.js CDN.&quot;</p>
+<p style="white-space:pre-wrap">Island prompt, verbatim: &quot;Create an interactive tropical island weather simulator in Three.js. Let me switch between sunshine, rain, thunderstorms with lightning, and a hurricane. Make the island and surrounding ocean react to the weather, with smooth transitions and convincing motion. Include orbit and zoom controls. Make it mobile-friendly with touch controls, easy-to-tap weather buttons, a responsive layout, and smooth performance on phones. Make it visually impressive, and choose your own style and details.
+
+Deliver everything in one HTML file, with no external libraries besides Three.js and its official addons.&quot;</p>
+<p>Sampling: temperature 1.0, top_p 0.95, thinking on, no output cap beyond the serving window. One generation per stack per prompt, so the visual ranks describe these runs, not the quantizations. Originals are published untouched; every repair is a separate copy with its diff.</p>
+<div class="scene-links"><a href="evidence.json">Read metadata &amp; hashes ↗</a><a href="/lab/experiments/qwen27b-engine-battle/">Related: Qwen3.8-27B engine battle →</a></div></section>
+</main>
+<footer class="footer"><div class="wrap footer-inner"><span>Wesche Lab / Originals preserved · repairs disclosed</span><div class="footer-links"><a href="/lab/">Lab home</a><a href="https://github.com/Weschera">GitHub</a></div></div></footer>
+</body></html>
