@@ -70,6 +70,29 @@
 </div>
 </section>
 
+<section class="section paper" id="about-me" aria-labelledby="about-title">
+<div class="wrap">
+<span class="section-no">About me</span>
+<h2 id="about-title" class="sr-only">About me</h2>
+<!-- Edit #years-tattooing if the years change. Current phrase: over a decade. -->
+<blockquote class="about-quote">
+<p>I'm a self-taught builder who runs my own AI hardware, red-teams open models, and shares what I find publicly. Tattooing for <span id="years-tattooing">over a decade</span> taught me patience, attention to detail, and how to earn people's trust. I value honesty and doing the work right. What draws me to cybersecurity is that AI is creating brand-new risks that most small businesses aren't ready for, and I want to help them keep their data confidential, their systems trustworthy, and their operations running.</p>
+</blockquote>
+</div>
+</section>
+
+<section class="section wrap" id="hands-on" aria-labelledby="hands-title">
+<div class="section-head">
+<div>
+<span class="section-no">Hands-on</span>
+<h2 id="hands-title">Hands-on experience</h2>
+</div>
+</div>
+<div class="method-intro">
+<p>The public work is a Python domain scanner, serving recipes, and a benchmark. The machines in those repos are NVIDIA DGX Spark boxes, one at a time and tensor-parallel across two or four, and a Mac Studio M4 Max. The stacks that show up are Python, vLLM, llama.cpp, MLX, oMLX, EXL3, TensorFold, DwarfStar, and Metal. The lab pages keep runs that failed, next to the original files.</p>
+</div>
+</section>
+
 <section class="section wrap" id="security" aria-labelledby="security-title">
 <div class="section-head">
 <div>
@@ -82,7 +105,8 @@
 <article class="portfolio-card">
 <span class="eyebrow">GitHub</span>
 <h3>Checkup scanner</h3>
-<p>An outside-in check of a business domain: email spoofing, the website, known breaches, and whether a chat widget is present. It grades each area red, yellow, or green and writes a plain fix list. The first AI risk is often what is already exposed.</p>
+<p class="stack">Python 3.9 · public DNS, HTTPS, certificate logs · passive unless --authorized</p>
+<p>Give it a domain. It grades five areas red, yellow, or green and writes a plain fix list: email spoofing (SPF, DKIM, DMARC), the website (HTTPS, HSTS, content-security headers), exposed software and hostnames, known breaches, and whether a chat widget is on the site. With <code>--browser</code> it loads the page so it can see widgets added by scripts. It detects the widget. It does not talk to it. Active checks, such as looking for an exposed <code>.env</code>, run only with <code>--authorized</code>, and the report records who gave permission. What it shows: the public exposure of a small-business site, not that a chatbot is safe.</p>
 <a class="card-link" href="https://github.com/Weschera/checkup-scanner" target="_blank" rel="noopener noreferrer">github.com/Weschera/checkup-scanner <span class="sr-only">(opens in a new tab)</span><span aria-hidden="true">↗</span></a>
 </article>
 </div>
@@ -101,37 +125,43 @@
 <article class="portfolio-card">
 <span class="eyebrow">GitHub</span>
 <h3>The Qwen quantization ladder</h3>
-<p>The same Qwen model, served at several compression levels on one DGX Spark, with a script that checks you launched the file you think you launched. A smaller file is faster. It is not the same deployment.</p>
+<p class="stack">One DGX Spark (GB10, 128 GB) · vLLM and llama.cpp · NVFP4, FP8, GGUF, bf16 · native MTP</p>
+<p>The same Qwen3.8-27B model, served at four compression levels, with speculative decoding where the engine can drive the native draft head. A script checks that the process you launched is the quant you think it is. What it shows: a smaller file is a different deployment. The write-up does not claim quantization was the only thing that changed.</p>
 <a class="card-link" href="https://github.com/Weschera/Qwen3.8-27B-DGX-Spark-Quant-Ladder" target="_blank" rel="noopener noreferrer">github.com/Weschera/Qwen3.8-27B-DGX-Spark-Quant-Ladder <span class="sr-only">(opens in a new tab)</span><span aria-hidden="true">↗</span></a>
 </article>
 <article class="portfolio-card">
 <span class="eyebrow">GitHub</span>
 <h3>Uncensored Qwen, publisher's abliteration</h3>
-<p>A serving recipe for a Qwen model whose publisher says the refusal behavior was removed, a change called abliteration. The repo measures whether the model serves. It includes no safety test, and it says so.</p>
+<p class="stack">2× DGX Spark · vLLM tensor-parallel 2 · FP8 · MTP · 128K context</p>
+<p>A serving recipe for a Qwen3.8-Flash-Next checkpoint. The publisher describes it as refusal-direction abliteration: the refusal behavior was edited out of the weights. This repo measures whether that file serves. It includes no safety test, and it says so. What it shows: "uncensored" is the publisher's claim, not a result from this repo, and not evidence the model is safe in front of customers.</p>
 <a class="card-link" href="https://github.com/Weschera/qwen-flash-next-uncensored-fp8-2x-dgx-spark" target="_blank" rel="noopener noreferrer">github.com/Weschera/qwen-flash-next-uncensored-fp8-2x-dgx-spark <span class="sr-only">(opens in a new tab)</span><span aria-hidden="true">↗</span></a>
 </article>
 <article class="portfolio-card">
 <span class="eyebrow">GitHub</span>
 <h3>When a serving recipe changes the score</h3>
-<p>Two pinned versions of a GLM serving recipe, with the full transcripts. A template change moved the measured score. A benchmark number is only as trustworthy as the recipe that produced it.</p>
+<p class="stack">2× DGX Spark · GLM-5.3-Flash · EXL3</p>
+<p>Two pinned revisions of a serving recipe, with the full transcripts. A chat-template change is part of the difference, and the pack also records a different grader revision. The measured score moved. What it shows: a benchmark number belongs to a recipe, not to a model name alone.</p>
 <a class="card-link" href="https://github.com/Weschera/GLM-5.3-Flash-EXL3-recipe-regression-2026-09" target="_blank" rel="noopener noreferrer">github.com/Weschera/GLM-5.3-Flash-EXL3-recipe-regression-2026-09 <span class="sr-only">(opens in a new tab)</span><span aria-hidden="true">↗</span></a>
 </article>
 <article class="portfolio-card">
 <span class="eyebrow">Lab</span>
 <h3>Melon jelly</h3>
-<p>A hard, specific prompt sent to a local DeepSeek and a local Qwen. Neither produced a working result. The broken originals are published next to a one-edit repair, so the miss is not edited out.</p>
+<p class="stack">DeepSeek V4 Flash · vLLM TP2 · two DGX Sparks · Qwen3.8-27B 4-bit · TensorFold · Mac Studio M4 Max</p>
+<p>One hard WebGPU prompt, two local engines. Neither produced a jelly you can grab. The broken originals are published next to a one-edit repair. What it shows: a local model can return a file that still does not run, and the failure stays in the record.</p>
 <a class="card-link" href="/lab/experiments/melon-jelly/">wesche.com/lab/experiments/melon-jelly <span aria-hidden="true">↗</span></a>
 </article>
 <article class="portfolio-card">
 <span class="eyebrow">Lab</span>
 <h3>A world built. A failure kept.</h3>
-<p>Two models produced a floating island. A third model arm did not produce a working file, and that miss stays on the page. The notes separate a harness failure from a model failure, so a broken run is not counted twice.</p>
+<p class="stack">Qwen Flash-Next FP8 · 2× DGX Spark · Qwen 27B MLX 8-bit · Mac Studio</p>
+<p>Two models produced a floating island. A third, AEON, did not produce a working file on the attempts the page counts as model failures. Timeouts and output caps are listed separately, so they are not counted as the model failing. What it shows: a missing result stays on the page.</p>
 <a class="card-link" href="/lab/experiments/voxel-island/">wesche.com/lab/experiments/voxel-island <span aria-hidden="true">↗</span></a>
 </article>
 <article class="portfolio-card">
 <span class="eyebrow">GitHub</span>
 <h3>Reproduce a visual comparison</h3>
-<p>A small harness that keeps a model's original answer, the generated page, and any repair in separate files. A comparison is only useful if someone else can see what the model actually returned.</p>
+<p class="stack">Python · OpenAI-compatible endpoints</p>
+<p>Saves the raw model response, the page it generated, and any later repair as separate files, so a side-by-side comparison can be rerun from the original output. What it shows: the file the model returned, not a cleaned-up copy.</p>
 <a class="card-link" href="https://github.com/Weschera/dual-model-visual-harness" target="_blank" rel="noopener noreferrer">github.com/Weschera/dual-model-visual-harness <span class="sr-only">(opens in a new tab)</span><span aria-hidden="true">↗</span></a>
 </article>
 </div>
@@ -149,113 +179,46 @@
 <article class="portfolio-card">
 <span class="eyebrow">GitHub</span>
 <h3>Spark-bench</h3>
-<p>A public benchmark for models running on local NVIDIA DGX Spark hardware: tool use, multi-step work, and code, with the transcripts in the repo. It checks a serving recipe. It is not a ranking of every model on the internet.</p>
+<p class="stack">NVIDIA DGX Spark (GB10) · tool use, multi-step work, and code · transcripts in the repo</p>
+<p>A benchmark for models served on DGX Spark. The method and the run transcripts are in the repo. Published comparisons also include a Mac Studio and some hosted models. The README calls it an operator bench for this hardware, not a ranking of every model. What it shows: a score you can tie back to the recipe that produced it.</p>
 <a class="card-link" href="https://github.com/Weschera/spark-bench" target="_blank" rel="noopener noreferrer">github.com/Weschera/spark-bench <span class="sr-only">(opens in a new tab)</span><span aria-hidden="true">↗</span></a>
 </article>
 <article class="portfolio-card">
 <span class="eyebrow">GitHub · Mac</span>
 <h3>Qwen 27B on a Mac Studio</h3>
-<p>A measured recipe for Qwen 3.8 27B on a Mac Studio, with the raw benchmark file in the repo and a same-day comparison against another Mac setup. A model on hardware you control is one way to keep client files off a public chatbot.</p>
+<p class="stack">Mac Studio M4 Max, 128 GB · oMLX · native MTP · same-day rerun on the same machine</p>
+<p>A measured recipe for Qwen 3.8 27B on a Mac Studio, with the raw benchmark JSON in the repo and a same-day comparison against earlier oMLX setups. What it shows: the model running on hardware you control, with the measurement file attached. That is one way to keep client files off a public chatbot.</p>
 <a class="card-link" href="https://github.com/Weschera/Qwen3.8-27B-oMLX-MTP-Mac" target="_blank" rel="noopener noreferrer">github.com/Weschera/Qwen3.8-27B-oMLX-MTP-Mac <span class="sr-only">(opens in a new tab)</span><span aria-hidden="true">↗</span></a>
 </article>
 <article class="portfolio-card">
 <span class="eyebrow">GitHub · Mac</span>
 <h3>Qwen Flash Next on Apple Silicon</h3>
-<p>A checked deployment guide for Qwen3.8 Flash Next on Apple Silicon. The steps are written down so someone else can see what was actually run.</p>
+<p class="stack">Mac Studio M4 Max, 128 GB · oMLX · Lightning MTP</p>
+<p>A deployment guide for Qwen3.8 Flash Next on a Mac, written so the setup can be checked rather than taken from a screenshot. What it shows: the steps for that serving path, in the repo.</p>
 <a class="card-link" href="https://github.com/Weschera/qwen38-flash-next-omlx-mac" target="_blank" rel="noopener noreferrer">github.com/Weschera/qwen38-flash-next-omlx-mac <span class="sr-only">(opens in a new tab)</span><span aria-hidden="true">↗</span></a>
 </article>
 <article class="portfolio-card">
 <span class="eyebrow">GitHub · Mac</span>
 <h3>Native MTP vs DFlash on Mac</h3>
-<p>A Mac Studio study of two speedup methods for Qwen3.8-27B, at 8-bit and 4-bit. The repo records where the faster path had correctness and concurrency limits, not only the speed.</p>
+<p class="stack">Mac Studio M4 Max, 128 GB · MLX · Qwen3.8-27B · 8-bit and 4-bit</p>
+<p>Two speedup methods for the same model. The faster MTP path corrupted one of two replies when it served them at once, and the repo includes a 4-bit versus 8-bit follow-up. What it shows: a higher token rate is not, by itself, a correct answer.</p>
 <a class="card-link" href="https://github.com/Weschera/qwen38-27b-mlx-mtp-recipe" target="_blank" rel="noopener noreferrer">github.com/Weschera/qwen38-27b-mlx-mtp-recipe <span class="sr-only">(opens in a new tab)</span><span aria-hidden="true">↗</span></a>
 </article>
 <article class="portfolio-card">
 <span class="eyebrow">GitHub · Mac</span>
 <h3>DeepSeek vision on a Mac Studio</h3>
-<p>A native Mac Studio deployment of a DeepSeek vision model, with the artifact and the repair record. The repo separates how much context was configured from how the model behaved when that context was filled.</p>
+<p class="stack">Mac Studio M4 Max, 128 GB · DwarfStar (C and Metal) · DSpark draft · DeepSeek V4 Flash Vision-Exp</p>
+<p>A native Mac deployment of a vision model, with the pagoda artifact and the repair record. The repo separates how much context was configured from how the model behaved when that context was filled, and it includes a comparison with DGX Spark runs. What it shows: a local vision model with the repair written down.</p>
 <a class="card-link" href="https://github.com/Weschera/DeepSeek-V4-Flash-Vision-Exp-ds4-Mac-Studio" target="_blank" rel="noopener noreferrer">github.com/Weschera/DeepSeek-V4-Flash-Vision-Exp-ds4-Mac-Studio <span class="sr-only">(opens in a new tab)</span><span aria-hidden="true">↗</span></a>
 </article>
 </div>
 <p class="services-next">More public serving recipes, including the other Mac and DGX write-ups, are indexed at <a href="/lab/research/">wesche.com/lab/research</a>. Those blurbs are the repositories' own summaries.</p>
 </section>
 
-<section class="section wrap" id="coursework" aria-labelledby="coursework-title">
-<div class="section-head">
-<div>
-<span class="section-no">04 / Coursework</span>
-<h2 id="coursework-title">Coursework: Google Cybersecurity Certificate (in progress)</h2>
-</div>
-<p>Planned projects. None are finished, and none are linked yet.</p>
-</div>
-<!--
-  Coursework placeholders. Every card is unfinished.
-  To publish one later, set data-href to the URL. Leave data-href empty until then.
-  An empty data-href stays "Coming soon" and is not a link.
-  Example: <article class="portfolio-card is-soon" data-href="https://example.com/project">
--->
-<div class="portfolio-grid">
-<article class="portfolio-card is-soon" data-href="">
-<span class="eyebrow">Coming soon</span>
-<h3>Professional statement</h3>
-<p>A planned project for the Google Cybersecurity Certificate. Not finished.</p>
-<p class="card-status">Coming soon</p>
-</article>
-<article class="portfolio-card is-soon" data-href="">
-<span class="eyebrow">Coming soon</span>
-<h3>Security audit</h3>
-<p>A planned project for the Google Cybersecurity Certificate. Not finished.</p>
-<p class="card-status">Coming soon</p>
-</article>
-<article class="portfolio-card is-soon" data-href="">
-<span class="eyebrow">Coming soon</span>
-<h3>Network structure and security analysis</h3>
-<p>A planned project for the Google Cybersecurity Certificate. Not finished.</p>
-<p class="card-status">Coming soon</p>
-</article>
-<article class="portfolio-card is-soon" data-href="">
-<span class="eyebrow">Coming soon</span>
-<h3>Linux file permissions</h3>
-<p>A planned project for the Google Cybersecurity Certificate. Not finished.</p>
-<p class="card-status">Coming soon</p>
-</article>
-<article class="portfolio-card is-soon" data-href="">
-<span class="eyebrow">Coming soon</span>
-<h3>SQL query filters</h3>
-<p>A planned project for the Google Cybersecurity Certificate. Not finished.</p>
-<p class="card-status">Coming soon</p>
-</article>
-<article class="portfolio-card is-soon" data-href="">
-<span class="eyebrow">Coming soon</span>
-<h3>Small-business vulnerability assessment</h3>
-<p>A planned project for the Google Cybersecurity Certificate. Not finished.</p>
-<p class="card-status">Coming soon</p>
-</article>
-<article class="portfolio-card is-soon" data-href="">
-<span class="eyebrow">Coming soon</span>
-<h3>Incident handler's journal</h3>
-<p>A planned project for the Google Cybersecurity Certificate. Not finished.</p>
-<p class="card-status">Coming soon</p>
-</article>
-<article class="portfolio-card is-soon" data-href="">
-<span class="eyebrow">Coming soon</span>
-<h3>Parsing a text file in Python for a security scenario</h3>
-<p>A planned project for the Google Cybersecurity Certificate. Not finished.</p>
-<p class="card-status">Coming soon</p>
-</article>
-<article class="portfolio-card is-soon" data-href="">
-<span class="eyebrow">Coming soon</span>
-<h3>Resume</h3>
-<p>A planned project for the Google Cybersecurity Certificate. Not finished.</p>
-<p class="card-status">Coming soon</p>
-</article>
-</div>
-</section>
-
 <section class="section wrap" id="contact" aria-labelledby="contact-title">
 <div class="contact-grid">
 <div>
-<span class="section-no">05 / Contact</span>
+<span class="section-no">04 / Contact</span>
 <h2 id="contact-title">Tell me about the business.</h2>
 <p class="lede">Send a message on X or LinkedIn: what you do, which AI tools you or your staff use, and what worries you. That is enough to say whether a checkup is the right first step.</p>
 <p class="legal">Security testing by Raúl Wesche, Houston. This page is not a law firm and not legal advice.</p>
@@ -266,6 +229,28 @@
 <a href="https://www.linkedin.com/in/raul-wesche-ab1320443" target="_blank" rel="me noopener noreferrer"><span><strong>LinkedIn</strong><small>linkedin.com/in/raul-wesche-ab1320443 <span class="sr-only">(opens in a new tab)</span></small></span><span class="arrow" aria-hidden="true">↗</span></a>
 </address>
 </div>
+</section>
+
+<section class="section wrap study-strip" id="coursework" aria-labelledby="coursework-title">
+<h2 id="coursework-title">Currently studying: Google Cybersecurity Certificate</h2>
+<p>In progress. Professional statement is on this page. The other projects are not finished.</p>
+<!--
+  Coursework list. Professional statement is finished and links to #about-me.
+  To publish another item, set data-href to its URL. Leave data-href empty until then.
+  An empty data-href stays plain text and is not a link.
+  Example: <li data-href="https://example.com/project">Security audit</li>
+-->
+<ul class="study-list">
+<li class="is-done" data-href="#about-me"><a href="#about-me">Professional statement</a><span class="study-done">On this page</span></li>
+<li data-href="">Security audit</li>
+<li data-href="">Network structure and security analysis</li>
+<li data-href="">Linux file permissions</li>
+<li data-href="">SQL query filters</li>
+<li data-href="">Small-business vulnerability assessment</li>
+<li data-href="">Incident handler's journal</li>
+<li data-href="">Parsing a text file in Python for a security scenario</li>
+<li data-href="">Resume</li>
+</ul>
 </section>
 </main>
 <footer class="footer">
@@ -282,26 +267,21 @@
 </div>
 </footer>
 <script>
-// Coursework cards start unfinished. Set data-href on a card to publish it.
-// An empty data-href stays "Coming soon" and is not turned into a link.
+// Coursework items start unfinished. Set data-href on an item to publish it.
+// An empty data-href stays plain text. An item that already has a link is left alone.
 (() => {
-  document.querySelectorAll("#coursework .portfolio-card").forEach((card) => {
-    const href = (card.dataset.href || "").trim();
-    if (!href) return;
-    card.classList.remove("is-soon");
-    const eyebrow = card.querySelector(".eyebrow");
-    if (eyebrow) eyebrow.textContent = "Coursework";
-    const status = card.querySelector(".card-status");
-    if (!status) return;
+  document.querySelectorAll("#coursework [data-href]").forEach((item) => {
+    const href = (item.dataset.href || "").trim();
+    if (!href || item.querySelector("a")) return;
     const link = document.createElement("a");
-    link.className = "card-link";
     link.href = href;
     if (/^https?:/i.test(href)) {
       link.target = "_blank";
       link.rel = "noopener noreferrer";
     }
-    link.textContent = href.replace(/^https?:\/\//, "");
-    status.replaceWith(link);
+    link.textContent = item.textContent.trim();
+    item.textContent = "";
+    item.append(link);
   });
 })();
 </script>
